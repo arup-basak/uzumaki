@@ -494,7 +494,6 @@ pub fn build_demo_tree() -> Dom {
                     width: Dimension::auto(),
                     height: Dimension::auto(),
                 },
-                flex_shrink: 0.0,
                 ..Default::default()
             }
         );
@@ -524,7 +523,6 @@ pub fn build_demo_tree() -> Dom {
                 width: Dimension::auto(),
                 height: Dimension::auto(),
             },
-            flex_shrink: 0.0,
             ..Default::default()
         }
     );
@@ -676,7 +674,7 @@ pub fn build_demo_tree() -> Dom {
     let footer_text = dom.create_element(
         Element::Text(TextProps {
             content: "Uzumaki v0.1.0".to_string(),
-            font_size: 12.0,
+            font_size: 16.0,
             color: overlay0,
         }),
         Style {

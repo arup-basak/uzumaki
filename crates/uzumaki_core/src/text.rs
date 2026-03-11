@@ -156,6 +156,6 @@ impl TextRenderer {
             measured_width = (text.len() as f32) * (font_size * 0.6);
         }
 
-        (measured_width, measured_height)
+        (measured_width.ceil(), measured_height.ceil())
     }
 }
