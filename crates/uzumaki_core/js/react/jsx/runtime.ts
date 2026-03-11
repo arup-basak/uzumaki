@@ -18,6 +18,7 @@ export namespace JSX {
       y?: number;
       w?: number | 'full';
       h?: number | 'full';
+      'hover:bg'?: string;
       children?: any;
       flex?: boolean | 'col' | 'row';
       items?: 'start' | 'end' | 'center' | 'stretch' | 'baseline';

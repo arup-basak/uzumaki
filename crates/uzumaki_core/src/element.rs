@@ -1,5 +1,5 @@
 use cosmic_text::Attrs;
-use slotmap::{new_key_type, SlotMap};
+use slotmap::{SlotMap, new_key_type};
 use vello::Scene;
 
 use crate::interactivity::{HitTestState, HitboxStore, Interactivity};
@@ -73,6 +73,14 @@ impl Dom {
             hitbox_store: HitboxStore::default(),
             hit_state: HitTestState::default(),
         }
+    }
+
+    pub fn get_node(&self, node_id: NodeId) -> Option<&Node> {
+        self.nodes.get(node_id)
+    }
+
+    pub fn get_node_mut(&mut self, node_id: NodeId) -> Option<&mut Node> {
+        self.nodes.get_mut(node_id)
     }
 
     /// Create a View element with a style.
@@ -293,7 +301,9 @@ impl Dom {
             let w = layout.size.width as f64;
             let h = layout.size.height as f64;
 
-            let computed_style = node.interactivity.compute_style(&node.style, &self.hit_state);
+            let computed_style = node
+                .interactivity
+                .compute_style(&node.style, &self.hit_state);
 
             let text = match &node.kind {
                 ElementKind::Text(tc) => Some((
@@ -576,7 +586,11 @@ pub fn build_demo_tree() -> Dom {
 
         // Add hover + active interactivity
         {
-            let node = &mut dom.nodes[nav];
+            let node = dom.get_node_mut(nav).unwrap();
+            let label = label.to_string();
+            node.interactivity.on_click(move |_, _| {
+                println!("Clicked: {}", label);
+            });
             node.interactivity.on_hover({
                 let mut s = StyleRefinement::default();
                 s.background = Some(hover_bg);

@@ -14,3 +14,8 @@ proc-macro2 = "1.0.106"
 parking_lot = "0.12.5"
 pollster = "0.4.0"
 anyhow = "1.0.102"
+
+
+[profile.release]
+strip = "symbols"
+lto = true

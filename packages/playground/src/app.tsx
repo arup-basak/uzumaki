@@ -5,6 +5,7 @@ export function App() {
 
   return (
     <view
+      hover:bg="2"
       h="full"
       w="full"
       flex="col"
