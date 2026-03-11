@@ -1,7 +1,10 @@
+use cosmic_text::Attrs;
 use slotmap::{new_key_type, SlotMap};
 use vello::kurbo::{Affine, Rect, RoundedRect, Stroke};
 use vello::peniko::Color;
 use vello::Scene;
+
+use crate::text::TextRenderer;
 
 new_key_type! { pub struct NodeId; }
 
@@ -173,13 +176,20 @@ impl Dom {
         }
     }
 
-    pub fn render(&self, scene: &mut Scene) {
+    pub fn render(&self, scene: &mut Scene, text_renderer: &mut TextRenderer) {
         if let Some(root) = self.root {
-            self.render_node(scene, root, 0.0, 0.0);
+            self.render_node(scene, text_renderer, root, 0.0, 0.0);
         }
     }
 
-    fn render_node(&self, scene: &mut Scene, node_id: NodeId, parent_x: f64, parent_y: f64) {
+    fn render_node(
+        &self,
+        scene: &mut Scene,
+        text_renderer: &mut TextRenderer,
+        node_id: NodeId,
+        parent_x: f64,
+        parent_y: f64,
+    ) {
         let node = &self.nodes[node_id];
         let Ok(layout) = self.taffy.layout(node.taffy_node) else {
             return;
@@ -232,15 +242,24 @@ impl Dom {
                 }
             }
             Element::Root => {}
-            Element::Text(_) => {
-                // TODO: text rendering with parley
+            Element::Text(props) => {
+                text_renderer.draw_text(
+                    scene,
+                    &props.content,
+                    Attrs::new(),
+                    props.font_size,
+                    w as f32,
+                    h as f32,
+                    (x as f32, y as f32),
+                    props.color,
+                );
             }
         }
 
         // Traverse children via linked list
         let mut child = node.first_child;
         while let Some(child_id) = child {
-            self.render_node(scene, child_id, x, y);
+            self.render_node(scene, text_renderer, child_id, x, y);
             child = self.nodes[child_id].next_sibling;
         }
     }
@@ -265,11 +284,23 @@ fn length_size(val: f32) -> taffy::Size<taffy::LengthPercentage> {
     }
 }
 
-/// Builds a hardcoded demo UI tree: dashboard layout with header, sidebar, cards, footer.
+/// Builds a hardcoded demo UI tree: dark-themed dashboard with text.
 pub fn build_demo_tree() -> Dom {
     use taffy::*;
 
     let mut dom = Dom::new();
+
+    // Catppuccin Mocha palette
+    let base = Color::from_rgba8(30, 30, 46, 255);
+    let crust = Color::from_rgba8(17, 17, 27, 255);
+    let surface0 = Color::from_rgba8(49, 50, 68, 255);
+    let overlay0 = Color::from_rgba8(108, 112, 134, 255);
+    let text_color = Color::from_rgba8(205, 214, 244, 255);
+    let subtext = Color::from_rgba8(166, 173, 200, 255);
+    let blue = Color::from_rgba8(137, 180, 250, 255);
+    let green = Color::from_rgba8(166, 227, 161, 255);
+    let peach = Color::from_rgba8(250, 179, 135, 255);
+    let lavender = Color::from_rgba8(180, 190, 254, 255);
 
     // Root
     let root = dom.create_element(
@@ -289,7 +320,9 @@ pub fn build_demo_tree() -> Dom {
     // Header
     let header = dom.create_element(
         Element::View(ViewProps {
-            background_color: Color::from_rgba8(91, 33, 182, 255),
+            background_color: base,
+            border_color: surface0,
+            border_width: 1.0,
             ..Default::default()
         }),
         Style {
@@ -298,13 +331,29 @@ pub fn build_demo_tree() -> Dom {
             align_items: Some(AlignItems::Center),
             size: Size {
                 width: Dimension::auto(),
-                height: Dimension::length(56.0),
+                height: Dimension::length(48.0),
             },
             padding: length_rect(16.0),
             ..Default::default()
         },
     );
     dom.append_child(root, header);
+
+    let header_text = dom.create_element(
+        Element::Text(TextProps {
+            content: "Uzumaki".to_string(),
+            font_size: 18.0,
+            color: lavender,
+        }),
+        Style {
+            size: Size {
+                width: Dimension::length(200.0),
+                height: Dimension::length(24.0),
+            },
+            ..Default::default()
+        },
+    );
+    dom.append_child(header, header_text);
 
     // Body
     let body = dom.create_element(
@@ -313,8 +362,6 @@ pub fn build_demo_tree() -> Dom {
             display: Display::Flex,
             flex_direction: FlexDirection::Row,
             flex_grow: 1.0,
-            padding: length_rect(12.0),
-            gap: length_size(12.0),
             ..Default::default()
         },
     );
@@ -323,8 +370,9 @@ pub fn build_demo_tree() -> Dom {
     // Sidebar
     let sidebar = dom.create_element(
         Element::View(ViewProps {
-            background_color: Color::from_rgba8(30, 27, 75, 255),
-            border_radius: 8.0,
+            background_color: base,
+            border_color: surface0,
+            border_width: 1.0,
             ..Default::default()
         }),
         Style {
@@ -335,29 +383,49 @@ pub fn build_demo_tree() -> Dom {
                 height: Dimension::auto(),
             },
             padding: length_rect(12.0),
-            gap: length_size(8.0),
+            gap: length_size(4.0),
             ..Default::default()
         },
     );
     dom.append_child(body, sidebar);
 
     // Sidebar nav items
-    for _ in 0..4 {
+    let nav_labels = ["Dashboard", "Analytics", "Projects", "Settings"];
+    for (i, label) in nav_labels.iter().enumerate() {
         let nav = dom.create_element(
             Element::View(ViewProps {
-                background_color: Color::from_rgba8(67, 56, 202, 255),
+                background_color: if i == 0 { surface0 } else { Color::TRANSPARENT },
                 border_radius: 6.0,
                 ..Default::default()
             }),
             Style {
+                display: Display::Flex,
+                align_items: Some(AlignItems::Center),
                 size: Size {
                     width: Dimension::auto(),
-                    height: Dimension::length(40.0),
+                    height: Dimension::length(36.0),
                 },
+                padding: length_rect(8.0),
                 ..Default::default()
             },
         );
         dom.append_child(sidebar, nav);
+
+        let nav_text = dom.create_element(
+            Element::Text(TextProps {
+                content: label.to_string(),
+                font_size: 14.0,
+                color: if i == 0 { text_color } else { subtext },
+            }),
+            Style {
+                size: Size {
+                    width: Dimension::length(160.0),
+                    height: Dimension::length(20.0),
+                },
+                ..Default::default()
+            },
+        );
+        dom.append_child(nav, nav_text);
     }
 
     // Main content area
@@ -367,11 +435,29 @@ pub fn build_demo_tree() -> Dom {
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
             flex_grow: 1.0,
-            gap: length_size(12.0),
+            padding: length_rect(16.0),
+            gap: length_size(16.0),
             ..Default::default()
         },
     );
     dom.append_child(body, main_area);
+
+    // Page title
+    let page_title = dom.create_element(
+        Element::Text(TextProps {
+            content: "Dashboard".to_string(),
+            font_size: 22.0,
+            color: text_color,
+        }),
+        Style {
+            size: Size {
+                width: Dimension::length(300.0),
+                height: Dimension::length(28.0),
+            },
+            ..Default::default()
+        },
+    );
+    dom.append_child(main_area, page_title);
 
     // Top card row
     let card_row = dom.create_element(
@@ -382,64 +468,158 @@ pub fn build_demo_tree() -> Dom {
             gap: length_size(12.0),
             size: Size {
                 width: Dimension::auto(),
-                height: Dimension::length(140.0),
+                height: Dimension::length(100.0),
             },
             ..Default::default()
         },
     );
     dom.append_child(main_area, card_row);
 
-    // Three colored cards
-    let card_colors = [
-        Color::from_rgba8(220, 38, 38, 255),
-        Color::from_rgba8(5, 150, 105, 255),
-        Color::from_rgba8(37, 99, 235, 255),
+    // Three metric cards
+    let cards = [
+        ("Revenue", "$12,400", blue),
+        ("Users", "1,240", green),
+        ("Growth", "+24%", peach),
     ];
-    for color in card_colors {
+    for (title, value, accent) in cards {
         let card = dom.create_element(
             Element::View(ViewProps {
-                background_color: color,
+                background_color: base,
                 border_radius: 8.0,
-                ..Default::default()
+                border_color: surface0,
+                border_width: 1.0,
             }),
             Style {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
                 flex_grow: 1.0,
+                padding: length_rect(16.0),
+                gap: length_size(8.0),
                 ..Default::default()
             },
         );
         dom.append_child(card_row, card);
+
+        let card_title = dom.create_element(
+            Element::Text(TextProps {
+                content: title.to_string(),
+                font_size: 13.0,
+                color: subtext,
+            }),
+            Style {
+                size: Size {
+                    width: Dimension::length(120.0),
+                    height: Dimension::length(18.0),
+                },
+                ..Default::default()
+            },
+        );
+        dom.append_child(card, card_title);
+
+        let card_value = dom.create_element(
+            Element::Text(TextProps {
+                content: value.to_string(),
+                font_size: 24.0,
+                color: accent,
+            }),
+            Style {
+                size: Size {
+                    width: Dimension::length(120.0),
+                    height: Dimension::length(32.0),
+                },
+                ..Default::default()
+            },
+        );
+        dom.append_child(card, card_value);
     }
 
     // Bottom panel
     let bottom = dom.create_element(
         Element::View(ViewProps {
-            background_color: Color::from_rgba8(31, 41, 55, 255),
+            background_color: base,
             border_radius: 8.0,
-            border_color: Color::from_rgba8(75, 85, 99, 255),
+            border_color: surface0,
             border_width: 1.0,
         }),
         Style {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
             flex_grow: 1.0,
+            padding: length_rect(16.0),
+            gap: length_size(8.0),
             ..Default::default()
         },
     );
     dom.append_child(main_area, bottom);
 
-    // Footer
-    let footer = dom.create_element(
-        Element::View(ViewProps {
-            background_color: Color::from_rgba8(59, 7, 100, 255),
-            ..Default::default()
+    let panel_title = dom.create_element(
+        Element::Text(TextProps {
+            content: "Recent Activity".to_string(),
+            font_size: 16.0,
+            color: text_color,
         }),
         Style {
             size: Size {
-                width: Dimension::auto(),
-                height: Dimension::length(36.0),
+                width: Dimension::length(300.0),
+                height: Dimension::length(22.0),
             },
             ..Default::default()
         },
     );
+    dom.append_child(bottom, panel_title);
+
+    let panel_text = dom.create_element(
+        Element::Text(TextProps {
+            content: "No recent activity to display.".to_string(),
+            font_size: 13.0,
+            color: overlay0,
+        }),
+        Style {
+            size: Size {
+                width: Dimension::length(400.0),
+                height: Dimension::length(18.0),
+            },
+            ..Default::default()
+        },
+    );
+    dom.append_child(bottom, panel_text);
+
+    // Footer
+    let footer = dom.create_element(
+        Element::View(ViewProps {
+            background_color: crust,
+            border_color: surface0,
+            border_width: 1.0,
+            ..Default::default()
+        }),
+        Style {
+            display: Display::Flex,
+            align_items: Some(AlignItems::Center),
+            size: Size {
+                width: Dimension::auto(),
+                height: Dimension::length(32.0),
+            },
+            padding: length_rect(16.0),
+            ..Default::default()
+        },
+    );
     dom.append_child(root, footer);
+
+    let footer_text = dom.create_element(
+        Element::Text(TextProps {
+            content: "Uzumaki v0.1.0".to_string(),
+            font_size: 12.0,
+            color: overlay0,
+        }),
+        Style {
+            size: Size {
+                width: Dimension::length(200.0),
+                height: Dimension::length(16.0),
+            },
+            ..Default::default()
+        },
+    );
+    dom.append_child(footer, footer_text);
 
     dom
 }

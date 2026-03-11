@@ -13,11 +13,13 @@ use winit::{
 pub mod element;
 pub mod geometry;
 pub mod gpu;
+pub mod text;
 pub mod window;
 use window::Window;
 
 use crate::element::{build_demo_tree, Dom};
 use crate::gpu::GpuContext;
+use crate::text::TextRenderer;
 
 static LOOP_PROXY: Mutex<Option<EventLoopProxy<UserEvent>>> = Mutex::new(None);
 
@@ -66,6 +68,7 @@ pub struct Application {
     on_window_event: Option<Function<'static, ()>>,
     gpu: GpuContext,
     dom: Dom,
+    text_renderer: TextRenderer,
     windows: HashMap<WindowId, Window>,
     window_label_to_id: HashMap<String, WindowId>, // for js lookup
 }
@@ -79,6 +82,7 @@ impl Application {
         Self {
             gpu,
             dom: build_demo_tree(),
+            text_renderer: TextRenderer::new(),
             on_init: None,
             on_window_event: None,
             windows: Default::default(),
@@ -198,7 +202,7 @@ impl ApplicationHandler<UserEvent> for Application {
             }
             WindowEvent::RedrawRequested => {
                 if let Some(window) = self.windows.get_mut(&window_id) {
-                    window.paint_and_present(&self.gpu.device, &self.gpu.queue, &mut self.dom);
+                    window.paint_and_present(&self.gpu.device, &self.gpu.queue, &mut self.dom, &mut self.text_renderer);
                 }
             }
             WindowEvent::CloseRequested => {

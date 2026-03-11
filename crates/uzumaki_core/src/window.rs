@@ -7,6 +7,7 @@ use winit::window::Window as WinitWindow;
 
 use crate::element::Dom;
 use crate::gpu::GpuContext;
+use crate::text::TextRenderer;
 
 pub struct Window {
     pub(crate) winit_window: Arc<WinitWindow>,
@@ -78,6 +79,7 @@ impl Window {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         dom: &mut Dom,
+        text_renderer: &mut TextRenderer,
     ) {
         if !self.valid_surface {
             return;
@@ -91,7 +93,7 @@ impl Window {
 
         // Build scene from DOM
         self.scene.reset();
-        dom.render(&mut self.scene);
+        dom.render(&mut self.scene, text_renderer);
 
         // Render vello scene into an intermediate STORAGE texture
         let target = device.create_texture(&wgpu::TextureDescriptor {

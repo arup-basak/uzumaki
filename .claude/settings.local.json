@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd \"C:/Users/Radha/dev/kimi/uzumaki\" && grep -A5 'name = \"vello\"' Cargo.lock | head -20)"
+      "Bash(cd \"C:/Users/Radha/dev/kimi/uzumaki\" && grep -A5 'name = \"vello\"' Cargo.lock | head -20)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cargo build:*)"
     ]
   }
 }
