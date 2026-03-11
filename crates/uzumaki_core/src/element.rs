@@ -1,6 +1,6 @@
 use cosmic_text::Attrs;
 use slotmap::{ new_key_type, SlotMap };
-use vello::kurbo::{ Affine, Rect, RoundedRect, Stroke };
+use vello::kurbo::{ Affine, Rect, RoundedRect, RoundedRectRadii, Stroke };
 use vello::peniko::Color;
 use vello::Scene;
 
@@ -10,21 +10,61 @@ new_key_type! {
     pub struct NodeId;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ViewProps {
     pub background_color: Color,
-    pub border_radius: f64,
+    pub border_radii: BorderRadii,
     pub border_color: Color,
-    pub border_width: f64,
+    pub border_widths: BorderWidths,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BorderWidths {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+}
+
+impl BorderWidths {
+    pub fn all(val: f64) -> Self {
+        Self { top: val, right: val, bottom: val, left: val }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BorderRadii {
+    pub top_left: f64,
+    pub top_right: f64,
+    pub bottom_right: f64,
+    pub bottom_left: f64,
+}
+
+impl BorderRadii {
+    pub fn uniform(val: f64) -> Self {
+        Self {
+            top_left: val,
+            top_right: val,
+            bottom_right: val,
+            bottom_left: val,
+        }
+    }
+
+    pub fn any_nonzero(&self) -> bool {
+        self.top_left > 0.0 ||
+            self.top_right > 0.0 ||
+            self.bottom_right > 0.0 ||
+            self.bottom_left > 0.0
+    }
 }
 
 impl Default for ViewProps {
     fn default() -> Self {
         Self {
             background_color: Color::TRANSPARENT,
-            border_radius: 0.0,
+            border_radii: BorderRadii::default(),
             border_color: Color::TRANSPARENT,
-            border_width: 0.0,
+            border_widths: BorderWidths::default(),
         }
     }
 }
@@ -228,11 +268,8 @@ impl Dom {
 
         match &node.element {
             Element::View(props) => {
-                if props.border_radius > 0.0 {
-                    let shape = RoundedRect::from_rect(
-                        Rect::new(x, y, x + w, y + h),
-                        props.border_radius
-                    );
+                if props.border_radii.any_nonzero() {
+                    let shape = rounded_rect_from(x, y, w, h, &props.border_radii);
                     scene.fill(
                         vello::peniko::Fill::NonZero,
                         Affine::IDENTITY,
@@ -240,15 +277,7 @@ impl Dom {
                         None,
                         &shape
                     );
-                    if props.border_width > 0.0 {
-                        scene.stroke(
-                            &Stroke::new(props.border_width),
-                            Affine::IDENTITY,
-                            props.border_color,
-                            None,
-                            &shape
-                        );
-                    }
+                    Self::draw_rounded_borders(scene, props, &shape);
                 } else {
                     let shape = Rect::new(x, y, x + w, y + h);
                     scene.fill(
@@ -258,15 +287,7 @@ impl Dom {
                         None,
                         &shape
                     );
-                    if props.border_width > 0.0 {
-                        scene.stroke(
-                            &Stroke::new(props.border_width),
-                            Affine::IDENTITY,
-                            props.border_color,
-                            None,
-                            &shape
-                        );
-                    }
+                    Self::draw_rect_borders(scene, props, x, y, w, h);
                 }
             }
             Element::Root => {}
@@ -289,6 +310,121 @@ impl Dom {
         while let Some(child_id) = child {
             self.render_node(scene, text_renderer, child_id, x, y);
             child = self.nodes[child_id].next_sibling;
+        }
+    }
+
+    fn border_widths_equal(widths: &BorderWidths) -> Option<f64> {
+        let first = widths.top;
+        if
+            first > 0.0 &&
+            (widths.right - first).abs() < f64::EPSILON &&
+            (widths.bottom - first).abs() < f64::EPSILON &&
+            (widths.left - first).abs() < f64::EPSILON
+        {
+            Some(first)
+        } else {
+            None
+        }
+    }
+
+    fn draw_rounded_borders(scene: &mut Scene, props: &ViewProps, outer: &RoundedRect) {
+        if let Some(width) = Self::border_widths_equal(&props.border_widths) {
+            if width > 0.0 {
+                scene.stroke(
+                    &Stroke::new(width),
+                    Affine::IDENTITY,
+                    props.border_color,
+                    None,
+                    outer
+                );
+            }
+            return;
+        }
+
+        // Fill outer border region.
+        scene.fill(vello::peniko::Fill::NonZero, Affine::IDENTITY, props.border_color, None, outer);
+
+        // Carve inner area using inset rect + radii.
+        let bounds = outer.rect();
+        let BorderWidths { top, right, bottom, left } = props.border_widths;
+        let inner_rect = Rect::new(
+            bounds.x0 + left,
+            bounds.y0 + top,
+            bounds.x1 - right,
+            bounds.y1 - bottom
+        );
+        if inner_rect.width() <= 0.0 || inner_rect.height() <= 0.0 {
+            return;
+        }
+
+        let inner_radii = inset_radii(&props.border_radii, &props.border_widths);
+        let inner = rounded_rect_from(
+            inner_rect.x0,
+            inner_rect.y0,
+            inner_rect.width(),
+            inner_rect.height(),
+            &inner_radii
+        );
+        scene.fill(
+            vello::peniko::Fill::NonZero,
+            Affine::IDENTITY,
+            props.background_color,
+            None,
+            &inner
+        );
+    }
+
+    fn draw_rect_borders(scene: &mut Scene, props: &ViewProps, x: f64, y: f64, w: f64, h: f64) {
+        if let Some(width) = Self::border_widths_equal(&props.border_widths) {
+            if width > 0.0 {
+                let shape = Rect::new(x, y, x + w, y + h);
+                scene.stroke(
+                    &Stroke::new(width),
+                    Affine::IDENTITY,
+                    props.border_color,
+                    None,
+                    &shape
+                );
+            }
+            return;
+        }
+
+        let BorderWidths { top, right, bottom, left } = props.border_widths;
+        if top > 0.0 {
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                Affine::IDENTITY,
+                props.border_color,
+                None,
+                &Rect::new(x, y, x + w, y + top)
+            );
+        }
+        if bottom > 0.0 {
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                Affine::IDENTITY,
+                props.border_color,
+                None,
+                &Rect::new(x, y + h - bottom, x + w, y + h)
+            );
+        }
+        if left > 0.0 {
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                Affine::IDENTITY,
+                props.border_color,
+                None,
+                &Rect::new(x, y, x + left, y + h)
+            );
+        }
+        if right > 0.0 {
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                Affine::IDENTITY,
+                props.border_color,
+                None,
+                &Rect::new(x + w - right, y, x + w, y + h)
+            );
         }
     }
 
@@ -352,6 +488,31 @@ fn length_size(val: f32) -> taffy::Size<taffy::LengthPercentage> {
     }
 }
 
+fn rounded_rect_from(x: f64, y: f64, w: f64, h: f64, radii: &BorderRadii) -> RoundedRect {
+    let clamp = |r: f64|
+        r
+            .max(0.0)
+            .min(w * 0.5)
+            .min(h * 0.5);
+    let rect = Rect::new(x, y, x + w, y + h);
+    let rr = RoundedRectRadii::new(
+        clamp(radii.top_left),
+        clamp(radii.top_right),
+        clamp(radii.bottom_right),
+        clamp(radii.bottom_left)
+    );
+    RoundedRect::from_rect(rect, rr)
+}
+
+fn inset_radii(radii: &BorderRadii, widths: &BorderWidths) -> BorderRadii {
+    BorderRadii {
+        top_left: (radii.top_left - widths.top.max(widths.left)).max(0.0),
+        top_right: (radii.top_right - widths.top.max(widths.right)).max(0.0),
+        bottom_right: (radii.bottom_right - widths.bottom.max(widths.right)).max(0.0),
+        bottom_left: (radii.bottom_left - widths.bottom.max(widths.left)).max(0.0),
+    }
+}
+
 /// Builds a hardcoded demo UI tree: dark-themed dashboard with text.
 pub fn build_demo_tree() -> Dom {
     use taffy::*;
@@ -386,7 +547,8 @@ pub fn build_demo_tree() -> Dom {
         Element::View(ViewProps {
             background_color: panel,
             border_color: border,
-            border_width: 1.0,
+            border_widths: BorderWidths::all(1.0),
+            border_radii: BorderRadii::uniform(0.0),
             ..Default::default()
         }),
         Style {
@@ -440,7 +602,7 @@ pub fn build_demo_tree() -> Dom {
         Element::View(ViewProps {
             background_color: panel,
             border_color: border,
-            border_width: 1.0,
+            border_widths: BorderWidths { top: 0.0, right: 1.0, bottom: 0.0, left: 0.0 },
             ..Default::default()
         }),
         Style {
@@ -467,7 +629,7 @@ pub fn build_demo_tree() -> Dom {
                 } else {
                     Color::TRANSPARENT
                 },
-                border_radius: 6.0,
+                border_radii: BorderRadii::uniform(6.0),
                 ..Default::default()
             }),
             Style {
@@ -556,9 +718,9 @@ pub fn build_demo_tree() -> Dom {
         let card = dom.create_element(
             Element::View(ViewProps {
                 background_color: panel,
-                border_radius: 8.0,
+                border_radii: BorderRadii::uniform(8.0),
                 border_color: border,
-                border_width: 1.0,
+                border_widths: BorderWidths::all(1.0),
             }),
             Style {
                 display: Display::Flex,
@@ -604,13 +766,102 @@ pub fn build_demo_tree() -> Dom {
         dom.append_child(card, card_value);
     }
 
+    // Border radius/edge samples
+    let samples = dom.create_element(Element::Root, Style {
+        display: Display::Flex,
+        flex_direction: FlexDirection::Row,
+        gap: length_size(12.0),
+        size: Size {
+            width: Dimension::auto(),
+            height: Dimension::length(80.0),
+        },
+        ..Default::default()
+    });
+    dom.append_child(main_area, samples);
+
+    let chip = dom.create_element(
+        Element::View(ViewProps {
+            background_color: panel,
+            border_color: border,
+            border_widths: BorderWidths::all(2.0),
+            border_radii: BorderRadii {
+                top_left: 12.0,
+                top_right: 4.0,
+                bottom_right: 12.0,
+                bottom_left: 4.0,
+            },
+        }),
+        Style {
+            display: Display::Flex,
+            align_items: Some(AlignItems::Center),
+            justify_content: Some(JustifyContent::Center),
+            size: Size {
+                width: Dimension::length(180.0),
+                height: Dimension::percent(1.0),
+            },
+            ..Default::default()
+        }
+    );
+    dom.append_child(samples, chip);
+
+    let chip_text = dom.create_element(
+        Element::Text(TextProps {
+            content: "Asymmetric corners".to_string(),
+            font_size: 14.0,
+            color: text_color,
+        }),
+        Style {
+            size: Size { width: Dimension::auto(), height: Dimension::auto() },
+            ..Default::default()
+        }
+    );
+    dom.append_child(chip, chip_text);
+
+    let pill = dom.create_element(
+        Element::View(ViewProps {
+            background_color: panel,
+            border_color: accent_blue,
+            border_widths: BorderWidths::all(5.0),
+            border_radii: BorderRadii {
+                top_left: 20.0,
+                top_right: 20.0,
+                bottom_right: 6.0,
+                bottom_left: 6.0,
+            },
+        }),
+        Style {
+            display: Display::Flex,
+            align_items: Some(AlignItems::Center),
+            justify_content: Some(JustifyContent::Center),
+            size: Size {
+                width: Dimension::length(200.0),
+                height: Dimension::percent(1.0),
+            },
+            ..Default::default()
+        }
+    );
+    dom.append_child(samples, pill);
+
+    let pill_text = dom.create_element(
+        Element::Text(TextProps {
+            content: "Edge-specific stroke".to_string(),
+            font_size: 16.0,
+            color: accent_blue,
+        }),
+        Style {
+            size: Size { width: Dimension::auto(), height: Dimension::auto() },
+            ..Default::default()
+        }
+    );
+    dom.append_child(pill, pill_text);
+
     // Bottom panel
     let bottom = dom.create_element(
         Element::View(ViewProps {
             background_color: panel,
-            border_radius: 8.0,
+            border_radii: BorderRadii::uniform(8.0),
             border_color: border,
-            border_width: 1.0,
+            border_widths: BorderWidths::all(1.0),
         }),
         Style {
             display: Display::Flex,
@@ -660,7 +911,7 @@ pub fn build_demo_tree() -> Dom {
         Element::View(ViewProps {
             background_color: panel,
             border_color: border,
-            border_width: 1.0,
+            border_widths: BorderWidths::all(1.0),
             ..Default::default()
         }),
         Style {
