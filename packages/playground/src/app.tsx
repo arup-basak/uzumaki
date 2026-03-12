@@ -11,7 +11,7 @@ const ACCENT_BLUE = '#569cd6';
 const ACCENT_GREEN = '#66cc99';
 const ACCENT_ORANGE = '#ce9178';
 const NAV_ACTIVE = '#2d2d30';
-const HOVER_BG = '#37373c';
+const HOVER_BG = '#373738ff';
 const ACTIVE_BG = '#414146';
 
 // ── Nav Item ─────────────────────────────────────────────────────────
@@ -75,6 +75,7 @@ function MetricCard({
 
 function App() {
   const [count, setCount] = useState(0);
+  const [showRecentActivity, setShowRecentActivity] = useState(true);
   console.log('render', count);
 
   return (
@@ -127,7 +128,6 @@ function App() {
             <MetricCard title="Growth" value="+24%" accent={ACCENT_ORANGE} />
           </view>
 
-          {/* Counter - proves commitUpdate, commitTextUpdate, and events work */}
           <view
             display="flex"
             gap="12"
@@ -153,6 +153,11 @@ function App() {
             >
               <text fontSize="16" color={ACCENT_BLUE}>
                 Increment
+              </text>
+            </view>
+            <view onClick={() => setShowRecentActivity(prev => !prev)}>
+              <text fontSize="16" color={ACCENT_BLUE}>
+                Toggle Recent Activity
               </text>
             </view>
           </view>
@@ -199,24 +204,27 @@ function App() {
           </view>
 
           {/* Bottom panel */}
-          <view
-            display="flex"
-            flexDir="col"
-            flexGrow="1"
-            p="16"
-            gap="8"
-            bg={PANEL}
-            rounded="8"
-            borderColor={BORDER}
-            border="1"
-          >
-            <text fontSize="16" color={TEXT_COLOR}>
-              Recent Activity
-            </text>
-            <text fontSize="16" color={SUBTEXT}>
-              No recent activity to display.
-            </text>
-          </view>
+          {
+            showRecentActivity &&
+            <view
+              display="flex"
+              flexDir="col"
+              flexGrow="1"
+              p="16"
+              gap="8"
+              bg={PANEL}
+              rounded="8"
+              borderColor={BORDER}
+              border="1"
+            >
+              <text fontSize="16" color={TEXT_COLOR}>
+                Recent Activity
+              </text>
+              <text fontSize="16" color={SUBTEXT}>
+                No recent activity to display.
+              </text>
+            </view>
+          }
         </view>
       </view>
 
