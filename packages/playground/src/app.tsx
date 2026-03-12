@@ -1,7 +1,5 @@
 import { useState } from 'react';
 
-// ── Colors (matching the Rust demo tree exactly) ─────────────────────
-
 const BASE_BG = '#0f0f0f';
 const PANEL = '#141414';
 const BORDER = '#3c3c3c';
@@ -10,11 +8,10 @@ const SUBTEXT = '#8c8c96';
 const ACCENT_BLUE = '#569cd6';
 const ACCENT_GREEN = '#66cc99';
 const ACCENT_ORANGE = '#ce9178';
+const NAV_ITEM = 'transparent';
 const NAV_ACTIVE = '#2d2d30';
 const HOVER_BG = '#373738ff';
 const ACTIVE_BG = '#414146';
-
-// ── Nav Item ─────────────────────────────────────────────────────────
 
 function NavItem({ label, active }: { label: string; active: boolean }) {
   return (
@@ -24,7 +21,7 @@ function NavItem({ label, active }: { label: string; active: boolean }) {
       h="36"
       p="8"
       flexShrink="0"
-      bg={active ? NAV_ACTIVE : undefined}
+      bg={active ? NAV_ACTIVE : NAV_ITEM}
       rounded="6"
       hover:bg={HOVER_BG}
       active:bg={ACTIVE_BG}
@@ -36,8 +33,6 @@ function NavItem({ label, active }: { label: string; active: boolean }) {
     </view>
   );
 }
-
-// ── Metric Card ──────────────────────────────────────────────────────
 
 function MetricCard({
   title,
@@ -71,8 +66,6 @@ function MetricCard({
   );
 }
 
-// ── App ──────────────────────────────────────────────────────────────
-
 function App() {
   const [count, setCount] = useState(0);
   const [showRecentActivity, setShowRecentActivity] = useState(true);
@@ -103,7 +96,7 @@ function App() {
           flexDir="col"
           w="400"
           p="12"
-          gap="4"
+          gap="10"
           bg={PANEL}
           borderColor={BORDER}
           borderRight="1"
@@ -155,7 +148,7 @@ function App() {
                 Increment
               </text>
             </view>
-            <view onClick={() => setShowRecentActivity(prev => !prev)}>
+            <view onClick={() => setShowRecentActivity((prev) => !prev)}>
               <text fontSize="16" color={ACCENT_BLUE}>
                 Toggle Recent Activity
               </text>
@@ -204,8 +197,7 @@ function App() {
           </view>
 
           {/* Bottom panel */}
-          {
-            showRecentActivity &&
+          {showRecentActivity && (
             <view
               display="flex"
               flexDir="col"
@@ -224,7 +216,7 @@ function App() {
                 No recent activity to display.
               </text>
             </view>
-          }
+          )}
         </view>
       </view>
 

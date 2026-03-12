@@ -2,9 +2,8 @@ import ReactReconciler, { type EventPriority } from 'react-reconciler';
 import { DefaultEventPriority } from 'react-reconciler/constants';
 import type { JSX } from './jsx/runtime';
 import type { Window } from '..';
-import * as napi from '../bindings';
+import * as core from '../bindings';
 
-// ── Known style props ────────────────────────────────────────────────
 
 const STYLE_PROPS = new Set([
   'h',
@@ -50,7 +49,6 @@ const STYLE_PROPS = new Set([
   'display',
 ]);
 
-// ── Event registry ───────────────────────────────────────────────────
 
 const eventRegistry = new Map<string, Map<string, Function>>();
 
@@ -71,7 +69,6 @@ export function dispatchEvent(
   eventRegistry.get(nodeId)?.get(eventType)?.(payload);
 }
 
-// ── UElement ─────────────────────────────────────────────────────────
 
 class UElement {
   id: string;
@@ -123,14 +120,12 @@ class UElement {
   }
 }
 
-// ── Container ────────────────────────────────────────────────────────
 
 type Container = {
   window: Window;
   rootNodeId: string;
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────
 
 function getLabel(container: Container): string {
   return container.window.label;
@@ -142,7 +137,6 @@ function getTextContent(children: any): string {
   return String(children);
 }
 
-// ── Reconciler ───────────────────────────────────────────────────────
 
 type Type = string;
 type Props = Record<string, any>;
@@ -185,20 +179,20 @@ const reconciler = ReactReconciler<
     if (type === 'text' || type === 'p') {
       // Text-like elements: create a native text node
       const text = getTextContent(props.children);
-      const id = napi.createTextNode(label, text);
+      const id = core.createTextNode(label, text);
       const el = new UElement(id, type, label, props);
 
       // Apply styles
       for (const [key, val] of Object.entries(el.styles)) {
-        napi.setProperty(label, id, key, val);
+        core.setProperty(label, id, key, val);
       }
       for (const [key, val] of Object.entries(el.hoverStyles)) {
-        napi.setProperty(label, id, 'hover:' + key, val);
+        core.setProperty(label, id, 'hover:' + key, val);
       }
 
       // Register events
       if (el.eventListeners.size > 0) {
-        napi.setProperty(label, id, 'interactive', 'true');
+        core.setProperty(label, id, 'interactive', 'true');
         for (const [event, cb] of el.eventListeners) {
           registerEvent(id, event, cb);
         }
@@ -208,18 +202,18 @@ const reconciler = ReactReconciler<
     }
 
     // View-like elements
-    const id = napi.createElement(label, type);
+    const id = core.createElement(label, type);
     const el = new UElement(id, type, label, props);
 
     for (const [key, val] of Object.entries(el.styles)) {
-      napi.setProperty(label, id, key, val);
+      core.setProperty(label, id, key, val);
     }
     for (const [key, val] of Object.entries(el.hoverStyles)) {
-      napi.setProperty(label, id, 'hover:' + key, val);
+      core.setProperty(label, id, 'hover:' + key, val);
     }
 
     if (el.eventListeners.size > 0) {
-      napi.setProperty(label, id, 'interactive', 'true');
+      core.setProperty(label, id, 'interactive', 'true');
       for (const [event, cb] of el.eventListeners) {
         registerEvent(id, event, cb);
       }
@@ -230,7 +224,7 @@ const reconciler = ReactReconciler<
 
   createTextInstance(text, rootContainer) {
     const label = getLabel(rootContainer);
-    const id = napi.createTextNode(label, text);
+    const id = core.createTextNode(label, text);
     return new UElement(id, '#text', label, {});
   },
 
@@ -240,7 +234,7 @@ const reconciler = ReactReconciler<
 
   appendInitialChild(parent, child) {
     parent.children.push(child);
-    napi.appendChild(parent.label, parent.id, child.id);
+    core.appendChild(parent.label, parent.id, child.id);
   },
 
   finalizeInitialChildren() {
@@ -249,12 +243,12 @@ const reconciler = ReactReconciler<
 
   appendChildToContainer(container, child) {
     const label = getLabel(container);
-    napi.appendChild(label, container.rootNodeId, child.id);
+    core.appendChild(label, container.rootNodeId, child.id);
   },
 
   appendChild(parent, child) {
     parent.children.push(child);
-    napi.appendChild(parent.label, parent.id, child.id);
+    core.appendChild(parent.label, parent.id, child.id);
   },
 
   insertBefore(parent, child, before) {
@@ -264,24 +258,24 @@ const reconciler = ReactReconciler<
     } else {
       parent.children.push(child);
     }
-    napi.insertBefore(parent.label, parent.id, child.id, before.id);
+    core.insertBefore(parent.label, parent.id, child.id, before.id);
   },
 
   insertInContainerBefore(container, child, before) {
     const label = getLabel(container);
-    napi.insertBefore(label, container.rootNodeId, child.id, before.id);
+    core.insertBefore(label, container.rootNodeId, child.id, before.id);
   },
 
   removeChild(parent, child) {
     const idx = parent.children.indexOf(child);
     if (idx >= 0) parent.children.splice(idx, 1);
-    napi.removeChild(parent.label, parent.id, child.id);
+    core.removeChild(parent.label, parent.id, child.id);
     unregisterEvents(child.id);
   },
 
   removeChildFromContainer(container, child) {
     const label = getLabel(container);
-    napi.removeChild(label, container.rootNodeId, child.id);
+    core.removeChild(label, container.rootNodeId, child.id);
     unregisterEvents(child.id);
   },
 
@@ -323,12 +317,12 @@ const reconciler = ReactReconciler<
     // Diff styles
     for (const [key, val] of Object.entries(newStyles)) {
       if (instance.styles[key] !== val) {
-        napi.setProperty(label, instance.id, key, val);
+        core.setProperty(label, instance.id, key, val);
       }
     }
     for (const key of Object.keys(instance.styles)) {
       if (!(key in newStyles) && !key.startsWith('active:')) {
-        napi.setProperty(label, instance.id, key, '');
+        core.setProperty(label, instance.id, key, '');
       }
     }
     instance.styles = newStyles;
@@ -336,12 +330,12 @@ const reconciler = ReactReconciler<
     // Diff hover styles
     for (const [key, val] of Object.entries(newHoverStyles)) {
       if (instance.hoverStyles[key] !== val) {
-        napi.setProperty(label, instance.id, 'hover:' + key, val);
+        core.setProperty(label, instance.id, 'hover:' + key, val);
       }
     }
     for (const key of Object.keys(instance.hoverStyles)) {
       if (!(key in newHoverStyles)) {
-        napi.setProperty(label, instance.id, 'hover:' + key, '');
+        core.setProperty(label, instance.id, 'hover:' + key, '');
       }
     }
     instance.hoverStyles = newHoverStyles;
@@ -356,12 +350,12 @@ const reconciler = ReactReconciler<
       }
     }
     if (newEventListeners.size > 0 && instance.eventListeners.size === 0) {
-      napi.setProperty(label, instance.id, 'interactive', 'true');
+      core.setProperty(label, instance.id, 'interactive', 'true');
     } else if (
       newEventListeners.size === 0 &&
       instance.eventListeners.size > 0
     ) {
-      napi.setProperty(label, instance.id, 'interactive', 'false');
+      core.setProperty(label, instance.id, 'interactive', 'false');
     }
     instance.eventListeners = newEventListeners;
 
@@ -370,14 +364,14 @@ const reconciler = ReactReconciler<
       const oldText = getTextContent(oldProps.children);
       const newText = getTextContent(newProps.children);
       if (oldText !== newText) {
-        napi.setText(label, instance.id, newText);
+        core.setText(label, instance.id, newText);
       }
     }
   },
 
   commitTextUpdate(instance, oldText, newText) {
     if (oldText !== newText) {
-      napi.setText(instance.label, instance.id, newText);
+      core.setText(instance.label, instance.id, newText);
     }
   },
 
@@ -387,23 +381,23 @@ const reconciler = ReactReconciler<
   },
 
   hideInstance(instance) {
-    napi.setProperty(instance.label, instance.id, 'visible', 'false');
+    core.setProperty(instance.label, instance.id, 'visible', 'false');
   },
 
   unhideInstance(instance) {
-    napi.setProperty(instance.label, instance.id, 'visible', 'true');
+    core.setProperty(instance.label, instance.id, 'visible', 'true');
   },
 
   hideTextInstance(instance) {
-    napi.setProperty(instance.label, instance.id, 'visible', 'false');
+    core.setProperty(instance.label, instance.id, 'visible', 'false');
   },
 
   unhideTextInstance(instance) {
-    napi.setProperty(instance.label, instance.id, 'visible', 'true');
+    core.setProperty(instance.label, instance.id, 'visible', 'true');
   },
 
   resetTextContent(instance) {
-    napi.setText(instance.label, instance.id, '');
+    core.setText(instance.label, instance.id, '');
   },
 
   clearContainer(container) {
@@ -420,7 +414,7 @@ const reconciler = ReactReconciler<
   },
 
   resetAfterCommit(container) {
-    napi.requestRedraw(container.window.label);
+    core.requestRedraw(container.window.label);
     currentContainer = null;
   },
 
@@ -459,15 +453,14 @@ const reconciler = ReactReconciler<
   waitForCommitToBeReady: () => null,
 });
 
-// ── Render ───────────────────────────────────────────────────────────
 
 export function render(window: Window, element: JSX.Element) {
-  const rootNodeId = napi.getRootNodeId(window.label);
+  const rootNodeId = core.getRootNodeId(window.label);
   const container: Container = { window, rootNodeId };
 
   const root = reconciler.createContainer(
     container,
-    0,
+    1,
     null,
     false,
     null,

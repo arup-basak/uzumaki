@@ -75,5 +75,5 @@ export function runApp({
 
   worker.terminate();
 
-  console.log('Reach here');
+  console.log('Bye');
 }

@@ -382,6 +382,8 @@ fn parse_color(s: &str) -> Color {
             }
             _ => Color::WHITE,
         }
+    } else if s == "transparent" {
+        Color::TRANSPARENT
     } else {
         Color::WHITE
     }
@@ -639,7 +641,7 @@ impl ApplicationHandler<UserEvent> for Application {
                 }
             }
             WindowEvent::CloseRequested => {
-                println!("Close this stupid app ");
+                println!("Close window event");
                 if let Some(label) = self.window_id_to_label.remove(&window_id) {
                     self.window_label_to_id.remove(&label);
                     DOM_REGISTRY.lock().remove(&label);
