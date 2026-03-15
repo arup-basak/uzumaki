@@ -261,6 +261,50 @@ impl Dom {
             .unwrap();
     }
 
+    /// Remove all children (and their descendants) from `parent_id`, clearing
+    /// the taffy tree and slotmap entries.  The parent node itself is kept.
+    pub fn clear_children(&mut self, parent_id: NodeId) {
+        // Collect every descendant via BFS
+        let mut to_remove = Vec::new();
+        let mut stack = Vec::new();
+
+        let mut child = self.nodes[parent_id].first_child;
+        while let Some(cid) = child {
+            stack.push(cid);
+            child = self.nodes[cid].next_sibling;
+        }
+        while let Some(nid) = stack.pop() {
+            to_remove.push(nid);
+            let mut child = self.nodes[nid].first_child;
+            while let Some(cid) = child {
+                stack.push(cid);
+                child = self.nodes[cid].next_sibling;
+            }
+        }
+
+        // Detach all taffy children from parent
+        let parent_taffy = self.nodes[parent_id].taffy_node;
+        let taffy_children: Vec<_> = self.taffy.children(parent_taffy).unwrap();
+        for tc in taffy_children {
+            let _ = self.taffy.remove_child(parent_taffy, tc);
+        }
+
+        // Remove descendants from taffy + slotmap
+        for nid in to_remove {
+            let tn = self.nodes[nid].taffy_node;
+            let _ = self.taffy.remove(tn);
+            self.nodes.remove(nid);
+        }
+
+        // Reset parent pointers
+        self.nodes[parent_id].first_child = None;
+        self.nodes[parent_id].last_child = None;
+
+        // Stale hitboxes reference removed nodes
+        self.hitbox_store.clear();
+        self.hit_state = HitTestState::default();
+    }
+
     pub fn compute_layout(&mut self, width: f32, height: f32, text_renderer: &mut TextRenderer) {
         if let Some(root) = self.root {
             let taffy_root = self.nodes[root].taffy_node;

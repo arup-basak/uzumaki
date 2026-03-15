@@ -441,6 +441,8 @@ const reconciler = ReactReconciler<
   waitForCommitToBeReady: () => null,
 });
 
+const roots = new Map<string, { root: any; container: Container }>();
+
 export function render(window: Window, element: JSX.Element) {
   const rootNodeId = core.getRootNodeId(window.label);
   const container: Container = { window, rootNodeId };
@@ -458,9 +460,23 @@ export function render(window: Window, element: JSX.Element) {
     () => {},
   );
 
+  roots.set(window.label, { root, container });
   reconciler.updateContainer(element, root, null, null);
 
   return {
-    dispose: () => reconciler.updateContainer(null, root, null, null),
+    dispose: () => {
+      reconciler.updateContainer(null, root, null, null);
+      roots.delete(window.label);
+    },
   };
+}
+
+export function disposeAllRoots() {
+  // Don't trigger React unmount (which would call removeChild on already-cleared nodes).
+  // Just drop the references — the Rust DOM is reset separately via resetDom.
+  roots.clear();
+}
+
+export function clearEventRegistry() {
+  eventRegistry.clear();
 }

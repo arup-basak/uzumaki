@@ -12,7 +12,7 @@ refineable.workspace = true
 pollster.workspace = true
 anyhow.workspace = true
 cosmic-text = "0.18.2"
-napi = "3"
+napi = { version = "3", features = ["serde-json"] }
 napi-derive = "3"
 slotmap = "1.1.1"
 taffy = "0.9.2"

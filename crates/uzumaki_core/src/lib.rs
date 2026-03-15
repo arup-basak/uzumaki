@@ -1,4 +1,5 @@
 use napi::bindgen_prelude::*;
+use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -57,38 +58,56 @@ fn send_proxy_event(event: UserEvent) {
     });
 }
 
-#[napi(object)]
-pub struct DomEventData {
-    pub window_label: String,
-    pub node_id: String,
-    pub event_type: String,
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NodeEventData {
+    window_label: String,
+    node_id: String,
 }
 
-#[napi]
-pub enum AppEventKind {
-    DomEvent,
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KeyEventData {
+    window_label: String,
+    key: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResizeEventData {
+    window_label: String,
+    width: u32,
+    height: u32,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum AppEvent {
+    Click(NodeEventData),
+    MouseDown(NodeEventData),
+    MouseUp(NodeEventData),
+    KeyDown(KeyEventData),
+    KeyUp(KeyEventData),
+    Resize(ResizeEventData),
     HotReload,
 }
 
-// todo use serde_json
-#[napi(object)]
-pub struct AppEvent {
-    pub kind: AppEventKind,
-    pub dom_event: DomEventData,
-}
-
-impl From<DomEventData> for AppEvent {
-    fn from(data: DomEventData) -> Self {
-        Self {
-            kind: AppEventKind::DomEvent,
-            dom_event: data,
-        }
-    }
+#[napi]
+pub fn poll_events() -> serde_json::Value {
+    with_state(|state| {
+        let events: Vec<AppEvent> = state.pending_events.drain(..).collect();
+        serde_json::to_value(&events).unwrap_or(serde_json::Value::Array(vec![]))
+    })
 }
 
 #[napi]
-pub fn poll_events() -> Vec<AppEvent> {
-    with_state(|state| state.pending_events.drain(..).collect())
+pub fn reset_dom(label: String) {
+    with_state(|state| {
+        if let Some(entry) = state.windows.get_mut(&label) {
+            let root = entry.dom.root.expect("no root node");
+            entry.dom.clear_children(root);
+        }
+    });
 }
 
 enum UserEvent {
@@ -521,8 +540,12 @@ impl Application {
     #[napi]
     pub fn destroy(&mut self) {
         self.event_loop.take();
-        LOOP_PROXY.with(|p| { p.borrow_mut().take(); });
-        APP_STATE.with(|s| { s.borrow_mut().take(); });
+        LOOP_PROXY.with(|p| {
+            p.borrow_mut().take();
+        });
+        APP_STATE.with(|s| {
+            s.borrow_mut().take();
+        });
     }
 }
 
@@ -608,7 +631,7 @@ impl ApplicationHandler<UserEvent> for Application {
             };
 
             let mut needs_redraw = false;
-            let mut js_click_node_ids: Vec<String> = Vec::new();
+            let mut js_node_events: Vec<(String, &str)> = Vec::new();
 
             match event {
                 WindowEvent::Resized(size) => {
@@ -619,6 +642,11 @@ impl ApplicationHandler<UserEvent> for Application {
                             }
                         }
                     }
+                    state.pending_events.push(AppEvent::Resize(ResizeEventData {
+                        window_label: label.clone(),
+                        width: size.width,
+                        height: size.height,
+                    }));
                 }
                 WindowEvent::RedrawRequested => {
                     if let Some(entry) = state.windows.get_mut(&label) {
@@ -669,10 +697,34 @@ impl ApplicationHandler<UserEvent> for Application {
                                     let top = dom.hit_state.top_hit;
                                     dom.set_active(top);
                                     dom.dispatch_mouse_down(mx, my, mouse_button);
+                                    // Collect mousedown JS events
+                                    for hitbox in dom.hitbox_store.hitboxes().iter().rev() {
+                                        if hitbox.bounds.contains(mx, my) {
+                                            let node = &dom.nodes[hitbox.node_id];
+                                            if node.interactivity.js_interactive {
+                                                js_node_events.push((
+                                                    hitbox.node_id.to_string_id(),
+                                                    "mousedown",
+                                                ));
+                                            }
+                                        }
+                                    }
                                     needs_redraw = true;
                                 }
                                 ElementState::Released => {
                                     dom.dispatch_mouse_up(mx, my, mouse_button);
+                                    // Collect mouseup JS events
+                                    for hitbox in dom.hitbox_store.hitboxes().iter().rev() {
+                                        if hitbox.bounds.contains(mx, my) {
+                                            let node = &dom.nodes[hitbox.node_id];
+                                            if node.interactivity.js_interactive {
+                                                js_node_events.push((
+                                                    hitbox.node_id.to_string_id(),
+                                                    "mouseup",
+                                                ));
+                                            }
+                                        }
+                                    }
                                     if let Some(active) = dom.hit_state.active_hitbox {
                                         if dom.hit_state.is_hovered(active) {
                                             dom.dispatch_click(mx, my, mouse_button);
@@ -680,8 +732,10 @@ impl ApplicationHandler<UserEvent> for Application {
                                                 if hitbox.bounds.contains(mx, my) {
                                                     let node = &dom.nodes[hitbox.node_id];
                                                     if node.interactivity.js_interactive {
-                                                        js_click_node_ids
-                                                            .push(hitbox.node_id.to_string_id());
+                                                        js_node_events.push((
+                                                            hitbox.node_id.to_string_id(),
+                                                            "click",
+                                                        ));
                                                     }
                                                 }
                                             }
@@ -692,6 +746,39 @@ impl ApplicationHandler<UserEvent> for Application {
                                 }
                             }
                         }
+                    }
+                }
+                WindowEvent::KeyboardInput {
+                    event: key_event, ..
+                } => {
+                    use winit::event::ElementState;
+                    use winit::keyboard::{Key, NamedKey};
+
+                    if key_event.state == ElementState::Pressed {
+                        // F5 == hot reload
+                        if key_event.logical_key == Key::Named(NamedKey::F5) {
+                            state.pending_events.push(AppEvent::HotReload);
+                        } else {
+                            let key_str = match &key_event.logical_key {
+                                Key::Character(c) => c.to_string(),
+                                Key::Named(named) => format!("{:?}", named),
+                                _ => return,
+                            };
+                            state.pending_events.push(AppEvent::KeyDown(KeyEventData {
+                                window_label: label.clone(),
+                                key: key_str,
+                            }));
+                        }
+                    } else {
+                        let key_str = match &key_event.logical_key {
+                            Key::Character(c) => c.to_string(),
+                            Key::Named(named) => format!("{:?}", named),
+                            _ => return,
+                        };
+                        state.pending_events.push(AppEvent::KeyUp(KeyEventData {
+                            window_label: label.clone(),
+                            key: key_str,
+                        }));
                     }
                 }
                 WindowEvent::CursorLeft { .. } => {
@@ -711,15 +798,24 @@ impl ApplicationHandler<UserEvent> for Application {
                 _ => {}
             }
 
-            // Push JS click events to the pending event queue
-            if !js_click_node_ids.is_empty() {
-                for node_id_str in js_click_node_ids {
-                    state.pending_events.push(AppEvent::from(DomEventData {
+            // Push JS node events
+            for (node_id_str, event_kind) in js_node_events {
+                let event = match event_kind {
+                    "click" => AppEvent::Click(NodeEventData {
                         window_label: label.clone(),
                         node_id: node_id_str,
-                        event_type: "click".to_string(),
-                    }));
-                }
+                    }),
+                    "mousedown" => AppEvent::MouseDown(NodeEventData {
+                        window_label: label.clone(),
+                        node_id: node_id_str,
+                    }),
+                    "mouseup" => AppEvent::MouseUp(NodeEventData {
+                        window_label: label.clone(),
+                        node_id: node_id_str,
+                    }),
+                    _ => continue,
+                };
+                state.pending_events.push(event);
             }
 
             if needs_redraw {

@@ -20,7 +20,7 @@ const exampleMap: Record<Examples, React.ReactNode> = {
 };
 
 function Playground() {
-  const [example, setExample] = useState<Examples | null>('counter');
+  const [example, setExample] = useState<Examples | null>(null);
 
   if (example === null) {
     return (
