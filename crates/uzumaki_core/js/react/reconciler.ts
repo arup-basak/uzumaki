@@ -507,6 +507,9 @@ export function render(window: Window, element: JSX.Element) {
   const rootNodeId = core.getRootNodeId(window.id);
   const container: Container = { window, rootNodeId };
 
+  // Root node bubbles to the window
+  eventManager.setParent(rootNodeId, window.eventId);
+
   const root = reconciler.createContainer(
     container,
     1,
@@ -526,6 +529,7 @@ export function render(window: Window, element: JSX.Element) {
   return {
     dispose: () => {
       reconciler.updateContainer(null, root, null, null);
+      eventManager.removeParent(rootNodeId);
       roots.delete(window.label);
     },
   };

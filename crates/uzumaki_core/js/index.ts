@@ -1,6 +1,7 @@
 import { Application, createWindow, pollEvents, resetDom, setRemBase } from './bindings';
 import { requestQuit } from './bindings';
 import { eventManager, EventType } from './events';
+import type { UzumakiMouseEvent, UzumakiKeyboardEvent, UzumakiEvent } from './events';
 
 export interface WindowAttributes {
   width: number;
@@ -10,12 +11,15 @@ export interface WindowAttributes {
 
 const windowRegistry = new Map<string, Window>();
 
+type EventHandler = (ev: UzumakiEvent) => void;
+
 export class Window {
   private _width!: number;
   private _height!: number;
   private _label!: string;
   private _id!: number;
   private _remBase: number = 16;
+  private _eventId!: string;
 
   constructor(
     label: string,
@@ -35,10 +39,13 @@ export class Window {
     this._height = height;
     this._label = label;
     this._id = createWindow({ width, height, title });
+    this._eventId = `__window_${this._id}`;
     windowRegistry.set(label, this);
   }
 
-  close() {}
+  close() {
+    eventManager.clearNode(this._eventId);
+  }
 
   setSize(width: number, height: number) {
     this._width = width;
@@ -61,6 +68,10 @@ export class Window {
     return this._id;
   }
 
+  get eventId(): string {
+    return this._eventId;
+  }
+
   get remBase(): number {
     return this._remBase;
   }
@@ -68,6 +79,14 @@ export class Window {
   set remBase(value: number) {
     this._remBase = value;
     setRemBase(this._id, value);
+  }
+
+  on(eventName: string, handler: EventHandler): void {
+    eventManager.addHandlerByName(this._eventId, eventName, handler);
+  }
+
+  off(eventName: string, handler: EventHandler): void {
+    eventManager.removeHandlerByName(this._eventId, eventName, handler);
   }
 }
 
