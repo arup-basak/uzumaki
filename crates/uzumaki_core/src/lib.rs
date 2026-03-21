@@ -1614,16 +1614,40 @@ impl ApplicationHandler<UserEvent> for Application {
                     if let Some(entry) = state.windows.get_mut(&wid) {
                         let dom = &mut entry.dom;
                         if let Some((mx, my)) = dom.hit_state.mouse_position {
-                            // Find the innermost scrollable view containing the mouse.
-                            // scroll_thumbs are ordered inner-first (children before parents),
-                            // so the first match is the most deeply nested.
-                            let mut target: Option<crate::element::NodeId> = None;
-                            for thumb_rect in dom.scroll_thumbs.iter() {
-                                if thumb_rect.view_bounds.contains(mx, my) {
-                                    target = Some(thumb_rect.node_id);
-                                    break;
+                            const SCROLL_LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(150);
+
+                            // Check if we have a valid scroll lock (not expired, node still under mouse).
+                            let locked_target = dom.scroll_lock.and_then(|(nid, t)| {
+                                if t.elapsed() < SCROLL_LOCK_TIMEOUT {
+                                    // Verify the locked node's view still contains the mouse.
+                                    dom.scroll_thumbs.iter()
+                                        .find(|tr| tr.node_id == nid && tr.view_bounds.contains(mx, my))
+                                        .map(|_| nid)
+                                } else {
+                                    None
                                 }
-                            }
+                            });
+
+                            let target = if let Some(nid) = locked_target {
+                                // Renew the lock timestamp.
+                                dom.scroll_lock = Some((nid, std::time::Instant::now()));
+                                Some(nid)
+                            } else {
+                                // Find the innermost scrollable view containing the mouse.
+                                // scroll_thumbs are ordered inner-first (children before parents),
+                                // so the first match is the most deeply nested.
+                                let mut found: Option<crate::element::NodeId> = None;
+                                for thumb_rect in dom.scroll_thumbs.iter() {
+                                    if thumb_rect.view_bounds.contains(mx, my) {
+                                        found = Some(thumb_rect.node_id);
+                                        break;
+                                    }
+                                }
+                                if let Some(nid) = found {
+                                    dom.scroll_lock = Some((nid, std::time::Instant::now()));
+                                }
+                                found
+                            };
 
                             if let Some(nid) = target {
                                 let scroll_info = dom.scroll_thumbs.iter()

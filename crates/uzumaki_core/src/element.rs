@@ -120,6 +120,9 @@ pub struct Dom {
     pub scroll_thumbs: Vec<ScrollThumbRect>,
     /// Active scroll-thumb drag state (only one at a time).
     pub scroll_drag: Option<ScrollDragState>,
+    /// Scroll lock: when scrolling starts, lock to that node for a short duration
+    /// to prevent inner scrollable views from stealing wheel events mid-scroll.
+    pub scroll_lock: Option<(NodeId, std::time::Instant)>,
 }
 
 struct InputRenderInfo {
@@ -158,6 +161,7 @@ impl Dom {
             window_focused: true,
             scroll_thumbs: Vec::new(),
             scroll_drag: None,
+            scroll_lock: None,
         }
     }
 
