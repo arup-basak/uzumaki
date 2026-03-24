@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { $, fileURLToPath } from 'bun';
+import { $ } from 'bun';
 import { runApp } from './index';
 import path from 'node:path';
 
@@ -52,14 +52,6 @@ async function run(entryPoint: string) {
   await runApp({ entryFilePath: entryFile });
 }
 
-function isWindows(): boolean {
-  return process.platform === 'win32';
-}
-
-function normalizePathWindows(path: string): string {
-  return path.replace(/\\/g, '/');
-}
-
 async function build(entryPoint: string) {
-  throw new Error('Todo');
+  throw 'Todo';
 }

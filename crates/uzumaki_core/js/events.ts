@@ -1,18 +1,14 @@
-// ── Event Types (shared numeric enum — Rust mirrors these values) ────
-
 export const enum EventType {
   MouseMove = 0,
   MouseDown = 1,
-  MouseUp   = 2,
-  Click     = 3,
-  KeyDown   = 10,
-  KeyUp     = 11,
-  Input     = 20,
-  Focus     = 21,
-  Blur      = 22,
+  MouseUp = 2,
+  Click = 3,
+  KeyDown = 10,
+  KeyUp = 11,
+  Input = 20,
+  Focus = 21,
+  Blur = 22,
 }
-
-// ── Event interfaces ─────────────────────────────────────────────────
 
 export interface UzumakiEvent {
   type: EventType;
@@ -29,13 +25,13 @@ export interface UzumakiMouseEvent extends UzumakiEvent {
   y: number;
   screenX: number;
   screenY: number;
-  button: number;   // 0=left 1=mid 2=right
-  buttons: number;  // bitmask
+  button: number; // 0=left 1=mid 2=right
+  buttons: number; // bitmask
 }
 
 export interface UzumakiKeyboardEvent extends UzumakiEvent {
-  key: string;      // logical: "Enter", "a"
-  code: string;     // physical: "KeyA"
+  key: string; // logical: "Enter", "a"
+  code: string; // physical: "KeyA"
   keyCode: number;
   repeat: boolean;
   ctrlKey: boolean;
@@ -52,18 +48,16 @@ export interface UzumakiInputEvent extends UzumakiEvent {
 
 export interface UzumakiFocusEvent extends UzumakiEvent {}
 
-// ── Helpers ──────────────────────────────────────────────────────────
-
 const EVENT_NAME_TO_TYPE: Record<string, EventType> = {
   mousemove: EventType.MouseMove,
   mousedown: EventType.MouseDown,
-  mouseup:   EventType.MouseUp,
-  click:     EventType.Click,
-  keydown:   EventType.KeyDown,
-  keyup:     EventType.KeyUp,
-  input:     EventType.Input,
-  focus:     EventType.Focus,
-  blur:      EventType.Blur,
+  mouseup: EventType.MouseUp,
+  click: EventType.Click,
+  keydown: EventType.KeyDown,
+  keyup: EventType.KeyUp,
+  input: EventType.Input,
+  focus: EventType.Focus,
+  blur: EventType.Blur,
 };
 
 function nodeKey(id: any): string {
@@ -86,8 +80,6 @@ function isFocusType(t: EventType): boolean {
   return t === EventType.Focus || t === EventType.Blur;
 }
 
-// ── EventManager ─────────────────────────────────────────────────────
-
 export class EventManager {
   // nodeKey -> EventType -> Set<handler>
   private handlers = new Map<string, Map<EventType, Set<Function>>>();
@@ -95,8 +87,6 @@ export class EventManager {
   private parentMap = new Map<string, any>();
   // focus tracking
   private _focusNode: any = null;
-
-  // ── Focus ────────────────────────────────────────────────────────
 
   setFocus(nodeId: any): void {
     this._focusNode = nodeId;
@@ -156,8 +146,6 @@ export class EventManager {
     return typeMap != null && typeMap.size > 0;
   }
 
-  // ── Parent tracking (for bubbling) ───────────────────────────────
-
   setParent(childId: any, parentId: any): void {
     this.parentMap.set(nodeKey(childId), parentId);
   }
@@ -183,8 +171,6 @@ export class EventManager {
     if (t !== undefined) this.clearHandlersForType(nodeId, t);
   }
 
-  // ── Raw event entry point (called from the bridge) ───────────────
-
   onRawEvent(type: EventType, targetNodeId: any, payload: any): void {
     let target = targetNodeId;
 
@@ -203,9 +189,15 @@ export class EventManager {
       target,
       currentTarget: target,
       bubbles: true,
-      get defaultPrevented() { return prevented; },
-      stopPropagation() { stopped = true; },
-      preventDefault() { prevented = true; },
+      get defaultPrevented() {
+        return prevented;
+      },
+      stopPropagation() {
+        stopped = true;
+      },
+      preventDefault() {
+        prevented = true;
+      },
     };
 
     let event: UzumakiEvent;
@@ -228,10 +220,10 @@ export class EventManager {
         code: payload?.code ?? '',
         keyCode: payload?.keyCode ?? 0,
         repeat: payload?.repeat ?? false,
-        ctrlKey:  !!(mods & 1),
-        altKey:   !!(mods & 2),
+        ctrlKey: !!(mods & 1),
+        altKey: !!(mods & 2),
         shiftKey: !!(mods & 4),
-        metaKey:  !!(mods & 8),
+        metaKey: !!(mods & 8),
       } as UzumakiKeyboardEvent;
     } else if (isInputType(type)) {
       event = {

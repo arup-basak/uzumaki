@@ -1,7 +1,14 @@
-import { Application, createWindow, pollEvents, resetDom, setRemBase } from './bindings';
+import {
+  Application,
+  createWindow,
+  pollEvents,
+  resetDom,
+  setRemBase,
+} from './bindings';
 import { requestQuit } from './bindings';
 import { eventManager, EventType } from './events';
-import type { UzumakiMouseEvent, UzumakiKeyboardEvent, UzumakiEvent } from './events';
+
+import type { UzumakiEvent } from './events';
 
 export interface WindowAttributes {
   width: number;
@@ -92,7 +99,13 @@ export class Window {
 
 export { render } from './react';
 export { eventManager, EventType } from './events';
-export type { UzumakiEvent, UzumakiMouseEvent, UzumakiKeyboardEvent, UzumakiInputEvent, UzumakiFocusEvent } from './events';
+export type {
+  UzumakiEvent,
+  UzumakiMouseEvent,
+  UzumakiKeyboardEvent,
+  UzumakiInputEvent,
+  UzumakiFocusEvent,
+} from './events';
 
 interface AppEvent {
   type: string;
@@ -119,7 +132,7 @@ export async function runApp({
   let exiting = false;
   function shutdown() {
     if (exiting) {
-      process.exit(1); // second signal = force kill
+      process.exit(1); // second signal, force kill
     }
     exiting = true;
     requestQuit();
@@ -181,13 +194,8 @@ export async function runApp({
         case 'resize':
           break;
         case 'hotReload':
-          console.log('[uzumaki] Hot reload triggered');
-          try {
-            await import(entryFilePath + '?t=' + Date.now());
-          } catch (e) {
-            console.error('[uzumaki] Hot reload failed');
-            console.error(e);
-          }
+          // todo this doesnt work :p
+          console.log('[uzumaki] Hot reload');
           break;
       }
     }
