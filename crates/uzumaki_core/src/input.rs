@@ -2,8 +2,6 @@ use std::time::Instant;
 use unicode_segmentation::UnicodeSegmentation;
 use winit::keyboard::{Key, NamedKey};
 
-// ── Selection ────────────────────────────────────────────────────────
-
 #[derive(Clone, Debug)]
 pub struct Selection {
     /// Anchor point (where selection started)
@@ -38,8 +36,6 @@ impl Selection {
     }
 }
 
-// ── Edit result ──────────────────────────────────────────────────────
-
 pub struct InputEdit {
     pub input_type: &'static str,
     pub data: Option<String>,
@@ -52,10 +48,11 @@ pub enum KeyResult {
     Ignored,
     /// Multiline vertical navigation: direction -1=up, +1=down; extend=shift held.
     /// The caller must resolve the target grapheme using the text renderer and call `move_to`.
-    VerticalNav { direction: i32, extend: bool },
+    VerticalNav {
+        direction: i32,
+        extend: bool,
+    },
 }
-
-// ── InputState ───────────────────────────────────────────────────────
 
 pub struct InputState {
     pub text: String,
@@ -158,8 +155,7 @@ impl InputState {
             return None;
         }
         if let Some(max) = self.max_length {
-            let current = self.grapheme_count()
-                - (self.selection.end() - self.selection.start());
+            let current = self.grapheme_count() - (self.selection.end() - self.selection.start());
             let insert = ch.graphemes(true).count();
             if current + insert > max {
                 return None;
@@ -584,7 +580,10 @@ impl InputState {
                 }
                 NamedKey::ArrowUp => {
                     if self.multiline {
-                        KeyResult::VerticalNav { direction: -1, extend: shift }
+                        KeyResult::VerticalNav {
+                            direction: -1,
+                            extend: shift,
+                        }
                     } else {
                         // Single-line: up goes to start
                         self.move_home(shift);
@@ -593,7 +592,10 @@ impl InputState {
                 }
                 NamedKey::ArrowDown => {
                     if self.multiline {
-                        KeyResult::VerticalNav { direction: 1, extend: shift }
+                        KeyResult::VerticalNav {
+                            direction: 1,
+                            extend: shift,
+                        }
                     } else {
                         // Single-line: down goes to end
                         self.move_end(shift);

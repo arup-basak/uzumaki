@@ -11,6 +11,7 @@ const window = new Window('main', {
   height: 800,
   title: 'Uzumaki Dashboard',
 });
+
 window.on('click', (ev) => {
   console.log('Click window');
 });
@@ -23,7 +24,7 @@ const exampleMap: Record<Examples, React.ReactNode> = {
 };
 
 function Playground() {
-  const [example, setExample] = useState<Examples | null>(null);
+  const [example, setExample] = useState<Examples | null>('dashboard');
 
   if (example === null) {
     return (
@@ -62,7 +63,7 @@ function Playground() {
         border="1"
       >
         <text fontSize="18" color={ACCENT_ORANGE} flexShrink="0">
-          Uzumaki
+          Hello Uzumaki
         </text>
 
         <Button onClick={() => setExample(null)}>Examples</Button>

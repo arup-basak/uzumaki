@@ -3,8 +3,6 @@ use refineable::Refineable;
 use crate::element::NodeId;
 use crate::style::{Bounds, Style, StyleRefinement};
 
-// ── Hitbox ───────────────────────────────────────────────────────────
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct HitboxId(pub u64);
 
@@ -21,8 +19,6 @@ impl Hitbox {
         hit_state.hovered_hitboxes.contains(&self.id)
     }
 }
-
-// ── HitTestState ─────────────────────────────────────────────────────
 
 /// Stores the result of a hit test: which hitboxes the mouse is currently over.
 #[derive(Clone, Debug, Default)]
@@ -64,7 +60,11 @@ impl HitboxStore {
     pub fn insert(&mut self, node_id: NodeId, bounds: Bounds) -> HitboxId {
         let id = HitboxId(self.next_id);
         self.next_id += 1;
-        self.hitboxes.push(Hitbox { id, node_id, bounds });
+        self.hitboxes.push(Hitbox {
+            id,
+            node_id,
+            bounds,
+        });
         id
     }
 
@@ -105,8 +105,6 @@ impl HitboxStore {
     }
 }
 
-// ── Mouse events ─────────────────────────────────────────────────────
-
 #[derive(Clone, Debug)]
 pub struct MouseEvent {
     pub position: (f64, f64),
@@ -121,8 +119,6 @@ pub enum MouseButton {
 }
 
 pub type MouseEventListener = Box<dyn Fn(&MouseEvent, &Bounds) + Send + Sync>;
-
-// ── Interactivity ────────────────────────────────────────────────────
 
 /// Holds the style states and event listeners for an interactive element.
 /// Elements embed this struct and delegate styling through it.
@@ -142,6 +138,7 @@ pub struct Interactivity {
     pub mouse_up_listeners: Vec<MouseEventListener>,
     pub click_listeners: Vec<MouseEventListener>,
 
+    // todo remove
     /// Set from JS side when a node has JS event listeners.
     pub js_interactive: bool,
 }
@@ -227,10 +224,7 @@ impl Interactivity {
     }
 
     /// Add a mouse up listener.
-    pub fn on_mouse_up(
-        &mut self,
-        listener: impl Fn(&MouseEvent, &Bounds) + Send + Sync + 'static,
-    ) {
+    pub fn on_mouse_up(&mut self, listener: impl Fn(&MouseEvent, &Bounds) + Send + Sync + 'static) {
         self.mouse_up_listeners.push(Box::new(listener));
     }
 }

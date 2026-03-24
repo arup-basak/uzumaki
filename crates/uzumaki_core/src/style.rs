@@ -3,8 +3,6 @@ use vello::Scene;
 use vello::kurbo::{Affine, Rect, RoundedRect, RoundedRectRadii, Stroke};
 use vello::peniko::Color as VelloColor;
 
-// ── Our own Color (Default-able, Refineable-friendly) ────────────────
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Color {
     pub r: u8,
@@ -64,8 +62,6 @@ impl Color {
         self.a == 0
     }
 }
-
-// ── Geometry primitive ───────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds {
@@ -276,8 +272,6 @@ pub enum Overflow {
     Scroll,
 }
 
-// ── Size types ───────────────────────────────────────────────────────
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Refineable)]
 #[refineable(Debug)]
 pub struct Size {
@@ -291,8 +285,6 @@ pub struct GapSize {
     pub width: DefiniteLength,
     pub height: DefiniteLength,
 }
-
-// ── Text style ───────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, PartialEq, Refineable)]
 #[refineable(Debug)]
@@ -311,8 +303,6 @@ impl Default for TextStyle {
         }
     }
 }
-
-// ── The main Style struct ────────────────────────────────────────────
 
 #[derive(Clone, Debug, PartialEq, Refineable)]
 #[refineable(Debug)]

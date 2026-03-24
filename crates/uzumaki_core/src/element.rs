@@ -13,8 +13,6 @@ new_key_type! {
     pub struct NodeId;
 }
 
-// ── Scroll state ─────────────────────────────────────────────────────
-
 pub struct ScrollState {
     pub scroll_offset_y: f32,
 }
@@ -47,14 +45,10 @@ pub struct ScrollThumbRect {
     pub visible_height: f32,
 }
 
-// ── Text content ─────────────────────────────────────────────────────
-
 #[derive(Clone, Debug)]
 pub struct TextContent {
     pub content: String,
 }
-
-// ── Element kind ─────────────────────────────────────────────────────
 
 #[derive(Clone, Debug)]
 pub enum ElementKind {
@@ -66,8 +60,6 @@ pub enum ElementKind {
     Input,
 }
 
-// ── NodeContext for taffy ────────────────────────────────────────────
-
 #[derive(Clone, Debug)]
 pub struct NodeContext {
     pub dom_id: NodeId,
@@ -75,8 +67,6 @@ pub struct NodeContext {
     pub font_size: f32,
     pub is_input: bool,
 }
-
-// ── Node ─────────────────────────────────────────────────────────────
 
 pub struct Node {
     pub parent: Option<NodeId>,
@@ -95,8 +85,6 @@ pub struct Node {
     /// Scroll state, present only when overflow_y == Scroll.
     pub scroll_state: Option<ScrollState>,
 }
-
-// ── Dom ──────────────────────────────────────────────────────────────
 
 pub struct Dom {
     pub nodes: SlotMap<NodeId, Node>,
@@ -140,9 +128,7 @@ struct InputRenderInfo {
     multiline: bool,
 }
 
-// Safety: Dom contains taffy's CompactLength which uses *const () as a tagged pointer
-// for float storage. It never actually dereferences these pointers and is safe to send
-// across threads. All other fields are Send+Sync.
+// Safety:  We only access it from main thread
 unsafe impl Send for Dom {}
 unsafe impl Sync for Dom {}
 
