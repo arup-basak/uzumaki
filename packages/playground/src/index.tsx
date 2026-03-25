@@ -74,6 +74,7 @@ function Playground() {
       <view
         display="flex"
         items="center"
+        w="full"
         h="32"
         flexShrink={0}
         px="16"
@@ -82,7 +83,7 @@ function Playground() {
         borderTop="1"
       >
         <text fontSize="16" color={SUBTEXT}>
-          Uzumaki v0.1.0
+          Uzumaki v0.0.0
         </text>
       </view>
     </view>
