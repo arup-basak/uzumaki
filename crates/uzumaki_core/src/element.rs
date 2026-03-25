@@ -51,14 +51,38 @@ pub struct TextContent {
     pub content: String,
 }
 
-#[derive(Clone, Debug)]
-pub enum ElementKind {
-    /// Container element (div). Has visual style + children.
-    View,
-    /// Text leaf element.
-    Text(TextContent),
-    /// Input element.
-    Input,
+// ── Element trait ──────────────────────────────────────────────────────
+
+pub trait ElementBehavior {
+    fn as_input(&self) -> Option<&InputState> { None }
+    fn as_input_mut(&mut self) -> Option<&mut InputState> { None }
+    fn as_text(&self) -> Option<&TextContent> { None }
+    fn as_text_mut(&mut self) -> Option<&mut TextContent> { None }
+    fn is_input(&self) -> bool { false }
+    fn is_text(&self) -> bool { false }
+}
+
+pub struct ViewBehavior;
+impl ElementBehavior for ViewBehavior {}
+
+pub struct TextBehavior {
+    pub content: TextContent,
+}
+
+impl ElementBehavior for TextBehavior {
+    fn as_text(&self) -> Option<&TextContent> { Some(&self.content) }
+    fn as_text_mut(&mut self) -> Option<&mut TextContent> { Some(&mut self.content) }
+    fn is_text(&self) -> bool { true }
+}
+
+pub struct InputBehavior {
+    pub state: InputState,
+}
+
+impl ElementBehavior for InputBehavior {
+    fn as_input(&self) -> Option<&InputState> { Some(&self.state) }
+    fn as_input_mut(&mut self) -> Option<&mut InputState> { Some(&mut self.state) }
+    fn is_input(&self) -> bool { true }
 }
 
 #[derive(Clone, Debug)]
@@ -76,13 +100,11 @@ pub struct Node {
     pub next_sibling: Option<NodeId>,
     pub prev_sibling: Option<NodeId>,
     pub taffy_node: taffy::NodeId,
-    pub kind: ElementKind,
+    pub behavior: Box<dyn ElementBehavior>,
     /// The base style for this element. Converted to taffy for layout.
     pub style: Style,
     /// Interactivity: hover/active style overrides, hitbox, event listeners.
     pub interactivity: Interactivity,
-    /// Input state, present only for Input elements.
-    pub input_state: Option<InputState>,
     /// Scroll state, present only when overflow_y == Scroll.
     pub scroll_state: Option<ScrollState>,
 }
@@ -157,10 +179,9 @@ impl Dom {
             next_sibling: None,
             prev_sibling: None,
             taffy_node,
-            kind: ElementKind::View,
+            behavior: Box::new(ViewBehavior),
             style,
             interactivity: Interactivity::new(),
-            input_state: None,
             scroll_state: None,
         });
         self.taffy
@@ -192,10 +213,9 @@ impl Dom {
             next_sibling: None,
             prev_sibling: None,
             taffy_node,
-            kind: ElementKind::Text(text.clone()),
+            behavior: Box::new(TextBehavior { content: text.clone() }),
             style,
             interactivity: Interactivity::new(),
-            input_state: None,
             scroll_state: None,
         });
         self.taffy
@@ -224,10 +244,9 @@ impl Dom {
             next_sibling: None,
             prev_sibling: None,
             taffy_node,
-            kind: ElementKind::Input,
+            behavior: Box::new(InputBehavior { state: InputState::new() }),
             style,
             interactivity: Interactivity::new(),
-            input_state: Some(InputState::new()),
             scroll_state: None,
         });
         self.taffy
@@ -332,7 +351,11 @@ impl Dom {
     pub fn set_text_content(&mut self, node_id: NodeId, text: String) {
         let node = &mut self.nodes[node_id];
         let tc = TextContent { content: text };
-        node.kind = ElementKind::Text(tc.clone());
+        if let Some(existing) = node.behavior.as_text_mut() {
+            existing.content = tc.content.clone();
+        } else {
+            node.behavior = Box::new(TextBehavior { content: tc.clone() });
+        }
         let taffy_node = node.taffy_node;
         let font_size = node.style.text.font_size;
         self.taffy
@@ -518,33 +541,26 @@ impl Dom {
                             .interactivity
                             .compute_style(&node.style, &self.hit_state);
 
-                        let text = match &node.kind {
-                            ElementKind::Text(tc) => Some((
-                                tc.content.clone(),
-                                computed_style.text.font_size,
-                                computed_style.text.color,
-                            )),
-                            _ => None,
-                        };
+                        let text = node.behavior.as_text().map(|tc| (
+                            tc.content.clone(),
+                            computed_style.text.font_size,
+                            computed_style.text.color,
+                        ));
 
-                        let input = if let ElementKind::Input = &node.kind {
-                            node.input_state.as_ref().map(|is| InputRenderInfo {
-                                display_text: is.display_text(),
-                                placeholder: is.placeholder.clone(),
-                                font_size: computed_style.text.font_size,
-                                text_color: computed_style.text.color,
-                                focused: is.focused,
-                                sel_start: is.selection.start(),
-                                sel_end: is.selection.end(),
-                                cursor_pos: is.selection.active,
-                                scroll_offset: is.scroll_offset,
-                                scroll_offset_y: is.scroll_offset_y,
-                                blink_visible: is.blink_visible(self.window_focused),
-                                multiline: is.multiline,
-                            })
-                        } else {
-                            None
-                        };
+                        let input = node.behavior.as_input().map(|is| InputRenderInfo {
+                            display_text: is.display_text(),
+                            placeholder: is.placeholder.clone(),
+                            font_size: computed_style.text.font_size,
+                            text_color: computed_style.text.color,
+                            focused: is.focused,
+                            sel_start: is.model.selection.start(),
+                            sel_end: is.model.selection.end(),
+                            cursor_pos: is.model.selection.active,
+                            scroll_offset: is.scroll_offset,
+                            scroll_offset_y: is.scroll_offset_y,
+                            blink_visible: is.blink_visible(self.window_focused),
+                            multiline: is.model.multiline,
+                        });
 
                         let needs_hitbox = node.interactivity.needs_hitbox();
                         let is_scrollable = node.scroll_state.is_some();

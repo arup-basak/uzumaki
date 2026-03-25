@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import type { UzumakiMouseEvent, UzumakiKeyboardEvent, UzumakiInputEvent, UzumakiFocusEvent } from '../../events';
+import type { InputHandle } from '../useInput';
 
 interface ElementStyles {
   h?: number | string;
@@ -96,6 +97,7 @@ export namespace JSX {
       };
     input: ElementAttributes &
       EventProps & {
+        handle?: InputHandle;
         value?: string;
         placeholder?: string;
         disabled?: boolean;

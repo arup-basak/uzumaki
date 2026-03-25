@@ -4,7 +4,8 @@ import { eventManager, EventType } from './events';
 
 export * from './window';
 
-export { render } from './react';
+export { render, useInput, createInputHandle } from './react';
+export type { InputHandle, InputHandleOptions } from './react';
 export { eventManager, EventType } from './events';
 export type {
   UzumakiEvent,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useInput } from 'uzumaki/react';
 import {
   NAV_ACTIVE,
   NAV_ITEM,
@@ -362,9 +363,19 @@ function ScrollDemo() {
 }
 
 function InputDemo() {
-  const [text, setText] = useState('');
-  const [password, setPassword] = useState('');
-  const [multiText, setMultiText] = useState('');
+  const [textDisplay, setTextDisplay] = useState('');
+  const [pwLength, setPwLength] = useState(0);
+  const [multiInfo, setMultiInfo] = useState('0 chars, 1 lines');
+
+  const textInput = useInput('', {
+    onChange: (v) => setTextDisplay(v),
+  });
+  const passwordInput = useInput('', {
+    onChange: (v) => setPwLength(v.length),
+  });
+  const multiInput = useInput('', {
+    onChange: (v) => setMultiInfo(`${v.length} chars, ${v.split('\n').length} lines`),
+  });
 
   return (
     <view
@@ -386,11 +397,10 @@ function InputDemo() {
           placeholder="Type something..."
           fontSize="16"
           color={TEXT_COLOR}
-          value={text}
-          onInput={(e) => setText(e.value)}
+          handle={textInput}
         />
         <text fontSize="14" color={SUBTEXT}>
-          {`Value: "${text}"`}
+          {`Value: "${textDisplay}"`}
         </text>
       </view>
       <view display="flex" gap="12" items="center">
@@ -400,11 +410,10 @@ function InputDemo() {
           fontSize="16"
           color={TEXT_COLOR}
           secure
-          value={password}
-          onInput={(e) => setPassword(e.value)}
+          handle={passwordInput}
         />
         <text fontSize="14" color={SUBTEXT}>
-          {`Length: ${password.length}`}
+          {`Length: ${pwLength}`}
         </text>
       </view>
       <view display="flex" gap="12" items="center">
@@ -412,7 +421,7 @@ function InputDemo() {
           Multiline:
         </text>
         <text fontSize="14" color={SUBTEXT}>
-          {`${multiText.length} chars, ${multiText.split('\n').length} lines`}
+          {multiInfo}
         </text>
       </view>
       <input
@@ -422,8 +431,7 @@ function InputDemo() {
         fontSize="16"
         color={TEXT_COLOR}
         multiline
-        value={multiText}
-        onInput={(e) => setMultiText(e.value)}
+        handle={multiInput}
       />
     </view>
   );

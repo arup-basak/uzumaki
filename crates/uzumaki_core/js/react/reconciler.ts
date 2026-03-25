@@ -336,11 +336,14 @@ class ViewElement extends BaseElement {
   }
 }
 
+import type { InputHandle } from './useInput';
+
 const INPUT_ATTR_NAMES = new Set(['value', 'placeholder', 'disabled', 'maxLength', 'multiline', 'secure']);
 
 /** Input element: `<input>`. Has input-specific attributes (value, placeholder, etc.). */
 class InputElement extends BaseElement {
   inputAttrs: Record<string, any> = {};
+  handle: InputHandle | null = null;
 
   constructor(windowId: number, props: Record<string, any>) {
     const id = core.createElement(windowId, 'input');
@@ -349,11 +352,12 @@ class InputElement extends BaseElement {
     this.applyStyles();
     this.applyInputAttrs();
     this.applyEvents();
+    this.bindHandle(props.handle);
   }
 
   private parseProps(props: Record<string, any>): void {
     for (const key in props) {
-      if (key === 'children' || key === 'key' || key === 'ref') continue;
+      if (key === 'children' || key === 'key' || key === 'ref' || key === 'handle') continue;
       const value = props[key];
       if (value == null) continue;
       if (isEventProp(key)) {
@@ -372,13 +376,42 @@ class InputElement extends BaseElement {
     }
   }
 
+  private bindHandle(handle: InputHandle | undefined): void {
+    if (!handle || !handle.__handle) return;
+    this.handle = handle;
+    handle.__nodeId = this.id;
+    handle.__windowId = this.windowId;
+
+    // Apply initial value if set
+    const initial = (handle as any).__initialValue;
+    if (initial) {
+      core.setInputValue(this.windowId, this.id, initial);
+    }
+
+    // Register internal onInput handler that calls handle's onChange
+    eventManager.addHandlerByName(this.id, 'input', (ev: any) => {
+      if (this.handle?.__onChange) {
+        this.handle.__onChange(ev.value);
+      }
+    });
+    core.setF32Prop(this.windowId, this.id, PropKey.Interactive, 1);
+  }
+
+  private unbindHandle(): void {
+    if (this.handle) {
+      this.handle.__nodeId = null;
+      this.handle.__windowId = null;
+      this.handle = null;
+    }
+  }
+
   commitUpdate(newProps: Record<string, any>): void {
     const newStyles: Record<string, any> = {};
     const newInputAttrs: Record<string, any> = {};
     const newEvents: Map<string, Function> = new Map();
 
     for (const key in newProps) {
-      if (key === 'children' || key === 'key' || key === 'ref') continue;
+      if (key === 'children' || key === 'key' || key === 'ref' || key === 'handle') continue;
       const value = newProps[key];
       if (value == null) continue;
       if (isEventProp(key)) {
@@ -393,12 +426,29 @@ class InputElement extends BaseElement {
     this.updateStyles(newStyles);
     this.updateEvents(newEvents);
 
+    // Handle prop swap
+    const newHandle = newProps.handle;
+    if (newHandle !== this.handle) {
+      this.unbindHandle();
+      this.bindHandle(newHandle);
+    }
+
+    // When handle is present, skip value/onInput from inputAttrs — handle owns them
+    if (this.handle) {
+      delete newInputAttrs.value;
+    }
+
     for (const [key, val] of Object.entries(newInputAttrs)) {
       if (this.inputAttrs[key] !== val) {
         InputElement.setInputAttr(this.windowId, this.id, key, val);
       }
     }
     this.inputAttrs = newInputAttrs;
+  }
+
+  override destroy(): void {
+    this.unbindHandle();
+    super.destroy();
   }
 
   static setInputAttr(windowId: number, nodeId: any, key: string, value: any): void {
