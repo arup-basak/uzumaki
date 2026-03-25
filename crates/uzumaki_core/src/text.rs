@@ -420,7 +420,6 @@ fn lookup_byte_pos_2d(
     }
 }
 
-
 fn lookup_byte_x(byte_x: &[(usize, f32)], byte_offset: usize) -> f32 {
     match byte_x.binary_search_by_key(&byte_offset, |&(off, _)| off) {
         Ok(idx) => byte_x[idx].1,
@@ -471,12 +470,24 @@ mod tests {
         ];
 
         let next = lookup_byte_pos_2d(&byte_pos, 3, true);
-        assert!((next.x - 0.0).abs() < 0.01, "prefer_next_line should pick x=0");
-        assert!((next.y - 20.0).abs() < 0.01, "prefer_next_line should pick y=20");
+        assert!(
+            (next.x - 0.0).abs() < 0.01,
+            "prefer_next_line should pick x=0"
+        );
+        assert!(
+            (next.y - 20.0).abs() < 0.01,
+            "prefer_next_line should pick y=20"
+        );
 
         let curr = lookup_byte_pos_2d(&byte_pos, 3, false);
-        assert!((curr.x - 30.0).abs() < 0.01, "prefer_current should pick x=30");
-        assert!((curr.y - 0.0).abs() < 0.01, "prefer_current should pick y=0");
+        assert!(
+            (curr.x - 30.0).abs() < 0.01,
+            "prefer_current should pick x=30"
+        );
+        assert!(
+            (curr.y - 0.0).abs() < 0.01,
+            "prefer_current should pick y=0"
+        );
     }
 
     #[test]
@@ -590,7 +601,11 @@ mod tests {
         // Graphemes: a, b, c, \n → 4 graphemes + 1 = 5 positions
         assert_eq!(pos.len(), 5);
         let last = pos.last().unwrap();
-        assert!(last.x < 1.0, "after trailing \\n should be x≈0, got {}", last.x);
+        assert!(
+            last.x < 1.0,
+            "after trailing \\n should be x≈0, got {}",
+            last.x
+        );
         assert!(
             last.y > pos[0].y,
             "after trailing \\n should be on a new line"
@@ -702,7 +717,10 @@ mod tests {
 
         // Click at x=0 on line 1 → should be at start of line 1
         let idx = r.hit_to_grapheme_2d("abc\ndef", 16.0, None, 0.0, line1_y + 2.0);
-        assert_eq!(idx, 4, "clicking at start of line 1 should give index 4 (after \\n)");
+        assert_eq!(
+            idx, 4,
+            "clicking at start of line 1 should give index 4 (after \\n)"
+        );
     }
 
     #[test]
@@ -736,7 +754,12 @@ mod tests {
         let mut r = renderer();
         let pos = r.grapheme_x_positions("hello world", 16.0);
         for w in pos.windows(2) {
-            assert!(w[1] >= w[0] - 0.01, "x should increase: {} >= {}", w[1], w[0]);
+            assert!(
+                w[1] >= w[0] - 0.01,
+                "x should increase: {} >= {}",
+                w[1],
+                w[0]
+            );
         }
     }
 }

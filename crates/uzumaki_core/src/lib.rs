@@ -906,7 +906,12 @@ impl ApplicationHandler<UserEvent> for Application {
                     if let Some(entry) = state.windows.get_mut(&wid) {
                         let WindowEntry { handle, dom, .. } = entry;
                         if let Some(handle) = handle {
-                            event_dispatch::handle_redraw(dom, handle, &state.gpu.device, &state.gpu.queue);
+                            event_dispatch::handle_redraw(
+                                dom,
+                                handle,
+                                &state.gpu.device,
+                                &state.gpu.queue,
+                            );
                             if dom.focused_node.is_some() && dom.window_focused {
                                 handle.winit_window.request_redraw();
                             }
@@ -918,13 +923,22 @@ impl ApplicationHandler<UserEvent> for Application {
                     if let Some(entry) = state.windows.get_mut(&wid) {
                         let WindowEntry { handle, dom, .. } = entry;
                         if let Some(handle) = handle {
-                            if event_dispatch::handle_cursor_moved(dom, handle, position, mouse_buttons) {
+                            if event_dispatch::handle_cursor_moved(
+                                dom,
+                                handle,
+                                position,
+                                mouse_buttons,
+                            ) {
                                 needs_redraw = true;
                             }
                         }
                     }
                 }
-                WindowEvent::MouseInput { state: btn_state, button, .. } => {
+                WindowEvent::MouseInput {
+                    state: btn_state,
+                    button,
+                    ..
+                } => {
                     use winit::event::ElementState;
                     let button_bit: u8 = match button {
                         winit::event::MouseButton::Left => 1,
@@ -941,21 +955,36 @@ impl ApplicationHandler<UserEvent> for Application {
                         let WindowEntry { handle, dom, .. } = entry;
                         if let Some(handle) = handle {
                             let (redraw, mouse_events) = event_dispatch::handle_mouse_input(
-                                dom, handle, wid, btn_state, button, mouse_buttons,
+                                dom,
+                                handle,
+                                wid,
+                                btn_state,
+                                button,
+                                mouse_buttons,
                             );
-                            if redraw { needs_redraw = true; }
+                            if redraw {
+                                needs_redraw = true;
+                            }
                             state.pending_events.extend(mouse_events);
                         }
                     }
                 }
-                WindowEvent::KeyboardInput { event: key_event, .. } => {
+                WindowEvent::KeyboardInput {
+                    event: key_event, ..
+                } => {
                     if let Some(entry) = state.windows.get_mut(&wid) {
                         let WindowEntry { handle, dom, .. } = entry;
                         if let Some(handle) = handle {
                             let (redraw, key_events) = event_dispatch::handle_keyboard_input(
-                                dom, handle, wid, &key_event, state.modifiers,
+                                dom,
+                                handle,
+                                wid,
+                                &key_event,
+                                state.modifiers,
                             );
-                            if redraw { needs_redraw = true; }
+                            if redraw {
+                                needs_redraw = true;
+                            }
                             state.pending_events.extend(key_events);
                         }
                     }
@@ -963,10 +992,18 @@ impl ApplicationHandler<UserEvent> for Application {
                 WindowEvent::ModifiersChanged(mods) => {
                     let m = mods.state();
                     let mut bits: u32 = 0;
-                    if m.control_key() { bits |= 1; }
-                    if m.alt_key() { bits |= 2; }
-                    if m.shift_key() { bits |= 4; }
-                    if m.super_key() { bits |= 8; }
+                    if m.control_key() {
+                        bits |= 1;
+                    }
+                    if m.alt_key() {
+                        bits |= 2;
+                    }
+                    if m.shift_key() {
+                        bits |= 4;
+                    }
+                    if m.super_key() {
+                        bits |= 8;
+                    }
                     state.modifiers = bits;
                 }
                 WindowEvent::Focused(focused) => {

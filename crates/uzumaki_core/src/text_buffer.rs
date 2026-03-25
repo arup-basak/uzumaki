@@ -227,7 +227,11 @@ mod tests {
         let b = buf("hello\nworld\nfoo");
         for i in 0..=b.grapheme_count() {
             let (r, c) = b.flat_to_rowcol(i);
-            assert_eq!(b.rowcol_to_flat(r, c), i, "round-trip failed for flat index {i}");
+            assert_eq!(
+                b.rowcol_to_flat(r, c),
+                i,
+                "round-trip failed for flat index {i}"
+            );
         }
     }
 

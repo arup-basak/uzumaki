@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
-import type { UzumakiMouseEvent, UzumakiKeyboardEvent, UzumakiInputEvent, UzumakiFocusEvent } from '../../events';
+import type {
+  UzumakiMouseEvent,
+  UzumakiKeyboardEvent,
+  UzumakiInputEvent,
+  UzumakiFocusEvent,
+} from '../../events';
 import type { InputHandle } from '../useInput';
 
 interface ElementStyles {

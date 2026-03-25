@@ -64,10 +64,29 @@ const window = new Window('main', { width: 800, height: 600, title: 'My App' });
 function App() {
   const [count, setCount] = useState(0);
   return (
-    <view display="flex" flexDir="col" w="full" h="full" items="center" justify="center" bg="#0f0f0f">
-      <text fontSize={24} color="#d4d4d4">Count: {count}</text>
-      <view onClick={() => setCount(c => c + 1)} p="8" px="16" bg="#2d2d30" rounded="6" hover:bg="#373738">
-        <text fontSize={16} color="#569cd6">Increment</text>
+    <view
+      display="flex"
+      flexDir="col"
+      w="full"
+      h="full"
+      items="center"
+      justify="center"
+      bg="#0f0f0f"
+    >
+      <text fontSize={24} color="#d4d4d4">
+        Count: {count}
+      </text>
+      <view
+        onClick={() => setCount((c) => c + 1)}
+        p="8"
+        px="16"
+        bg="#2d2d30"
+        rounded="6"
+        hover:bg="#373738"
+      >
+        <text fontSize={16} color="#569cd6">
+          Increment
+        </text>
       </view>
     </view>
   );

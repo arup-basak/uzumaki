@@ -511,11 +511,11 @@ mod tests {
     fn sel_rect_three_lines_middle_full_width() {
         let positions = vec![
             p(0.0, 0.0),
-            p(10.0, 0.0),   // line 0
+            p(10.0, 0.0), // line 0
             p(0.0, 20.0),
-            p(15.0, 20.0),  // line 1
+            p(15.0, 20.0), // line 1
             p(0.0, 40.0),
-            p(10.0, 40.0),  // line 2
+            p(10.0, 40.0), // line 2
         ];
         let rects = compute_selection_rects(&positions, 0, 5, 200.0, 20.0);
         assert_eq!(rects.len(), 3);
@@ -535,7 +535,7 @@ mod tests {
             p(10.0, 0.0),
             p(20.0, 0.0),
             p(30.0, 0.0), // line 0: "abc"
-            p(0.0, 20.0),                                     // line 1: after \n, x=0
+            p(0.0, 20.0), // line 1: after \n, x=0
         ];
         let rects = compute_selection_rects(&positions, 0, 4, 200.0, 20.0);
         assert_eq!(rects.len(), 2);
@@ -551,7 +551,7 @@ mod tests {
         let positions = vec![
             p(0.0, 0.0),
             p(10.0, 0.0), // line 0
-            p(0.0, 20.0),                // line 1 (empty — only x=0 position)
+            p(0.0, 20.0), // line 1 (empty — only x=0 position)
             p(0.0, 40.0),
             p(10.0, 40.0), // line 2
         ];
