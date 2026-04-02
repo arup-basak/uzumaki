@@ -3,6 +3,7 @@ use winit::keyboard::{Key, NamedKey};
 
 use crate::element::{Dom, NodeId, ScrollDragState};
 use crate::input;
+use crate::selection::SelectionRange;
 use crate::window::Window;
 
 #[derive(Serialize)]
@@ -101,7 +102,7 @@ pub fn scroll_input_to_cursor(dom: &mut Dom, handle: &mut Window) {
             let input_padding = if padding > 0.0 { padding } else { 8.0 };
             let pt = node.style.padding.top;
             let top_pad = if pt > 0.0 { pt } else { 4.0 };
-            let cursor_pos = is.selection.active;
+            let cursor_pos = is.range.active;
             let taffy_node = node.taffy_node;
             let multiline = is.multiline;
             (
@@ -133,11 +134,10 @@ pub fn scroll_input_to_cursor(dom: &mut Dom, handle: &mut Window) {
         .unwrap_or((200.0, 100.0));
 
     if multiline {
-        let positions = handle.text_renderer.grapheme_positions_2d(
-            &display_text,
-            font_size,
-            Some(input_width),
-        );
+        let positions =
+            handle
+                .text_renderer
+                .grapheme_positions_2d(&display_text, font_size, Some(input_width));
         let cursor_y = if cursor_pos < positions.len() {
             positions[cursor_pos].y
         } else {
@@ -279,7 +279,7 @@ pub fn handle_cursor_moved(
 
                 if let Some(node) = dom.nodes.get_mut(drag_nid) {
                     if let Some(is) = node.behavior.as_input_mut() {
-                        is.selection.active = grapheme_idx;
+                        is.range.active = grapheme_idx;
                         is.reset_blink();
                     }
                 }
@@ -290,11 +290,15 @@ pub fn handle_cursor_moved(
 
         // View text selection drag
         if let Some(root_id) = dom.dragging_view_selection {
-            if let Some(flat_idx) =
-                hit_text_in_run(dom, &mut handle.text_renderer, root_id, logical_x, logical_y)
-            {
-                if let Some(sel) = &mut dom.view_selection {
-                    sel.active = flat_idx;
+            if let Some(flat_idx) = hit_text_in_run(
+                dom,
+                &mut handle.text_renderer,
+                root_id,
+                logical_x,
+                logical_y,
+            ) {
+                if let Some(sel) = &mut dom.selection {
+                    sel.range.active = flat_idx;
                 }
                 needs_redraw = true;
             }
@@ -372,11 +376,9 @@ fn word_boundaries_in_run(
         return (flat_idx, flat_idx);
     };
     let chars: Vec<char> = run.flat_text.chars().collect();
-    let graphemes: Vec<&str> = unicode_segmentation::UnicodeSegmentation::graphemes(
-        run.flat_text.as_str(),
-        true,
-    )
-    .collect();
+    let graphemes: Vec<&str> =
+        unicode_segmentation::UnicodeSegmentation::graphemes(run.flat_text.as_str(), true)
+            .collect();
     // Map grapheme index to char index
     let mut char_idx = 0usize;
     for (i, g) in graphemes.iter().enumerate() {
@@ -542,7 +544,7 @@ pub fn handle_mouse_input(
                     let nid = js_target.unwrap();
 
                     // Clicking an input clears any active view text selection
-                    dom.view_selection = None;
+                    dom.selection = None;
 
                     // Multi-click detection (double=word, triple=line, quad=select all)
                     let now = std::time::Instant::now();
@@ -662,14 +664,12 @@ pub fn handle_mouse_input(
                                     2 => {
                                         // Double-click: select word
                                         let (ws, we) = is.word_at(grapheme_idx);
-                                        is.selection.anchor = ws;
-                                        is.selection.active = we;
+                                        is.set_selection(ws, we);
                                     }
                                     3 => {
                                         // Triple-click: select line/paragraph
                                         let (ls, le) = is.line_at(grapheme_idx);
-                                        is.selection.anchor = ls;
-                                        is.selection.active = le;
+                                        is.set_selection(ls, le);
                                     }
                                     4 => {
                                         // Quad-click: select all
@@ -677,7 +677,7 @@ pub fn handle_mouse_input(
                                     }
                                     _ => {
                                         // Single click: place cursor
-                                        is.selection.set_cursor(grapheme_idx);
+                                        is.range.set_cursor(grapheme_idx);
                                     }
                                 }
                                 is.reset_blink();
@@ -754,9 +754,9 @@ pub fn handle_mouse_input(
                             // Multi-click detection
                             let now = std::time::Instant::now();
                             let is_consecutive = dom.last_click_node == Some(nid)
-                                && dom.last_click_time.map_or(false, |t| {
-                                    now.duration_since(t).as_millis() < 400
-                                });
+                                && dom
+                                    .last_click_time
+                                    .map_or(false, |t| now.duration_since(t).as_millis() < 400);
                             dom.last_click_time = Some(now);
                             dom.last_click_node = Some(nid);
                             if is_consecutive {
@@ -768,48 +768,43 @@ pub fn handle_mouse_input(
                             match dom.click_count {
                                 2 => {
                                     let (ws, we) = word_boundaries_in_run(dom, run_root, flat_idx);
-                                    dom.view_selection = Some(crate::element::ViewSelection {
-                                        root: run_root,
-                                        anchor: ws,
-                                        active: we,
-                                    });
+                                    dom.selection =
+                                        Some(crate::element::DomSelection::new(run_root, ws, we));
                                 }
                                 3 => {
                                     // Select entire text node (line-level)
                                     if let Some((run, entry)) = dom.find_run_entry_for_node(nid) {
-                                        dom.view_selection =
-                                            Some(crate::element::ViewSelection {
-                                                root: run.root_id,
-                                                anchor: entry.flat_start,
-                                                active: entry.flat_start + entry.grapheme_count,
-                                            });
+                                        dom.selection = Some(crate::element::DomSelection::new(
+                                            run.root_id,
+                                            entry.flat_start,
+                                            entry.flat_start + entry.grapheme_count,
+                                        ));
                                     }
                                 }
                                 4 => {
                                     // Select all text in the run
-                                    if let Some(run) = dom.text_select_runs.iter().find(|r| r.root_id == run_root) {
-                                        dom.view_selection =
-                                            Some(crate::element::ViewSelection {
-                                                root: run_root,
-                                                anchor: 0,
-                                                active: run.total_graphemes,
-                                            });
+                                    if let Some(run) =
+                                        dom.text_select_runs.iter().find(|r| r.root_id == run_root)
+                                    {
+                                        dom.selection = Some(crate::element::DomSelection::new(
+                                            run_root,
+                                            0,
+                                            run.total_graphemes,
+                                        ));
                                     }
                                 }
                                 _ => {
                                     // Single click: place cursor
-                                    dom.view_selection = Some(crate::element::ViewSelection {
-                                        root: run_root,
-                                        anchor: flat_idx,
-                                        active: flat_idx,
-                                    });
+                                    dom.selection = Some(crate::element::DomSelection::new(
+                                        run_root, flat_idx, flat_idx,
+                                    ));
                                 }
                             }
                             dom.dragging_view_selection = Some(run_root);
                         }
                     } else {
                         // Clicked on non-selectable area: clear view selection
-                        dom.view_selection = None;
+                        dom.selection = None;
                     }
                 }
             }
@@ -1016,14 +1011,13 @@ pub fn handle_key_for_view_selection(
         return false;
     }
 
-    let sel = match &dom.view_selection {
+    let sel = match &dom.selection {
         Some(s) => s,
         None => return false,
     };
 
     let root = sel.root;
-    let active = sel.active;
-    let anchor = sel.anchor;
+    let SelectionRange { anchor, active } = sel.range;
 
     let run_len = dom
         .text_select_runs
@@ -1043,62 +1037,34 @@ pub fn handle_key_for_view_selection(
         Key::Named(NamedKey::ArrowLeft) if shift && ctrl => {
             // Move active to previous word boundary
             let new_active = prev_word_boundary_in_run(dom, root, active);
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: new_active,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowRight) if shift && ctrl => {
             let new_active = next_word_boundary_in_run(dom, root, active);
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: new_active,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowLeft) if shift => {
             let new_active = if active > 0 { active - 1 } else { 0 };
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: new_active,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowRight) if shift => {
             let new_active = (active + 1).min(run_len);
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: new_active,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::Home) if shift => {
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: 0,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, 0));
             true
         }
         Key::Named(NamedKey::End) if shift => {
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor,
-                active: run_len,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, anchor, run_len));
             true
         }
         Key::Character(c) if ctrl && (c.as_ref() == "a" || c.as_ref() == "A") => {
-            dom.view_selection = Some(crate::element::ViewSelection {
-                root,
-                anchor: 0,
-                active: run_len,
-            });
+            dom.selection = Some(crate::element::DomSelection::new(root, 0, run_len));
             true
         }
         _ => false,
@@ -1106,23 +1072,21 @@ pub fn handle_key_for_view_selection(
 }
 
 /// Find the previous word boundary from a flat grapheme index in a text select run.
-fn prev_word_boundary_in_run(
-    dom: &Dom,
-    root_id: crate::element::NodeId,
-    flat_idx: usize,
-) -> usize {
+fn prev_word_boundary_in_run(dom: &Dom, root_id: crate::element::NodeId, flat_idx: usize) -> usize {
     let Some(run) = dom.text_select_runs.iter().find(|r| r.root_id == root_id) else {
         return flat_idx;
     };
-    let graphemes: Vec<&str> = unicode_segmentation::UnicodeSegmentation::graphemes(
-        run.flat_text.as_str(),
-        true,
-    )
-    .collect();
+    let graphemes: Vec<&str> =
+        unicode_segmentation::UnicodeSegmentation::graphemes(run.flat_text.as_str(), true)
+            .collect();
     if flat_idx == 0 {
         return 0;
     }
-    let is_word = |g: &str| g.chars().next().map_or(false, |c| c.is_alphanumeric() || c == '_');
+    let is_word = |g: &str| {
+        g.chars()
+            .next()
+            .map_or(false, |c| c.is_alphanumeric() || c == '_')
+    };
     let mut i = flat_idx;
     // Skip whitespace/non-word backwards
     while i > 0 && !is_word(graphemes[i - 1]) {
@@ -1136,24 +1100,22 @@ fn prev_word_boundary_in_run(
 }
 
 /// Find the next word boundary from a flat grapheme index in a text select run.
-fn next_word_boundary_in_run(
-    dom: &Dom,
-    root_id: crate::element::NodeId,
-    flat_idx: usize,
-) -> usize {
+fn next_word_boundary_in_run(dom: &Dom, root_id: crate::element::NodeId, flat_idx: usize) -> usize {
     let Some(run) = dom.text_select_runs.iter().find(|r| r.root_id == root_id) else {
         return flat_idx;
     };
-    let graphemes: Vec<&str> = unicode_segmentation::UnicodeSegmentation::graphemes(
-        run.flat_text.as_str(),
-        true,
-    )
-    .collect();
+    let graphemes: Vec<&str> =
+        unicode_segmentation::UnicodeSegmentation::graphemes(run.flat_text.as_str(), true)
+            .collect();
     let len = graphemes.len();
     if flat_idx >= len {
         return len;
     }
-    let is_word = |g: &str| g.chars().next().map_or(false, |c| c.is_alphanumeric() || c == '_');
+    let is_word = |g: &str| {
+        g.chars()
+            .next()
+            .map_or(false, |c| c.is_alphanumeric() || c == '_')
+    };
     let mut i = flat_idx;
     // Skip word chars forward
     while i < len && is_word(graphemes[i]) {

@@ -7,6 +7,7 @@ pub mod geometry;
 pub mod gpu;
 pub mod input;
 pub mod interactivity;
+pub mod selection;
 pub mod style;
 pub mod text;
 pub mod text_buffer;
@@ -859,7 +860,7 @@ pub fn op_get_selection(state: &mut OpState, #[smi] window_id: u32) -> serde_jso
     with_state(&app_state, |s| {
         let entry = s.windows.get(&window_id).expect("window not found");
         let dom = &entry.dom;
-        let Some(sel) = &dom.view_selection else {
+        let Some(sel) = &dom.selection else {
             return serde_json::Value::Null;
         };
         let run_length = dom
@@ -869,10 +870,11 @@ pub fn op_get_selection(state: &mut OpState, #[smi] window_id: u32) -> serde_jso
             .map(|r| r.total_graphemes)
             .unwrap_or(0);
         let text = dom.view_selected_text();
+        // bro use a typed struct  TT
         serde_json::json!({
             "rootNodeId": serde_json::to_value(sel.root).unwrap(),
-            "anchorOffset": sel.anchor,
-            "activeOffset": sel.active,
+            "anchorOffset": sel.anchor(),
+            "activeOffset": sel.active(),
             "start": sel.start(),
             "end": sel.end(),
             "runLength": run_length,

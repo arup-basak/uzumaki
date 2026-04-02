@@ -10,6 +10,7 @@ use vello::peniko::{Color as VelloColor, Fill};
 use crate::elements::input::{InputRenderInfo, compute_selection_rects};
 use crate::input::InputState;
 use crate::interactivity::{HitTestState, HitboxStore, Interactivity};
+use crate::selection::SelectionRange;
 use crate::style::{Bounds, Color, Style};
 use crate::text::TextRenderer;
 
@@ -66,9 +67,7 @@ pub struct InheritedProperties {
 
 impl Default for InheritedProperties {
     fn default() -> Self {
-        Self {
-            text_select: false,
-        }
+        Self { text_select: false }
     }
 }
 
@@ -92,24 +91,43 @@ pub struct TextSelectRun {
 }
 
 /// Selection state for text within a textSelect view.
-pub struct ViewSelection {
+pub struct DomSelection {
     /// The textSelect root that owns this selection.
     pub root: NodeId,
-    /// Flat grapheme offset where selection started.
-    pub anchor: usize,
-    /// Flat grapheme offset where selection currently ends.
-    pub active: usize,
+    pub range: SelectionRange,
 }
 
-impl ViewSelection {
+impl DomSelection {
+    pub fn new(root: NodeId, anchor: usize, active: usize) -> Self {
+        Self {
+            root,
+            range: SelectionRange { anchor, active },
+        }
+    }
+    #[inline]
+    pub fn anchor(&self) -> usize {
+        self.range.anchor
+    }
+
+    #[inline]
+    pub fn active(&self) -> usize {
+        self.range.active
+    }
+
+    pub fn set_cursor(&mut self, pos: usize) {
+        self.range.set_cursor(pos);
+    }
+
     pub fn start(&self) -> usize {
-        self.anchor.min(self.active)
+        self.range.anchor.min(self.range.active)
     }
+
     pub fn end(&self) -> usize {
-        self.anchor.max(self.active)
+        self.range.anchor.max(self.range.active)
     }
+
     pub fn is_collapsed(&self) -> bool {
-        self.anchor == self.active
+        self.range.anchor == self.range.active
     }
 }
 
@@ -238,7 +256,7 @@ pub struct Dom {
     /// to prevent inner scrollable views from stealing wheel events mid-scroll.
     pub scroll_lock: Option<(NodeId, std::time::Instant)>,
     /// Current text selection within a textSelect view.
-    pub view_selection: Option<ViewSelection>,
+    pub selection: Option<DomSelection>,
     /// textSelect root being dragged for selection.
     pub dragging_view_selection: Option<NodeId>,
     /// Text runs for textSelect subtrees, rebuilt each frame.
@@ -266,7 +284,7 @@ impl Dom {
             scroll_thumbs: Vec::new(),
             scroll_drag: None,
             scroll_lock: None,
-            view_selection: None,
+            selection: None,
             dragging_view_selection: None,
             text_select_runs: Vec::new(),
         }
@@ -721,9 +739,9 @@ impl Dom {
                             font_size: computed_style.text.font_size,
                             text_color: computed_style.text.color,
                             focused: is.focused,
-                            sel_start: is.selection.start(),
-                            sel_end: is.selection.end(),
-                            cursor_pos: is.selection.active,
+                            sel_start: is.range.start(),
+                            sel_end: is.range.end(),
+                            cursor_pos: is.range.active,
                             scroll_offset: is.scroll_offset,
                             scroll_offset_y: is.scroll_offset_y,
                             blink_visible: is.blink_visible(self.window_focused),
@@ -804,12 +822,9 @@ impl Dom {
                             .scroll_drag
                             .as_ref()
                             .map_or(false, |d| d.node_id == node_id)
-                            || self
-                                .hit_state
-                                .mouse_position
-                                .map_or(false, |(mx, my)| {
-                                    mx >= x && mx <= x + w && my >= y && my <= y + h
-                                });
+                            || self.hit_state.mouse_position.map_or(false, |(mx, my)| {
+                                mx >= x && mx <= x + w && my >= y && my <= y + h
+                            });
 
                         // Push in reverse order for LIFO stack:
                         // 6. PaintThumb (last to execute)
@@ -911,8 +926,7 @@ impl Dom {
                                 };
                                 let thumb_y =
                                     bounds.y + scroll_ratio * (bounds.height - thumb_height);
-                                let thumb_x =
-                                    bounds.x + bounds.width - thumb_width - thumb_margin;
+                                let thumb_x = bounds.x + bounds.width - thumb_width - thumb_margin;
 
                                 let thumb_bounds =
                                     Bounds::new(thumb_x, thumb_y, thumb_width, thumb_height);
@@ -957,7 +971,11 @@ impl Dom {
                                         bounds.x + bounds.width,
                                         bounds.y + bounds.height,
                                     );
-                                    scene.push_clip_layer(Fill::NonZero, Affine::scale(scale), &clip);
+                                    scene.push_clip_layer(
+                                        Fill::NonZero,
+                                        Affine::scale(scale),
+                                        &clip,
+                                    );
                                     scene.fill(
                                         Fill::NonZero,
                                         Affine::scale(scale),
@@ -1270,7 +1288,7 @@ impl Dom {
     /// Returns a map from NodeId → (local_sel_start, local_sel_end) in grapheme units.
     fn compute_text_selections_map(&self) -> HashMap<NodeId, (usize, usize)> {
         let mut map = HashMap::new();
-        let Some(sel) = &self.view_selection else {
+        let Some(sel) = &self.selection else {
             return map;
         };
         if sel.is_collapsed() {
@@ -1303,7 +1321,10 @@ impl Dom {
     }
 
     /// Find the text run entry for a given text node.
-    pub fn find_run_entry_for_node(&self, node_id: NodeId) -> Option<(&TextSelectRun, &TextRunEntry)> {
+    pub fn find_run_entry_for_node(
+        &self,
+        node_id: NodeId,
+    ) -> Option<(&TextSelectRun, &TextRunEntry)> {
         for run in &self.text_select_runs {
             for entry in &run.entries {
                 if entry.node_id == node_id {
@@ -1326,7 +1347,7 @@ impl Dom {
 
     /// Get the currently selected text content within a textSelect view.
     pub fn view_selected_text(&self) -> String {
-        let Some(sel) = &self.view_selection else {
+        let Some(sel) = &self.selection else {
             return String::new();
         };
         if sel.is_collapsed() {
@@ -1347,7 +1368,7 @@ impl Dom {
     /// Get the current view selection range as flat grapheme offsets.
     /// Returns (start, end) where start <= end.
     pub fn view_selection_range(&self) -> Option<(usize, usize)> {
-        let sel = self.view_selection.as_ref()?;
+        let sel = self.selection.as_ref()?;
         if sel.is_collapsed() {
             return None;
         }
@@ -1357,29 +1378,31 @@ impl Dom {
     /// Get the full selection state: root node, anchor, and active offsets.
     /// Useful for text editors that need to know the direction of selection.
     pub fn view_selection_state(&self) -> Option<(NodeId, usize, usize)> {
-        let sel = self.view_selection.as_ref()?;
-        Some((sel.root, sel.anchor, sel.active))
+        let sel = self.selection.as_ref()?;
+        Some((sel.root, sel.anchor(), sel.active()))
     }
 
     /// Get the total grapheme count in the text run containing the current selection.
     pub fn view_selection_run_length(&self) -> Option<usize> {
-        let sel = self.view_selection.as_ref()?;
-        let run = self.text_select_runs.iter().find(|r| r.root_id == sel.root)?;
+        let sel = self.selection.as_ref()?;
+        let run = self
+            .text_select_runs
+            .iter()
+            .find(|r| r.root_id == sel.root)?;
         Some(run.total_graphemes)
     }
 
     /// Set the view selection programmatically.
     pub fn set_view_selection(&mut self, root: NodeId, anchor: usize, active: usize) {
-        self.view_selection = Some(ViewSelection {
+        self.selection = Some(DomSelection {
             root,
-            anchor,
-            active,
+            range: SelectionRange { anchor, active },
         });
     }
 
     /// Clear the view selection.
     pub fn clear_view_selection(&mut self) {
-        self.view_selection = None;
+        self.selection = None;
     }
 }
 

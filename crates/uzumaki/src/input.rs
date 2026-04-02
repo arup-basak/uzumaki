@@ -1,41 +1,7 @@
 use std::time::Instant;
 use winit::keyboard::{Key, NamedKey};
 
-use crate::text_model::TextModel;
-
-// ── Selection ────────────────────────────────────────────────────────
-
-#[derive(Clone, Debug, Default)]
-pub struct TextSelection {
-    /// Anchor point (where selection started), flat grapheme index
-    pub anchor: usize,
-    /// Active point / cursor position, flat grapheme index
-    pub active: usize,
-}
-
-impl TextSelection {
-    pub fn new(anchor: usize, active: usize) -> Self {
-        Self { anchor, active }
-    }
-
-    pub fn is_collapsed(&self) -> bool {
-        self.anchor == self.active
-    }
-
-    pub fn start(&self) -> usize {
-        self.anchor.min(self.active)
-    }
-
-    pub fn end(&self) -> usize {
-        self.anchor.max(self.active)
-    }
-
-    pub fn set_cursor(&mut self, pos: usize) {
-        self.anchor = pos;
-        self.active = pos;
-    }
-}
-
+use crate::{selection::SelectionRange, text_model::TextModel};
 // ── EditEvent ────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug)]
@@ -68,11 +34,12 @@ pub enum KeyResult {
 
 pub struct InputState {
     pub model: TextModel,
-    pub selection: TextSelection,
+    pub range: SelectionRange,
     pub placeholder: String,
     pub scroll_offset: f32,
     pub scroll_offset_y: f32,
     pub focused: bool,
+    // move this out ?
     pub blink_reset: Instant,
     pub disabled: bool,
     pub secure: bool,
@@ -87,7 +54,7 @@ impl Default for InputState {
     fn default() -> Self {
         Self {
             model: TextModel::new(),
-            selection: TextSelection::default(),
+            range: SelectionRange::default(),
             placeholder: String::new(),
             scroll_offset: 0.0,
             scroll_offset_y: 0.0,
@@ -111,23 +78,23 @@ impl InputState {
 
     /// Delete the current selection. Returns true if something was deleted.
     fn delete_selection(&mut self) -> bool {
-        if self.selection.is_collapsed() {
+        if self.range.is_collapsed() {
             return false;
         }
-        let start = self.selection.start();
-        let end = self.selection.end();
+        let start = self.range.start();
+        let end = self.range.end();
         self.model.delete_range(start, end);
-        self.selection.set_cursor(start);
+        self.range.set_cursor(start);
         true
     }
 
     /// Get the selected text.
     pub fn selected_text(&self) -> String {
-        if self.selection.is_collapsed() {
+        if self.range.is_collapsed() {
             return String::new();
         }
         self.model
-            .text_in_range(self.selection.start(), self.selection.end())
+            .text_in_range(self.range.start(), self.range.end())
     }
 
     pub fn text_content(&self) -> String {
@@ -156,11 +123,11 @@ impl InputState {
         };
 
         self.delete_selection();
-        let pos = self.selection.active;
+        let pos = self.range.active;
 
         match self.model.insert(pos, input, 0) {
             Some(new_pos) => {
-                self.selection.set_cursor(new_pos);
+                self.range.set_cursor(new_pos);
                 self.reset_blink();
                 Some(EditEvent {
                     kind: EditKind::Insert,
@@ -184,9 +151,9 @@ impl InputState {
                 inserted: None,
             });
         }
-        match self.model.delete_backward(self.selection.active) {
+        match self.model.delete_backward(self.range.active) {
             Some(new_pos) => {
-                self.selection.set_cursor(new_pos);
+                self.range.set_cursor(new_pos);
                 self.reset_blink();
                 Some(EditEvent {
                     kind: EditKind::DeleteBackward,
@@ -210,9 +177,9 @@ impl InputState {
                 inserted: None,
             });
         }
-        match self.model.delete_forward(self.selection.active) {
+        match self.model.delete_forward(self.range.active) {
             Some(new_pos) => {
-                self.selection.set_cursor(new_pos);
+                self.range.set_cursor(new_pos);
                 self.reset_blink();
                 Some(EditEvent {
                     kind: EditKind::DeleteForward,
@@ -236,9 +203,9 @@ impl InputState {
                 inserted: None,
             });
         }
-        match self.model.delete_word_backward(self.selection.active) {
+        match self.model.delete_word_backward(self.range.active) {
             Some(new_pos) => {
-                self.selection.set_cursor(new_pos);
+                self.range.set_cursor(new_pos);
                 self.reset_blink();
                 Some(EditEvent {
                     kind: EditKind::DeleteWordBackward,
@@ -262,9 +229,9 @@ impl InputState {
                 inserted: None,
             });
         }
-        match self.model.delete_word_forward(self.selection.active) {
+        match self.model.delete_word_forward(self.range.active) {
             Some(new_pos) => {
-                self.selection.set_cursor(new_pos);
+                self.range.set_cursor(new_pos);
                 self.reset_blink();
                 Some(EditEvent {
                     kind: EditKind::DeleteWordForward,
@@ -279,13 +246,13 @@ impl InputState {
 
     pub fn move_left(&mut self, extend: bool) {
         self.sticky_x = None;
-        if !extend && !self.selection.is_collapsed() {
-            let pos = self.selection.start();
-            self.selection.set_cursor(pos);
-        } else if self.selection.active > 0 {
-            self.selection.active -= 1;
+        if !extend && !self.range.is_collapsed() {
+            let pos = self.range.start();
+            self.range.set_cursor(pos);
+        } else if self.range.active > 0 {
+            self.range.active -= 1;
             if !extend {
-                self.selection.anchor = self.selection.active;
+                self.range.anchor = self.range.active;
             }
         }
         self.reset_blink();
@@ -294,13 +261,13 @@ impl InputState {
     pub fn move_right(&mut self, extend: bool) {
         self.sticky_x = None;
         let count = self.model.grapheme_count();
-        if !extend && !self.selection.is_collapsed() {
-            let pos = self.selection.end();
-            self.selection.set_cursor(pos);
-        } else if self.selection.active < count {
-            self.selection.active += 1;
+        if !extend && !self.range.is_collapsed() {
+            let pos = self.range.end();
+            self.range.set_cursor(pos);
+        } else if self.range.active < count {
+            self.range.active += 1;
             if !extend {
-                self.selection.anchor = self.selection.active;
+                self.range.anchor = self.range.active;
             }
         }
         self.reset_blink();
@@ -308,52 +275,52 @@ impl InputState {
 
     pub fn move_word_left(&mut self, extend: bool) {
         self.sticky_x = None;
-        let pos = self.model.find_word_start(self.selection.active);
-        self.selection.active = pos;
+        let pos = self.model.find_word_start(self.range.active);
+        self.range.active = pos;
         if !extend {
-            self.selection.anchor = pos;
+            self.range.anchor = pos;
         }
         self.reset_blink();
     }
 
     pub fn move_word_right(&mut self, extend: bool) {
         self.sticky_x = None;
-        let pos = self.model.find_word_end(self.selection.active);
-        self.selection.active = pos;
+        let pos = self.model.find_word_end(self.range.active);
+        self.range.active = pos;
         if !extend {
-            self.selection.anchor = pos;
+            self.range.anchor = pos;
         }
         self.reset_blink();
     }
 
     pub fn move_home(&mut self, extend: bool) {
         self.sticky_x = None;
-        let (row, _) = self.model.flat_to_rowcol(self.selection.active);
+        let (row, _) = self.model.flat_to_rowcol(self.range.active);
         let flat = self.model.rowcol_to_flat(row, 0);
-        self.selection.active = flat;
+        self.range.active = flat;
         if !extend {
-            self.selection.anchor = flat;
+            self.range.anchor = flat;
         }
         self.reset_blink();
     }
 
     pub fn move_end(&mut self, extend: bool) {
         self.sticky_x = None;
-        let (row, _) = self.model.flat_to_rowcol(self.selection.active);
+        let (row, _) = self.model.flat_to_rowcol(self.range.active);
         let line_len = self.model.line_grapheme_count(row);
         let flat = self.model.rowcol_to_flat(row, line_len);
-        self.selection.active = flat;
+        self.range.active = flat;
         if !extend {
-            self.selection.anchor = flat;
+            self.range.anchor = flat;
         }
         self.reset_blink();
     }
 
     pub fn move_absolute_home(&mut self, extend: bool) {
         self.sticky_x = None;
-        self.selection.active = 0;
+        self.range.active = 0;
         if !extend {
-            self.selection.anchor = 0;
+            self.range.anchor = 0;
         }
         self.reset_blink();
     }
@@ -361,19 +328,19 @@ impl InputState {
     pub fn move_absolute_end(&mut self, extend: bool) {
         self.sticky_x = None;
         let count = self.model.grapheme_count();
-        self.selection.active = count;
+        self.range.active = count;
         if !extend {
-            self.selection.anchor = count;
+            self.range.anchor = count;
         }
         self.reset_blink();
     }
 
     pub fn move_up(&mut self, extend: bool, sticky_col: Option<usize>) -> bool {
-        let (row, col) = self.model.flat_to_rowcol(self.selection.active);
+        let (row, col) = self.model.flat_to_rowcol(self.range.active);
         if row == 0 {
-            self.selection.active = 0;
+            self.range.active = 0;
             if !extend {
-                self.selection.anchor = 0;
+                self.range.anchor = 0;
             }
             return false;
         }
@@ -381,20 +348,20 @@ impl InputState {
         let prev_line_len = self.model.line_grapheme_count(row - 1);
         let new_col = target_col.min(prev_line_len);
         let flat = self.model.rowcol_to_flat(row - 1, new_col);
-        self.selection.active = flat;
+        self.range.active = flat;
         if !extend {
-            self.selection.anchor = flat;
+            self.range.anchor = flat;
         }
         true
     }
 
     pub fn move_down(&mut self, extend: bool, sticky_col: Option<usize>) -> bool {
-        let (row, col) = self.model.flat_to_rowcol(self.selection.active);
+        let (row, col) = self.model.flat_to_rowcol(self.range.active);
         if row >= self.model.line_count() - 1 {
             let count = self.model.grapheme_count();
-            self.selection.active = count;
+            self.range.active = count;
             if !extend {
-                self.selection.anchor = count;
+                self.range.anchor = count;
             }
             return false;
         }
@@ -402,33 +369,33 @@ impl InputState {
         let next_line_len = self.model.line_grapheme_count(row + 1);
         let new_col = target_col.min(next_line_len);
         let flat = self.model.rowcol_to_flat(row + 1, new_col);
-        self.selection.active = flat;
+        self.range.active = flat;
         if !extend {
-            self.selection.anchor = flat;
+            self.range.anchor = flat;
         }
         true
     }
 
     pub fn move_to(&mut self, pos: usize, extend: bool) {
         let count = self.model.grapheme_count();
-        self.selection.active = pos.min(count);
+        self.range.active = pos.min(count);
         if !extend {
-            self.selection.anchor = self.selection.active;
+            self.range.anchor = self.range.active;
         }
         self.reset_blink();
     }
 
     pub fn set_selection(&mut self, anchor: usize, active: usize) {
         let max = self.grapheme_count();
-        self.selection.anchor = anchor.min(max);
-        self.selection.active = active.min(max);
+        self.range.anchor = anchor.min(max);
+        self.range.active = active.min(max);
         self.reset_blink();
     }
 
     pub fn select_all(&mut self) {
         self.sticky_x = None;
-        self.selection.anchor = 0;
-        self.selection.active = self.model.grapheme_count();
+        self.range.anchor = 0;
+        self.range.active = self.model.grapheme_count();
         self.reset_blink();
     }
 
@@ -443,17 +410,17 @@ impl InputState {
     pub fn set_value(&mut self, value: String) {
         self.model.set_value(value);
         let count = self.model.grapheme_count();
-        if self.selection.active > count {
-            self.selection.active = count;
+        if self.range.active > count {
+            self.range.active = count;
         }
-        if self.selection.anchor > count {
-            self.selection.anchor = count;
+        if self.range.anchor > count {
+            self.range.anchor = count;
         }
     }
 
     /// Current (row, col) of the active cursor position.
     pub fn cursor_rowcol(&self) -> (usize, usize) {
-        self.model.flat_to_rowcol(self.selection.active)
+        self.model.flat_to_rowcol(self.range.active)
     }
 
     // ── Widget-layer concerns ────────────────────────────────────────
@@ -637,13 +604,13 @@ mod tests {
 
     fn input_at(text: &str, cursor: usize) -> InputState {
         let mut is = input(text);
-        is.selection.set_cursor(cursor);
+        is.range.set_cursor(cursor);
         is
     }
 
     fn input_sel(text: &str, anchor: usize, active: usize) -> InputState {
         let mut is = input(text);
-        is.selection = TextSelection::new(anchor, active);
+        is.range = SelectionRange::new(anchor, active);
         is
     }
 
@@ -654,8 +621,8 @@ mod tests {
         let mut is = InputState::default();
         is.insert_text("hello");
         assert_eq!(is.model.text(), "hello");
-        assert_eq!(is.selection.active, 5);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 5);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
@@ -663,7 +630,7 @@ mod tests {
         let mut is = input_at("hllo", 1);
         is.insert_text("e");
         assert_eq!(is.model.text(), "hello");
-        assert_eq!(is.selection.active, 2);
+        assert_eq!(is.range.active, 2);
     }
 
     #[test]
@@ -671,8 +638,8 @@ mod tests {
         let mut is = input_sel("hello world", 0, 5);
         is.insert_text("goodbye");
         assert_eq!(is.model.text(), "goodbye world");
-        assert_eq!(is.selection.active, 7);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 7);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
@@ -707,7 +674,7 @@ mod tests {
         let result = is.delete_backward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "hell");
-        assert_eq!(is.selection.active, 4);
+        assert_eq!(is.range.active, 4);
     }
 
     #[test]
@@ -723,7 +690,7 @@ mod tests {
         let result = is.delete_backward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "hello");
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -733,7 +700,7 @@ mod tests {
         let result = is.delete_backward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "helloworld");
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -742,7 +709,7 @@ mod tests {
         let result = is.delete_forward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "ello");
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
@@ -757,7 +724,7 @@ mod tests {
         let result = is.delete_forward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "world");
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
@@ -775,7 +742,7 @@ mod tests {
         let result = is.delete_word_backward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "hello ");
-        assert_eq!(is.selection.active, 6);
+        assert_eq!(is.range.active, 6);
     }
 
     #[test]
@@ -790,7 +757,7 @@ mod tests {
         let result = is.delete_word_backward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "hello ");
-        assert_eq!(is.selection.active, 6);
+        assert_eq!(is.range.active, 6);
     }
 
     #[test]
@@ -799,7 +766,7 @@ mod tests {
         let result = is.delete_word_forward();
         assert!(result.is_some());
         assert_eq!(is.model.text(), "world");
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
@@ -812,62 +779,62 @@ mod tests {
     fn move_left_basic() {
         let mut is = input_at("hello", 3);
         is.move_left(false);
-        assert_eq!(is.selection.active, 2);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 2);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
     fn move_left_collapses_selection() {
         let mut is = input_sel("hello", 1, 4);
         is.move_left(false);
-        assert_eq!(is.selection.active, 1);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 1);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
     fn move_left_extend() {
         let mut is = input_at("hello", 3);
         is.move_left(true);
-        assert_eq!(is.selection.active, 2);
-        assert_eq!(is.selection.anchor, 3);
+        assert_eq!(is.range.active, 2);
+        assert_eq!(is.range.anchor, 3);
     }
 
     #[test]
     fn move_left_at_start() {
         let mut is = input_at("hello", 0);
         is.move_left(false);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
     fn move_right_basic() {
         let mut is = input_at("hello", 3);
         is.move_right(false);
-        assert_eq!(is.selection.active, 4);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 4);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
     fn move_right_collapses_selection() {
         let mut is = input_sel("hello", 1, 4);
         is.move_right(false);
-        assert_eq!(is.selection.active, 4);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 4);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
     fn move_right_extend() {
         let mut is = input_at("hello", 3);
         is.move_right(true);
-        assert_eq!(is.selection.active, 4);
-        assert_eq!(is.selection.anchor, 3);
+        assert_eq!(is.range.active, 4);
+        assert_eq!(is.range.anchor, 3);
     }
 
     #[test]
     fn move_right_at_end() {
         let mut is = input_at("hello", 5);
         is.move_right(false);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -875,7 +842,7 @@ mod tests {
         let mut is = input_at("ab\ncd", 2);
         is.multiline = true;
         is.move_right(false);
-        assert_eq!(is.selection.active, 3);
+        assert_eq!(is.range.active, 3);
         assert_eq!(is.model.flat_to_rowcol(3), (1, 0));
     }
 
@@ -884,7 +851,7 @@ mod tests {
         let mut is = input_at("ab\ncd", 3);
         is.multiline = true;
         is.move_left(false);
-        assert_eq!(is.selection.active, 2);
+        assert_eq!(is.range.active, 2);
         assert_eq!(is.model.flat_to_rowcol(2), (0, 2));
     }
 
@@ -892,44 +859,44 @@ mod tests {
     fn move_word_left() {
         let mut is = input_at("hello world foo", 15);
         is.move_word_left(false);
-        assert_eq!(is.selection.active, 12);
+        assert_eq!(is.range.active, 12);
         is.move_word_left(false);
-        assert_eq!(is.selection.active, 6);
+        assert_eq!(is.range.active, 6);
         is.move_word_left(false);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
     fn move_word_right() {
         let mut is = input_at("hello world foo", 0);
         is.move_word_right(false);
-        assert_eq!(is.selection.active, 6);
+        assert_eq!(is.range.active, 6);
         is.move_word_right(false);
-        assert_eq!(is.selection.active, 12);
+        assert_eq!(is.range.active, 12);
         is.move_word_right(false);
-        assert_eq!(is.selection.active, 15);
+        assert_eq!(is.range.active, 15);
     }
 
     #[test]
     fn move_word_left_with_extend() {
         let mut is = input_at("hello world", 11);
         is.move_word_left(true);
-        assert_eq!(is.selection.active, 6);
-        assert_eq!(is.selection.anchor, 11);
+        assert_eq!(is.range.active, 6);
+        assert_eq!(is.range.anchor, 11);
     }
 
     #[test]
     fn move_home_single_line() {
         let mut is = input_at("hello", 3);
         is.move_home(false);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
     fn move_end_single_line() {
         let mut is = input_at("hello", 2);
         is.move_end(false);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -937,7 +904,7 @@ mod tests {
         let mut is = input_at("hello\nworld", 8);
         is.multiline = true;
         is.move_home(false);
-        assert_eq!(is.selection.active, 6);
+        assert_eq!(is.range.active, 6);
     }
 
     #[test]
@@ -945,7 +912,7 @@ mod tests {
         let mut is = input_at("hello\nworld", 2);
         is.multiline = true;
         is.move_end(false);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -954,35 +921,35 @@ mod tests {
         is.multiline = true;
 
         is.move_home(false);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
         is.move_end(false);
-        assert_eq!(is.selection.active, 3);
+        assert_eq!(is.range.active, 3);
 
         is.move_to(5, false);
         is.move_home(false);
-        assert_eq!(is.selection.active, 4);
+        assert_eq!(is.range.active, 4);
         is.move_end(false);
-        assert_eq!(is.selection.active, 7);
+        assert_eq!(is.range.active, 7);
 
         is.move_to(9, false);
         is.move_home(false);
-        assert_eq!(is.selection.active, 8);
+        assert_eq!(is.range.active, 8);
         is.move_end(false);
-        assert_eq!(is.selection.active, 11);
+        assert_eq!(is.range.active, 11);
     }
 
     #[test]
     fn move_absolute_home() {
         let mut is = input_at("hello\nworld", 8);
         is.move_absolute_home(false);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
     fn move_absolute_end() {
         let mut is = input_at("hello\nworld", 2);
         is.move_absolute_end(false);
-        assert_eq!(is.selection.active, 11);
+        assert_eq!(is.range.active, 11);
     }
 
     #[test]
@@ -991,7 +958,7 @@ mod tests {
         is.multiline = true;
         let moved = is.move_up(false, None);
         assert!(moved);
-        assert_eq!(is.selection.active, 2);
+        assert_eq!(is.range.active, 2);
     }
 
     #[test]
@@ -1000,7 +967,7 @@ mod tests {
         is.multiline = true;
         let moved = is.move_down(false, None);
         assert!(moved);
-        assert_eq!(is.selection.active, 8);
+        assert_eq!(is.range.active, 8);
     }
 
     #[test]
@@ -1008,7 +975,7 @@ mod tests {
         let mut is = input_at("hello\nworld", 3);
         let moved = is.move_up(false, None);
         assert!(!moved);
-        assert_eq!(is.selection.active, 0);
+        assert_eq!(is.range.active, 0);
     }
 
     #[test]
@@ -1016,7 +983,7 @@ mod tests {
         let mut is = input_at("hello\nworld", 8);
         let moved = is.move_down(false, None);
         assert!(!moved);
-        assert_eq!(is.selection.active, 11);
+        assert_eq!(is.range.active, 11);
     }
 
     #[test]
@@ -1039,24 +1006,24 @@ mod tests {
         let mut is = input_at("hello\nworld", 8);
         is.multiline = true;
         is.move_up(true, None);
-        assert_eq!(is.selection.active, 2);
-        assert_eq!(is.selection.anchor, 8);
+        assert_eq!(is.range.active, 2);
+        assert_eq!(is.range.anchor, 8);
     }
 
     #[test]
     fn select_all_basic() {
         let mut is = input("hello");
         is.select_all();
-        assert_eq!(is.selection.anchor, 0);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.anchor, 0);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
     fn select_all_multiline() {
         let mut is = input("hello\nworld");
         is.select_all();
-        assert_eq!(is.selection.anchor, 0);
-        assert_eq!(is.selection.active, 11);
+        assert_eq!(is.range.anchor, 0);
+        assert_eq!(is.range.active, 11);
         assert_eq!(is.selected_text(), "hello\nworld");
     }
 
@@ -1088,23 +1055,23 @@ mod tests {
     fn move_to_basic() {
         let mut is = input("hello");
         is.move_to(3, false);
-        assert_eq!(is.selection.active, 3);
-        assert!(is.selection.is_collapsed());
+        assert_eq!(is.range.active, 3);
+        assert!(is.range.is_collapsed());
     }
 
     #[test]
     fn move_to_with_extend() {
         let mut is = input_at("hello", 1);
         is.move_to(4, true);
-        assert_eq!(is.selection.active, 4);
-        assert_eq!(is.selection.anchor, 1);
+        assert_eq!(is.range.active, 4);
+        assert_eq!(is.range.anchor, 1);
     }
 
     #[test]
     fn move_to_clamps() {
         let mut is = input("hello");
         is.move_to(100, false);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     #[test]
@@ -1118,8 +1085,8 @@ mod tests {
     fn set_value_clamps_selection() {
         let mut is = input_at("hello world", 11);
         is.set_value("hi".to_string());
-        assert_eq!(is.selection.active, 2);
-        assert_eq!(is.selection.anchor, 2);
+        assert_eq!(is.range.active, 2);
+        assert_eq!(is.range.anchor, 2);
     }
 
     #[test]
@@ -1162,7 +1129,7 @@ mod tests {
         is.multiline = true;
         is.delete_backward();
         assert_eq!(is.model.text(), "abhi");
-        assert_eq!(is.selection.active, 2);
+        assert_eq!(is.range.active, 2);
     }
 
     #[test]
@@ -1172,7 +1139,7 @@ mod tests {
         assert_eq!(is.model.text(), "hello world");
 
         // Select "world"
-        is.selection = TextSelection::new(6, 11);
+        is.range = SelectionRange::new(6, 11);
         is.insert_text("rust");
         assert_eq!(is.model.text(), "hello rust");
 
@@ -1191,7 +1158,7 @@ mod tests {
         assert_eq!(is.model.line_count(), 3);
 
         // Cursor should be at end
-        assert_eq!(is.selection.active, is.model.grapheme_count());
+        assert_eq!(is.range.active, is.model.grapheme_count());
 
         // Move up
         let (_, col) = is.cursor_rowcol();
@@ -1234,11 +1201,11 @@ mod tests {
         // Type "hello world"
         is.insert_text("hello world");
         assert_eq!(is.model.text(), "hello world");
-        assert_eq!(is.selection.active, 11);
+        assert_eq!(is.range.active, 11);
 
         // Move cursor between "hello" and " world" (pos 5)
         is.move_to(5, false);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
 
         // Press Enter to split the line
         is.insert_text("\n");
@@ -1332,7 +1299,7 @@ mod tests {
         is.delete_backward();
         assert_eq!(is.model.text(), "helloworld");
         assert_eq!(is.model.line_count(), 1);
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
     }
 
     /// Type three lines, navigate up/down, delete and re-type.
@@ -1414,14 +1381,14 @@ mod tests {
         assert_eq!(is.model.line_count(), 3);
 
         // Select from middle of line 1 to middle of line 3: "a\nbbb\nc"
-        is.selection = TextSelection::new(2, 9);
+        is.range = SelectionRange::new(2, 9);
         assert_eq!(is.selected_text(), "a\nbbb\nc");
 
         // Replace selection
         is.insert_text("X");
         assert_eq!(is.model.text(), "aaXcc");
         assert_eq!(is.model.line_count(), 1);
-        assert_eq!(is.selection.active, 3);
+        assert_eq!(is.range.active, 3);
     }
 
     #[test]
@@ -1431,7 +1398,7 @@ mod tests {
         is.move_to(4, false);
         is.insert_text("A");
         assert_eq!(is.text_content(), "LineA 1\nLine 2\nLine 3");
-        assert_eq!(is.selection.active, 5);
+        assert_eq!(is.range.active, 5);
         is.move_down(false, None);
         is.insert_text("B");
         assert_eq!(is.text_content(), "LineA 1\nLine B2\nLine 3");
@@ -1516,7 +1483,7 @@ mod tests {
         // Delete forward removes the newline
         assert_eq!(is.model.text(), "abcdef");
         assert_eq!(is.model.line_count(), 1);
-        assert_eq!(is.selection.active, 3);
+        assert_eq!(is.range.active, 3);
     }
 
     /// Type, make a mistake, backspace, correct it — common editing pattern.
@@ -1606,6 +1573,6 @@ mod tests {
         is.insert_text("brand new text");
         assert_eq!(is.model.text(), "brand new text");
         assert_eq!(is.model.line_count(), 1);
-        assert_eq!(is.selection.active, 14);
+        assert_eq!(is.range.active, 14);
     }
 }
