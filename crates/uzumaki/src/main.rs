@@ -38,9 +38,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use winit::event_loop::EventLoopProxy;
-use winit::{
-    application::ApplicationHandler, event::WindowEvent, event_loop::ControlFlow, window::WindowId,
-};
+use winit::{application::ApplicationHandler, event::WindowEvent, window::WindowId};
 
 use crate::element::{Dom, NodeId};
 use crate::gpu::GpuContext;
@@ -1082,7 +1080,7 @@ impl Application {
         let Some(event_loop) = self.event_loop.take() else {
             return Ok(());
         };
-        event_loop.set_control_flow(ControlFlow::Poll);
+        // event_loop.set_control_flow(ControlFlow::Poll);
         event_loop.run_app(self)?;
         Ok(())
     }
@@ -1090,7 +1088,6 @@ impl Application {
     fn tick_js(&mut self) {
         let rt = self.tokio_runtime.as_ref().unwrap();
         rt.block_on(async {
-            // cant we just do worker.js_runtime.poll_event_loop ?
             tokio::select! {
                 biased;
                 result = self.worker.run_event_loop(false) => {
