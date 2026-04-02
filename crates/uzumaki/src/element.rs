@@ -215,7 +215,7 @@ pub struct Dom {
     /// to prevent inner scrollable views from stealing wheel events mid-scroll.
     pub scroll_lock: Option<(NodeId, std::time::Instant)>,
     /// Current text selection within a textSelect view.
-    pub selection: Option<DomSelection>,
+    selection: Option<DomSelection>,
     /// textSelect root being dragged for selection.
     pub dragging_view_selection: Option<NodeId>,
     /// Text runs for textSelect subtrees, rebuilt each frame.
@@ -1366,8 +1366,19 @@ impl Dom {
         Some(run.total_graphemes)
     }
 
+    pub fn selection_ref(&self) -> Option<&DomSelection> {
+        self.selection.as_ref()
+    }
+
+    pub fn selection(&self) -> Option<DomSelection> {
+        self.selection.clone()
+    }
+
+    pub fn set_selection(&mut self, selection: DomSelection) {
+        self.selection = Some(selection);
+    }
     /// Set the selection programmatically.
-    pub fn set_selection(&mut self, root: NodeId, anchor: usize, active: usize) {
+    pub fn set_selection_2(&mut self, root: NodeId, anchor: usize, active: usize) {
         self.selection = Some(DomSelection {
             root,
             range: SelectionRange { anchor, active },

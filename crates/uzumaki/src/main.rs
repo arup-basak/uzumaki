@@ -861,7 +861,7 @@ pub fn op_get_selection(state: &mut OpState, #[smi] window_id: u32) -> serde_jso
     with_state(&app_state, |s| {
         let entry = s.windows.get(&window_id).expect("window not found");
         let dom = &entry.dom;
-        let Some(sel) = &dom.selection else {
+        let Some(sel) = dom.selection() else {
             return serde_json::Value::Null;
         };
         let run_length = dom.selection_run_length().unwrap_or(0);

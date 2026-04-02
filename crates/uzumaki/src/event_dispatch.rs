@@ -298,8 +298,9 @@ pub fn handle_cursor_moved(
                 logical_x,
                 logical_y,
             ) {
-                if let Some(sel) = &mut dom.selection {
+                if let Some(mut sel) = dom.selection() {
                     sel.range.active = flat_idx;
+                    dom.set_selection(sel);
                 }
                 needs_redraw = true;
             }
@@ -767,12 +768,12 @@ pub fn handle_mouse_input(
                             match dom.click_count {
                                 2 => {
                                     let (ws, we) = word_boundaries_in_run(dom, run_root, flat_idx);
-                                    dom.selection = Some(DomSelection::new(run_root, ws, we));
+                                    dom.set_selection(DomSelection::new(run_root, ws, we));
                                 }
                                 3 => {
                                     // Select entire text node (line-level)
                                     if let Some((run, entry)) = dom.find_run_entry_for_node(nid) {
-                                        dom.selection = Some(DomSelection::new(
+                                        dom.set_selection(DomSelection::new(
                                             run.root_id,
                                             entry.flat_start,
                                             entry.flat_start + entry.grapheme_count,
@@ -784,7 +785,7 @@ pub fn handle_mouse_input(
                                     if let Some(run) =
                                         dom.text_select_runs.iter().find(|r| r.root_id == run_root)
                                     {
-                                        dom.selection = Some(DomSelection::new(
+                                        dom.set_selection(DomSelection::new(
                                             run_root,
                                             0,
                                             run.total_graphemes,
@@ -793,15 +794,16 @@ pub fn handle_mouse_input(
                                 }
                                 _ => {
                                     // Single click: place cursor
-                                    dom.selection =
-                                        Some(DomSelection::new(run_root, flat_idx, flat_idx));
+                                    dom.set_selection(DomSelection::new(
+                                        run_root, flat_idx, flat_idx,
+                                    ));
                                 }
                             }
                             dom.dragging_view_selection = Some(run_root);
                         }
                     } else {
                         // Clicked on non-selectable area: clear view selection
-                        dom.selection = None;
+                        dom.clear_selection();
                     }
                 }
             }
@@ -1009,9 +1011,8 @@ pub fn handle_key_for_view_selection(
         return false;
     }
 
-    let sel = match &dom.selection {
-        Some(s) => s,
-        None => return false,
+    let Some(sel) = dom.selection() else {
+        return false;
     };
 
     let root = sel.root;
@@ -1035,34 +1036,34 @@ pub fn handle_key_for_view_selection(
         Key::Named(NamedKey::ArrowLeft) if shift && ctrl => {
             // Move active to previous word boundary
             let new_active = prev_word_boundary_in_run(dom, root, active);
-            dom.selection = Some(DomSelection::new(root, anchor, new_active));
+            dom.set_selection(DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowRight) if shift && ctrl => {
             let new_active = next_word_boundary_in_run(dom, root, active);
-            dom.selection = Some(DomSelection::new(root, anchor, new_active));
+            dom.set_selection(DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowLeft) if shift => {
             let new_active = if active > 0 { active - 1 } else { 0 };
-            dom.selection = Some(DomSelection::new(root, anchor, new_active));
+            dom.set_selection(DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::ArrowRight) if shift => {
             let new_active = (active + 1).min(run_len);
-            dom.selection = Some(DomSelection::new(root, anchor, new_active));
+            dom.set_selection(DomSelection::new(root, anchor, new_active));
             true
         }
         Key::Named(NamedKey::Home) if shift => {
-            dom.selection = Some(DomSelection::new(root, anchor, 0));
+            dom.set_selection(DomSelection::new(root, anchor, 0));
             true
         }
         Key::Named(NamedKey::End) if shift => {
-            dom.selection = Some(DomSelection::new(root, anchor, run_len));
+            dom.set_selection(DomSelection::new(root, anchor, run_len));
             true
         }
         Key::Character(c) if ctrl && (c.as_ref() == "a" || c.as_ref() == "A") => {
-            dom.selection = Some(DomSelection::new(root, 0, run_len));
+            dom.set_selection(DomSelection::new(root, 0, run_len));
             true
         }
         _ => false,
