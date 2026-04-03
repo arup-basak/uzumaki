@@ -25,6 +25,18 @@ Use `pnpm` for workspace scripts, `cargo` for Rust work, and `bun` only where a 
 
 Rust follows standard `rustfmt` conventions: 4-space indentation, `snake_case` modules/functions, and `PascalCase` types. TypeScript and TSX use Prettier with semicolons and single quotes; current files use 2-space indentation. Name React components in `PascalCase` (`MetricCard`), hooks in `camelCase` (`useInput`), and keep file names lowercase unless a framework convention requires otherwise.
 
+## Rust Validation & Debugging Workflow
+
+After writing or modifying code, always validate the Rust side by running:
+
+- `cargo check`
+
+This ensures everything compiles correctly and catches Rust-side errors early.
+
+In most cases, you do **not** need to run the playground app, as it will typically be handled by the developer. Focus on keeping the Rust code compiling cleanly.
+
+Only run or suggest running the playground (e.g. via `pnpm start`) if the user explicitly asks for debugging, runtime validation, or example behavior verification.
+
 ## Testing Guidelines
 
 Rust unit tests live inline in `mod tests` blocks, for example in `crates/uzumaki/src/text.rs` and `crates/uzumaki/src/input.rs`. Add focused tests next to the module you change and run `cargo test -p uzumaki` before opening a PR. There is no root JS test runner configured yet, so treat playground changes as manual-test territory unless you add coverage with the change.
