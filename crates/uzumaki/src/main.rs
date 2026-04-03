@@ -83,7 +83,7 @@ impl AppState {
             let WindowEntry { handle, dom, .. } = entry;
             if let Some(handle) = handle {
                 event_dispatch::handle_redraw(dom, handle, &self.gpu.device, &self.gpu.queue);
-                handle.winit_window.request_redraw();
+                // handle.winit_window.request_redraw();
             }
         }
     }
