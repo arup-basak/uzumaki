@@ -1,7 +1,7 @@
 import { eventManager, EventType } from './events';
 
 export { Window } from './window';
-export { clipboard } from './clipboard';
+export { Clipboard } from './clipboard';
 export { eventManager, EventType } from './events';
 export type {
   EventPhase,
@@ -77,6 +77,7 @@ const EVENT_TYPE_MAP: Record<string, EventType> = {
 
   const eventType = EVENT_TYPE_MAP[event.type];
   if (eventType === undefined) return false;
+  console.log('event: ', eventType);
 
   // Always dispatch — no more nodeId guards.
   // Events without a target node will only fire window-level handlers.

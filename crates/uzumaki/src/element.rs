@@ -629,6 +629,20 @@ impl Dom {
         self.hit_state.active_node = active;
     }
 
+    /// Refresh hit-testing using the current pointer position after layout or
+    /// paint invalidates the previous frame's hitboxes.
+    pub fn refresh_hit_test(&mut self) -> bool {
+        let Some((x, y)) = self.hit_state.mouse_position else {
+            return false;
+        };
+
+        let old_top = self.hit_state.top_node;
+        let old_hovered = self.hit_state.hovered_nodes.clone();
+        self.update_hit_test(x, y);
+
+        old_top != self.hit_state.top_node || old_hovered != self.hit_state.hovered_nodes
+    }
+
     /// Set the active node (mouse down on an element).
     pub fn set_active(&mut self, node_id: Option<NodeId>) {
         self.hit_state.active_node = node_id;
@@ -1484,5 +1498,45 @@ fn available_as_option(space: taffy::AvailableSpace) -> Option<f32> {
     match space {
         taffy::AvailableSpace::Definite(v) => Some(v),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Dom;
+    use crate::style::Bounds;
+
+    #[test]
+    fn refresh_hit_test_retargets_stationary_pointer_after_hitboxes_change() {
+        let mut dom = Dom::new();
+        let first = dom.create_view(Default::default());
+        let second = dom.create_view(Default::default());
+
+        dom.hitbox_store.insert(
+            first,
+            Bounds {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 100.0,
+            },
+        );
+        dom.update_hit_test(10.0, 10.0);
+        dom.set_active(Some(first));
+
+        dom.hitbox_store.clear();
+        dom.hitbox_store.insert(
+            second,
+            Bounds {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 100.0,
+            },
+        );
+
+        assert!(dom.refresh_hit_test());
+        assert_eq!(dom.hit_state.top_node, Some(second));
+        assert_eq!(dom.hit_state.active_node, Some(first));
     }
 }

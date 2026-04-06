@@ -101,6 +101,10 @@ impl Window {
             &mut self.text_renderer,
         );
         dom.render(&mut self.scene, &mut self.text_renderer, scale);
+        if dom.refresh_hit_test() {
+            self.scene.reset();
+            dom.render(&mut self.scene, &mut self.text_renderer, scale);
+        }
 
         let target_view = Self::ensure_vello_target(&mut self.vello_target, device, width, height);
 

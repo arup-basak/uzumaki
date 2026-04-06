@@ -1,6 +1,6 @@
 import core from './core';
 
-export const clipboard = {
+export const Clipboard = {
   readText(): string | null {
     return core.readClipboardText();
   },
