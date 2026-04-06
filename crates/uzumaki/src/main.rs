@@ -43,8 +43,13 @@ use winit::{application::ApplicationHandler, event::WindowEvent, window::WindowI
 
 use crate::element::{Dom, NodeId};
 use crate::gpu::GpuContext;
+use crate::prop_keys::PropKey;
 use crate::selection::{DomSelection, SelectionRange};
 use crate::style::*;
+
+mod prop_keys {
+    include!(concat!(env!("OUT_DIR"), "/prop_keys.rs"));
+}
 
 pub static UZUMAKI_SNAPSHOT: Option<&[u8]> = Some(include_bytes!(concat!(
     env!("OUT_DIR"),
@@ -334,6 +339,9 @@ pub fn op_set_length_prop(
     #[smi] unit: u32,
 ) {
     let nid = serde_json::from_value::<NodeId>(node_id).unwrap();
+    let Ok(prop) = PropKey::try_from(prop) else {
+        return;
+    };
     let app_state = state.borrow::<SharedAppState>().clone();
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
@@ -346,10 +354,10 @@ pub fn op_set_length_prop(
         {
             let style = &mut entry.dom.nodes[nid].style;
             match prop {
-                0 => style.size.width = length,       // W
-                1 => style.size.height = length,      // H
-                52 => style.min_size.width = length,  // MinW
-                53 => style.min_size.height = length, // MinH
+                PropKey::W => style.size.width = length,
+                PropKey::H => style.size.height = length,
+                PropKey::MinW => style.min_size.width = length,
+                PropKey::MinH => style.min_size.height = length,
                 _ => return,
             }
         }
@@ -369,36 +377,37 @@ pub fn op_set_color_prop(
     #[smi] a: u32,
 ) {
     let nid = serde_json::from_value::<NodeId>(node_id).unwrap();
+    let Ok(prop) = PropKey::try_from(prop) else {
+        return;
+    };
     let color = Color::rgba(r as u8, g as u8, b as u8, a as u8);
     let app_state = state.borrow::<SharedAppState>().clone();
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
 
         match prop {
-            43 | 44 | 46 => {
-                // HoverBg, HoverColor, HoverBorderColor
+            PropKey::HoverBg | PropKey::HoverColor | PropKey::HoverBorderColor => {
                 let r = entry.dom.nodes[nid]
                     .interactivity
                     .hover_style
                     .get_or_insert_with(|| Box::new(StyleRefinement::default()));
                 match prop {
-                    43 => r.background = Some(color),
-                    44 => r.text.color = Some(color),
-                    46 => r.border_color = Some(color),
+                    PropKey::HoverBg => r.background = Some(color),
+                    PropKey::HoverColor => r.text.color = Some(color),
+                    PropKey::HoverBorderColor => r.border_color = Some(color),
                     _ => unreachable!(),
                 }
                 return;
             }
-            47 | 48 | 50 => {
-                // ActiveBg, ActiveColor, ActiveBorderColor
+            PropKey::ActiveBg | PropKey::ActiveColor | PropKey::ActiveBorderColor => {
                 let r = entry.dom.nodes[nid]
                     .interactivity
                     .active_style
                     .get_or_insert_with(|| Box::new(StyleRefinement::default()));
                 match prop {
-                    47 => r.background = Some(color),
-                    48 => r.text.color = Some(color),
-                    50 => r.border_color = Some(color),
+                    PropKey::ActiveBg => r.background = Some(color),
+                    PropKey::ActiveColor => r.text.color = Some(color),
+                    PropKey::ActiveBorderColor => r.border_color = Some(color),
                     _ => unreachable!(),
                 }
                 return;
@@ -409,9 +418,9 @@ pub fn op_set_color_prop(
         {
             let style = &mut entry.dom.nodes[nid].style;
             match prop {
-                23 => style.background = Some(color),   // Bg
-                24 => style.text.color = color,         // Color
-                37 => style.border_color = Some(color), // BorderColor
+                PropKey::Bg => style.background = Some(color),
+                PropKey::Color => style.text.color = color,
+                PropKey::BorderColor => style.border_color = Some(color),
                 _ => return,
             }
         }
@@ -428,6 +437,9 @@ pub fn op_set_f32_prop(
     value: f64,
 ) {
     let nid = serde_json::from_value::<NodeId>(node_id).unwrap();
+    let Ok(prop) = PropKey::try_from(prop) else {
+        return;
+    };
     let v = value as f32;
     let app_state = state.borrow::<SharedAppState>().clone();
     with_state(&app_state, |s| {
@@ -435,8 +447,7 @@ pub fn op_set_f32_prop(
 
         // Props that don't need sync_taffy
         match prop {
-            45 => {
-                // HoverOpacity
+            PropKey::HoverOpacity => {
                 let r = entry.dom.nodes[nid]
                     .interactivity
                     .hover_style
@@ -444,8 +455,7 @@ pub fn op_set_f32_prop(
                 r.opacity = Some(v);
                 return;
             }
-            49 => {
-                // ActiveOpacity
+            PropKey::ActiveOpacity => {
                 let r = entry.dom.nodes[nid]
                     .interactivity
                     .active_style
@@ -453,13 +463,11 @@ pub fn op_set_f32_prop(
                 r.opacity = Some(v);
                 return;
             }
-            41 => {
-                // Interactive
+            PropKey::Interactive => {
                 entry.dom.nodes[nid].interactivity.js_interactive = v > 0.5;
                 return;
             }
-            51 => {
-                // Scrollable
+            PropKey::Scrollable => {
                 let node = &mut entry.dom.nodes[nid];
                 if v > 0.5 {
                     node.style.overflow_y = Overflow::Scroll;
@@ -473,8 +481,7 @@ pub fn op_set_f32_prop(
                 sync_taffy(&mut entry.dom, nid);
                 return;
             }
-            54 => {
-                // TextSelect
+            PropKey::TextSelect => {
                 entry.dom.nodes[nid].selectable = Some(v > 0.5);
                 return;
             }
@@ -484,65 +491,65 @@ pub fn op_set_f32_prop(
         {
             let style = &mut entry.dom.nodes[nid].style;
             match prop {
-                2 => style.padding = Edges::all(v), // P
-                3 => {
+                PropKey::P => style.padding = Edges::all(v),
+                PropKey::Px => {
                     style.padding.left = v;
                     style.padding.right = v;
-                } // Px
-                4 => {
+                }
+                PropKey::Py => {
                     style.padding.top = v;
                     style.padding.bottom = v;
-                } // Py
-                5 => style.padding.top = v,         // Pt
-                6 => style.padding.bottom = v,      // Pb
-                7 => style.padding.left = v,        // Pl
-                8 => style.padding.right = v,       // Pr
-                9 => style.margin = Edges::all(v),  // M
-                10 => {
+                }
+                PropKey::Pt => style.padding.top = v,
+                PropKey::Pb => style.padding.bottom = v,
+                PropKey::Pl => style.padding.left = v,
+                PropKey::Pr => style.padding.right = v,
+                PropKey::M => style.margin = Edges::all(v),
+                PropKey::Mx => {
                     style.margin.left = v;
                     style.margin.right = v;
-                } // Mx
-                11 => {
+                }
+                PropKey::My => {
                     style.margin.top = v;
                     style.margin.bottom = v;
-                } // My
-                12 => style.margin.top = v,         // Mt
-                13 => style.margin.bottom = v,      // Mb
-                14 => style.margin.left = v,        // Ml
-                15 => style.margin.right = v,       // Mr
-                16 => {
+                }
+                PropKey::Mt => style.margin.top = v,
+                PropKey::Mb => style.margin.bottom = v,
+                PropKey::Ml => style.margin.left = v,
+                PropKey::Mr => style.margin.right = v,
+                PropKey::Flex => {
                     style.display = Display::Flex;
                     style.flex_grow = v;
-                } // Flex
-                18 => style.flex_grow = v,          // FlexGrow
-                19 => style.flex_shrink = v,        // FlexShrink
-                22 => {
+                }
+                PropKey::FlexGrow => style.flex_grow = v,
+                PropKey::FlexShrink => style.flex_shrink = v,
+                PropKey::Gap => {
                     style.gap = GapSize {
                         width: DefiniteLength::Px(v),
                         height: DefiniteLength::Px(v),
                     };
-                } // Gap
-                25 => style.text.font_size = v,     // FontSize
-                26 => {}                            // FontWeight (noop)
-                27 => style.corner_radii = Corners::uniform(v), // Rounded
-                28 => style.corner_radii.top_left = v, // RoundedTL
-                29 => style.corner_radii.top_right = v, // RoundedTR
-                30 => style.corner_radii.bottom_right = v, // RoundedBR
-                31 => style.corner_radii.bottom_left = v, // RoundedBL
-                32 => style.border_widths = Edges::all(v), // Border
-                33 => style.border_widths.top = v,  // BorderTop
-                34 => style.border_widths.right = v, // BorderRight
-                35 => style.border_widths.bottom = v, // BorderBottom
-                36 => style.border_widths.left = v, // BorderLeft
-                38 => style.opacity = v,            // Opacity
-                42 => {
+                }
+                PropKey::FontSize => style.text.font_size = v,
+                PropKey::FontWeight => {}
+                PropKey::Rounded => style.corner_radii = Corners::uniform(v),
+                PropKey::RoundedTL => style.corner_radii.top_left = v,
+                PropKey::RoundedTR => style.corner_radii.top_right = v,
+                PropKey::RoundedBR => style.corner_radii.bottom_right = v,
+                PropKey::RoundedBL => style.corner_radii.bottom_left = v,
+                PropKey::Border => style.border_widths = Edges::all(v),
+                PropKey::BorderTop => style.border_widths.top = v,
+                PropKey::BorderRight => style.border_widths.right = v,
+                PropKey::BorderBottom => style.border_widths.bottom = v,
+                PropKey::BorderLeft => style.border_widths.left = v,
+                PropKey::Opacity => style.opacity = v,
+                PropKey::Visible => {
                     style.visibility = if v > 0.5 {
                         Visibility::Visible
                     } else {
                         Visibility::Hidden
                     };
-                } // Visible
-                40 => {}                            // Cursor (noop)
+                }
+                PropKey::Cursor => {}
                 _ => return,
             }
         }
@@ -559,14 +566,16 @@ pub fn op_set_enum_prop(
     #[smi] value: i32,
 ) {
     let nid = serde_json::from_value::<NodeId>(node_id).unwrap();
+    let Ok(prop) = PropKey::try_from(prop) else {
+        return;
+    };
     let app_state = state.borrow::<SharedAppState>().clone();
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         {
             let style = &mut entry.dom.nodes[nid].style;
             match prop {
-                17 => {
-                    // FlexDir
+                PropKey::FlexDir => {
                     style.flex_direction = match value {
                         0 => FlexDirection::Row,
                         1 => FlexDirection::Column,
@@ -575,8 +584,7 @@ pub fn op_set_enum_prop(
                         _ => FlexDirection::Row,
                     };
                 }
-                20 => {
-                    // Items
+                PropKey::Items => {
                     style.align_items = Some(match value {
                         0 => AlignItems::FlexStart,
                         1 => AlignItems::FlexEnd,
@@ -586,8 +594,7 @@ pub fn op_set_enum_prop(
                         _ => AlignItems::Stretch,
                     });
                 }
-                21 => {
-                    // Justify
+                PropKey::Justify => {
                     style.justify_content = Some(match value {
                         0 => JustifyContent::FlexStart,
                         1 => JustifyContent::FlexEnd,
@@ -598,8 +605,7 @@ pub fn op_set_enum_prop(
                         _ => JustifyContent::FlexStart,
                     });
                 }
-                39 => {
-                    // Display
+                PropKey::Display => {
                     style.display = match value {
                         0 => Display::None,
                         1 => Display::Flex,
