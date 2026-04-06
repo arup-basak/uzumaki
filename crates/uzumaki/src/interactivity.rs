@@ -16,7 +16,7 @@ pub struct Hitbox {
 impl Hitbox {
     /// Check if this hitbox is hovered according to the current hit test result.
     pub fn is_hovered(&self, hit_state: &HitTestState) -> bool {
-        hit_state.hovered_hitboxes.contains(&self.id)
+        hit_state.is_hovered(self.node_id)
     }
 }
 
@@ -25,21 +25,21 @@ impl Hitbox {
 pub struct HitTestState {
     /// Mouse position in window coordinates.
     pub mouse_position: Option<(f64, f64)>,
-    /// Set of hitbox IDs that the mouse is currently over (back-to-front order).
-    pub hovered_hitboxes: Vec<HitboxId>,
-    /// The topmost (frontmost) hovered hitbox, if any.
-    pub top_hit: Option<HitboxId>,
-    /// Which hitbox is currently pressed (mouse down without mouse up).
-    pub active_hitbox: Option<HitboxId>,
+    /// Set of node IDs that the mouse is currently over (back-to-front order).
+    pub hovered_nodes: Vec<NodeId>,
+    /// The topmost (frontmost) hovered node, if any.
+    pub top_node: Option<NodeId>,
+    /// Which node is currently pressed (mouse down without mouse up).
+    pub active_node: Option<NodeId>,
 }
 
 impl HitTestState {
-    pub fn is_hovered(&self, id: HitboxId) -> bool {
-        self.hovered_hitboxes.contains(&id)
+    pub fn is_hovered(&self, node_id: NodeId) -> bool {
+        self.hovered_nodes.contains(&node_id)
     }
 
-    pub fn is_active(&self, id: HitboxId) -> bool {
-        self.active_hitbox == Some(id) && self.is_hovered(id)
+    pub fn is_active(&self, node_id: NodeId) -> bool {
+        self.active_node == Some(node_id) && self.is_hovered(node_id)
     }
 }
 
@@ -77,15 +77,17 @@ impl HitboxStore {
     /// (last registered = frontmost) and return all that contain the point.
     pub fn hit_test(&self, x: f64, y: f64) -> HitTestState {
         let mut hovered = Vec::new();
-        let mut top_hit = None;
+        let mut top_node = None;
 
         // Walk back-to-front: later entries are painted on top
         for hitbox in self.hitboxes.iter().rev() {
             if hitbox.bounds.contains(x, y) {
-                if top_hit.is_none() {
-                    top_hit = Some(hitbox.id);
+                if top_node.is_none() {
+                    top_node = Some(hitbox.node_id);
                 }
-                hovered.push(hitbox.id);
+                if !hovered.contains(&hitbox.node_id) {
+                    hovered.push(hitbox.node_id);
+                }
             }
         }
 
@@ -94,9 +96,9 @@ impl HitboxStore {
 
         HitTestState {
             mouse_position: Some((x, y)),
-            hovered_hitboxes: hovered,
-            top_hit,
-            active_hitbox: None, // Caller must preserve active state
+            hovered_nodes: hovered,
+            top_node,
+            active_node: None, // Caller must preserve active state
         }
     }
 
@@ -175,25 +177,23 @@ impl Interactivity {
 
     /// Compute the final Style for this element by starting with the base style
     /// and refining with hover/active styles based on the current hit test state.
-    pub fn compute_style(&self, base: &Style, hit_state: &HitTestState) -> Style {
+    pub fn compute_style(&self, base: &Style, node_id: NodeId, hit_state: &HitTestState) -> Style {
         let mut style = base.clone();
 
         // Apply base style refinement
         style.refine(&self.base_style);
 
-        // Apply hover style if hovered
-        if let Some(hitbox_id) = self.hitbox_id {
-            if hit_state.is_hovered(hitbox_id) {
-                if let Some(hover) = &self.hover_style {
-                    style.refine(hover);
-                }
+        // Hover/active state must be keyed by the stable DOM node identity, not the
+        // paint-frame hitbox ID, otherwise a redraw between mouse down/up breaks clicks.
+        if hit_state.is_hovered(node_id) {
+            if let Some(hover) = &self.hover_style {
+                style.refine(hover);
             }
+        }
 
-            // Apply active style if active (hovered + mouse pressed)
-            if hit_state.is_active(hitbox_id) {
-                if let Some(active) = &self.active_style {
-                    style.refine(active);
-                }
+        if hit_state.is_active(node_id) {
+            if let Some(active) = &self.active_style {
+                style.refine(active);
             }
         }
 

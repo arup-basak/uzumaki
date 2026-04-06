@@ -893,10 +893,7 @@ pub fn op_read_clipboard_text(state: &mut OpState) -> Option<String> {
 }
 
 #[op2(fast)]
-pub fn op_write_clipboard_text(
-    state: &mut OpState,
-    #[string] text: String,
-) -> bool {
+pub fn op_write_clipboard_text(state: &mut OpState, #[string] text: String) -> bool {
     let app_state = state.borrow::<SharedAppState>().clone();
     let s = app_state.borrow();
     match s.clipboard.borrow_mut().write_text(&text) {
@@ -1083,8 +1080,8 @@ impl Application {
         // Create GPU context
         let gpu = pollster::block_on(GpuContext::new()).expect("Failed to create GPU context");
 
-        let system_clipboard = clipboard::SystemClipboard::new()
-            .expect("failed to initialize system clipboard");
+        let system_clipboard =
+            clipboard::SystemClipboard::new().expect("failed to initialize system clipboard");
 
         let app_state = Rc::new(RefCell::new(AppState {
             gpu,
@@ -1442,10 +1439,7 @@ impl ApplicationHandler<UserEvent> for Application {
                             let cmd = state.windows.get(&wid).and_then(|entry| {
                                 let mut cb = state.clipboard.borrow_mut();
                                 event_dispatch::build_clipboard_command(
-                                    &entry.dom,
-                                    &key_event,
-                                    modifiers,
-                                    &mut cb,
+                                    &entry.dom, &key_event, modifiers, &mut cb,
                                 )
                             });
                             cmd
@@ -1455,8 +1449,7 @@ impl ApplicationHandler<UserEvent> for Application {
                             // Dispatch clipboard event to JS
                             let clipboard_event =
                                 event_dispatch::clipboard_command_to_event(&cmd, wid);
-                            let clipboard_prevented =
-                                self.dispatch_event_to_js(&clipboard_event);
+                            let clipboard_prevented = self.dispatch_event_to_js(&clipboard_event);
 
                             if !clipboard_prevented {
                                 // Apply default clipboard action
@@ -1509,14 +1502,13 @@ impl ApplicationHandler<UserEvent> for Application {
                                 let mut state = self.app_state.borrow_mut();
                                 state.windows.get_mut(&wid).map(|entry| {
                                     let handle = entry.handle.as_mut().unwrap();
-                                    let (redraw, events) =
-                                        event_dispatch::handle_key_for_input(
-                                            &mut entry.dom,
-                                            handle,
-                                            wid,
-                                            &key_event,
-                                            modifiers,
-                                        );
+                                    let (redraw, events) = event_dispatch::handle_key_for_input(
+                                        &mut entry.dom,
+                                        handle,
+                                        wid,
+                                        &key_event,
+                                        modifiers,
+                                    );
                                     if redraw {
                                         needs_redraw = true;
                                     }

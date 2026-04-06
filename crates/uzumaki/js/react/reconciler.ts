@@ -252,8 +252,13 @@ function isEventProp(key: string): boolean {
 }
 
 interface ListenerEntry {
+  name: string;
   handler: Function;
   capture: boolean;
+}
+
+function listenerKey(name: string, capture: boolean): string {
+  return `${name}:${capture ? 'capture' : 'bubble'}`;
 }
 
 function parseEventProp(key: string): { name: string; capture: boolean } {
@@ -271,7 +276,7 @@ abstract class BaseElement {
   readonly type: string;
   readonly windowId: number;
   styles: Record<string, any> = {};
-  /** Keyed by event name (e.g. "click"). Value includes handler + phase. */
+  /** Keyed by stable event identity (name + phase). */
   eventListeners: Map<string, ListenerEntry> = new Map();
   children: BaseElement[] = [];
   parent: BaseElement | null = null;
@@ -291,10 +296,10 @@ abstract class BaseElement {
   applyEvents(): void {
     if (this.eventListeners.size > 0) {
       core.setF32Prop(this.windowId, this.id, PropKey.Interactive, 1);
-      for (const [name, entry] of this.eventListeners) {
+      for (const entry of this.eventListeners.values()) {
         eventManager.addHandlerByName(
           this.id,
-          name,
+          entry.name,
           entry.handler,
           entry.capture,
         );
@@ -317,8 +322,8 @@ abstract class BaseElement {
   }
 
   updateEvents(newListeners: Map<string, ListenerEntry>): void {
-    for (const [name, newEntry] of newListeners) {
-      const old = this.eventListeners.get(name);
+    for (const [key, newEntry] of newListeners) {
+      const old = this.eventListeners.get(key);
       if (
         !old ||
         old.handler !== newEntry.handler ||
@@ -327,23 +332,23 @@ abstract class BaseElement {
         if (old)
           eventManager.removeHandlerByName(
             this.id,
-            name,
+            old.name,
             old.handler,
             old.capture,
           );
         eventManager.addHandlerByName(
           this.id,
-          name,
+          newEntry.name,
           newEntry.handler,
           newEntry.capture,
         );
       }
     }
-    for (const [name, old] of this.eventListeners) {
-      if (!newListeners.has(name)) {
+    for (const [key, old] of this.eventListeners) {
+      if (!newListeners.has(key)) {
         eventManager.removeHandlerByName(
           this.id,
-          name,
+          old.name,
           old.handler,
           old.capture,
         );
@@ -384,7 +389,11 @@ class ViewElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        this.eventListeners.set(name, { handler: value, capture });
+        this.eventListeners.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
         this.styles[key] = value;
       }
@@ -401,7 +410,11 @@ class ViewElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        newEvents.set(name, { handler: value, capture });
+        newEvents.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
         newStyles[key] = value;
       }
@@ -427,6 +440,7 @@ const INPUT_ATTR_NAMES = new Set([
 class InputElement extends BaseElement {
   inputAttrs: Record<string, any> = {};
   handle: InputHandle | null = null;
+  private handleInputListener: ((ev: any) => void) | null = null;
 
   constructor(windowId: number, props: Record<string, any>) {
     const id = core.createElement(windowId, 'input');
@@ -451,7 +465,11 @@ class InputElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        this.eventListeners.set(name, { handler: value, capture });
+        this.eventListeners.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (INPUT_ATTR_NAMES.has(key)) {
         this.inputAttrs[key] = value;
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
@@ -477,15 +495,24 @@ class InputElement extends BaseElement {
       core.setInputValue(this.windowId, this.id, initial);
     }
 
-    eventManager.addHandlerByName(this.id, 'input', (ev: any) => {
+    this.handleInputListener = (ev: any) => {
       if (this.handle?.__onChange) {
         this.handle.__onChange(ev.value);
       }
-    });
+    };
+    eventManager.addHandlerByName(this.id, 'input', this.handleInputListener);
     core.setF32Prop(this.windowId, this.id, PropKey.Interactive, 1);
   }
 
   private unbindHandle(): void {
+    if (this.handleInputListener) {
+      eventManager.removeHandlerByName(
+        this.id,
+        'input',
+        this.handleInputListener,
+      );
+      this.handleInputListener = null;
+    }
     if (this.handle) {
       this.handle.__nodeId = null;
       this.handle.__windowId = null;
@@ -510,7 +537,11 @@ class InputElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        newEvents.set(name, { handler: value, capture });
+        newEvents.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (INPUT_ATTR_NAMES.has(key)) {
         newInputAttrs[key] = value;
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
@@ -601,7 +632,11 @@ class TextElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        this.eventListeners.set(name, { handler: value, capture });
+        this.eventListeners.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
         this.styles[key] = value;
       }
@@ -629,7 +664,11 @@ class TextElement extends BaseElement {
       if (value == null) continue;
       if (isEventProp(key)) {
         const { name, capture } = parseEventProp(key);
-        newEvents.set(name, { handler: value, capture });
+        newEvents.set(listenerKey(name, capture), {
+          name,
+          handler: value,
+          capture,
+        });
       } else if (PROP_NAME_TO_KEY[key] !== undefined) {
         newStyles[key] = value;
       }

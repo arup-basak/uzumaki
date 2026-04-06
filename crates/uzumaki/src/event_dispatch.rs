@@ -191,9 +191,9 @@ pub fn handle_cursor_moved(
     let scale = handle.winit_window.scale_factor();
     let logical_x = position.x / scale;
     let logical_y = position.y / scale;
-    let old_top = dom.hit_state.top_hit;
+    let old_top = dom.hit_state.top_node;
     dom.update_hit_test(logical_x, logical_y);
-    if old_top != dom.hit_state.top_hit {
+    if old_top != dom.hit_state.top_node {
         needs_redraw = true;
     }
 
@@ -530,16 +530,11 @@ pub fn handle_mouse_input(
     }
 
     // Resolve topmost hit → NodeId for JS event target
-    let js_target = dom
-        .hit_state
-        .top_hit
-        .and_then(|hid| dom.hitbox_store.get(hid))
-        .map(|hb| hb.node_id);
+    let js_target = dom.hit_state.top_node;
 
     match btn_state {
         ElementState::Pressed => {
-            let top = dom.hit_state.top_hit;
-            dom.set_active(top);
+            dom.set_active(js_target);
             dom.dispatch_mouse_down(mx, my, mouse_button);
             if let Some(target) = js_target {
                 events.push(AppEvent::MouseDown(MouseEventData {
@@ -842,7 +837,7 @@ pub fn handle_mouse_input(
                 }));
             }
             // Click fires if released on the same element that was pressed
-            if let Some(active) = dom.hit_state.active_hitbox {
+            if let Some(active) = dom.hit_state.active_node {
                 if dom.hit_state.is_hovered(active) {
                     dom.dispatch_click(mx, my, mouse_button);
                     if let Some(target) = js_target {

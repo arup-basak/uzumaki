@@ -624,14 +624,14 @@ impl Dom {
 
     /// Run hit test at the given mouse position and update hit_state.
     pub fn update_hit_test(&mut self, x: f64, y: f64) {
-        let active = self.hit_state.active_hitbox;
+        let active = self.hit_state.active_node;
         self.hit_state = self.hitbox_store.hit_test(x, y);
-        self.hit_state.active_hitbox = active;
+        self.hit_state.active_node = active;
     }
 
-    /// Set active hitbox (mouse down on an element).
-    pub fn set_active(&mut self, hitbox_id: Option<crate::interactivity::HitboxId>) {
-        self.hit_state.active_hitbox = hitbox_id;
+    /// Set the active node (mouse down on an element).
+    pub fn set_active(&mut self, node_id: Option<NodeId>) {
+        self.hit_state.active_node = node_id;
     }
 
     /// Render the DOM tree into the scene. Also rebuilds hitboxes and scroll thumbs.
@@ -739,9 +739,9 @@ impl Dom {
                         }
 
                         let taffy_node = node.taffy_node;
-                        let computed_style = node
-                            .interactivity
-                            .compute_style(&node.style, &self.hit_state);
+                        let computed_style =
+                            node.interactivity
+                                .compute_style(&node.style, node_id, &self.hit_state);
 
                         let text = node.behavior.as_text().map(|tc| {
                             (
