@@ -271,7 +271,9 @@ function parseEventProp(key: string): { name: string; capture: boolean } {
 
 // ── Element classes ──────────────────────────────────────────────────
 
-abstract class BaseElement {
+abstract class BaseElement<
+  TProps extends Record<string, any> = Record<string, any>,
+> {
   readonly id: any;
   readonly type: string;
   readonly windowId: number;
@@ -286,6 +288,8 @@ abstract class BaseElement {
     this.type = type;
     this.windowId = windowId;
   }
+
+  abstract commitUpdate(newProps: TProps, oldProps: TProps): void;
 
   applyStyles(): void {
     for (const [key, val] of Object.entries(this.styles)) {
@@ -373,7 +377,7 @@ abstract class BaseElement {
   }
 }
 
-class ViewElement extends BaseElement {
+class ViewElement extends BaseElement<Record<string, any>> {
   constructor(windowId: number, type: string, props: Record<string, any>) {
     const id = core.createElement(windowId, type);
     super(id, type, windowId);
@@ -400,7 +404,10 @@ class ViewElement extends BaseElement {
     }
   }
 
-  commitUpdate(newProps: Record<string, any>): void {
+  commitUpdate(
+    newProps: Record<string, any>,
+    _oldProps: Record<string, any>,
+  ): void {
     const newStyles: Record<string, any> = {};
     const newEvents: Map<string, ListenerEntry> = new Map();
 
@@ -437,7 +444,7 @@ const INPUT_ATTR_NAMES = new Set([
   'secure',
 ]);
 
-class InputElement extends BaseElement {
+class InputElement extends BaseElement<Record<string, any>> {
   inputAttrs: Record<string, any> = {};
   handle: InputHandle | null = null;
   private handleInputListener: ((ev: any) => void) | null = null;
@@ -520,7 +527,10 @@ class InputElement extends BaseElement {
     }
   }
 
-  commitUpdate(newProps: Record<string, any>): void {
+  commitUpdate(
+    newProps: Record<string, any>,
+    _oldProps: Record<string, any>,
+  ): void {
     const newStyles: Record<string, any> = {};
     const newInputAttrs: Record<string, any> = {};
     const newEvents: Map<string, ListenerEntry> = new Map();
@@ -608,7 +618,7 @@ class InputElement extends BaseElement {
   }
 }
 
-class TextElement extends BaseElement {
+class TextElement extends BaseElement<Record<string, any>> {
   textContent: string;
 
   constructor(
@@ -652,8 +662,7 @@ class TextElement extends BaseElement {
 
   commitUpdate(
     newProps: Record<string, any>,
-    oldChildren: any,
-    newChildren: any,
+    _oldProps: Record<string, any>,
   ): void {
     const newStyles: Record<string, any> = {};
     const newEvents: Map<string, ListenerEntry> = new Map();
@@ -677,7 +686,7 @@ class TextElement extends BaseElement {
     this.updateStyles(newStyles);
     this.updateEvents(newEvents);
 
-    const newText = getTextContent(newChildren);
+    const newText = getTextContent(newProps.children);
     this.setText(newText);
   }
 }
@@ -858,13 +867,7 @@ const reconciler = ReactReconciler<
   },
 
   commitUpdate(instance, type, oldProps, newProps, _internalHandle) {
-    if (instance instanceof InputElement) {
-      instance.commitUpdate(newProps);
-    } else if (instance instanceof TextElement) {
-      instance.commitUpdate(newProps, oldProps.children, newProps.children);
-    } else if (instance instanceof ViewElement) {
-      instance.commitUpdate(newProps);
-    }
+    instance.commitUpdate(newProps, oldProps);
   },
 
   commitTextUpdate(instance, oldText, newText) {
