@@ -7,7 +7,7 @@
     "react": "^19.2.4"
   },
   "scripts": {
-    "start": "uzumaki src/index.tsx",
+    "dev": "uzumaki src/index.tsx",
     "build": "bun build src/index.tsx --target node --outdir dist --minify",
     "preview": "uzumaki dist/index.js"
   },

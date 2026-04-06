@@ -33,5 +33,8 @@
   },
   "dependencies": {
     "react-reconciler": "^0.33.0"
+  },
+  "optionalDependencies": {
+    "@uzumaki-apps/win32-x64": "workspace:*"
   }
 }

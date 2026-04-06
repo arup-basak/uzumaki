@@ -1,11 +1,10 @@
 {
-  "name": "uzumaki",
-  "module": "index.ts",
+  "name": "uzumaki-monorepo",
+  "description": "React Desktop UI Framework without the browser stuff",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "pnpm build:core && pnpm copy:binary && pnpm --filter playground start",
-    "copy:binary": "bun scripts/copy-binary.ts --release",
+    "dev": "pnpm build:core && pnpm --filter playground dev",
     "build:core": "cargo build --release -p uzumaki",
     "copy:artifacts": "bun scripts/copy-artifacts.ts",
     "format": "prettier --write ."

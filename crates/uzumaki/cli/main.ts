@@ -2,6 +2,7 @@
 
 import { fileURLToPath } from 'bun';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 function color(text: string, value: string) {
@@ -57,10 +58,13 @@ function help() {
   );
 }
 
+// for uzumaki developement
 const BIN_FOLDER = path.resolve(
   path.dirname(fileURLToPath(new URL(import.meta.url))),
-  '../bin',
+  '../../../target',
 );
+
+const require = createRequire(import.meta.url);
 
 function getBinaryName() {
   switch (process.platform) {
@@ -71,12 +75,66 @@ function getBinaryName() {
   }
 }
 
-function resolveBinaryPath() {
-  return path.join(BIN_FOLDER, getBinaryName());
+function resolveTargetBinaryPath() {
+  const binaryName = getBinaryName();
+  const candidates = [
+    path.join(BIN_FOLDER, 'release', binaryName),
+    path.join(BIN_FOLDER, 'debug', binaryName),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0]!;
+}
+
+function getPlatformPackageName() {
+  return `@uzumaki-apps/${process.platform}-${process.arch}`;
+}
+
+function resolvePackagedBinaryPath() {
+  const packageName = getPlatformPackageName();
+  try {
+    const mod = require(packageName) as
+      | string
+      | { default?: string; binaryPath?: string; getBinaryPath?: () => string };
+
+    if (typeof mod === 'string') {
+      return mod;
+    }
+
+    if (typeof mod?.getBinaryPath === 'function') {
+      return mod.getBinaryPath();
+    }
+
+    if (typeof mod?.binaryPath === 'string') {
+      return mod.binaryPath;
+    }
+
+    if (typeof mod?.default === 'string') {
+      return mod.default;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function resolveRuntimeBinaryPath() {
+  const packagedBinaryPath = resolvePackagedBinaryPath();
+  if (packagedBinaryPath && fs.existsSync(packagedBinaryPath)) {
+    return packagedBinaryPath;
+  }
+
+  return resolveTargetBinaryPath();
 }
 
 async function run(entryPoint: string, extraArgs: string[] = []) {
-  const binaryPath = resolveBinaryPath();
+  const binaryPath = resolveRuntimeBinaryPath();
 
   if (!fs.existsSync(binaryPath)) {
     console.error(
@@ -104,7 +162,6 @@ async function main() {
   }
 
   const cmd = args[0]!;
-
   switch (cmd) {
     case 'run': {
       const entryPoint = args[1];

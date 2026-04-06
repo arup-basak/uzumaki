@@ -18,8 +18,13 @@ const workspaceRoot = path.resolve(
 );
 
 const npmRoot = path.join(workspaceRoot, 'npm');
-const uzumakiPkgPath = path.join(workspaceRoot, 'crates', 'uzumaki', 'package.json');
-const defaultBinaryDir = path.join(workspaceRoot, 'crates', 'uzumaki', 'bin');
+const uzumakiPkgPath = path.join(
+  workspaceRoot,
+  'crates',
+  'uzumaki',
+  'package.json',
+);
+const targetRoot = path.join(workspaceRoot, 'target');
 
 const supportedTargets: SupportedTarget[] = [
   {
@@ -93,7 +98,9 @@ function getTarget(targetId: string) {
   const target = supportedTargets.find((entry) => entry.id === targetId);
   if (!target) {
     const supported = supportedTargets.map((entry) => entry.id).join(', ');
-    throw new Error(`unknown target "${targetId}". supported targets: ${supported}`);
+    throw new Error(
+      `unknown target "${targetId}". supported targets: ${supported}`,
+    );
   }
   return target;
 }
@@ -106,7 +113,11 @@ function writeFile(filePath: string, contents: string) {
   fs.writeFileSync(filePath, contents, 'utf8');
 }
 
-function writePackageJson(target: SupportedTarget, version: string, outDir: string) {
+function writePackageJson(
+  target: SupportedTarget,
+  version: string,
+  outDir: string,
+) {
   const pkg = {
     name: target.packageName,
     version,
@@ -133,12 +144,8 @@ import { fileURLToPath } from 'node:url';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const binaryName = ${JSON.stringify(target.binaryName)};
-export const binaryPath = path.join(dirname, binaryName);
-
-export function getBinaryPath() {
-  return binaryPath;
-}
+const binaryName = ${JSON.stringify(target.binaryName)};
+const binaryPath = path.join(dirname, binaryName);
 
 export default binaryPath;
 `;
@@ -163,7 +170,8 @@ function resolveBinarySource(target: SupportedTarget) {
     return path.resolve(workspaceRoot, explicitBinary);
   }
 
-  return path.join(defaultBinaryDir, target.binaryName);
+  const profile = parseArgValue('--profile') ?? 'release';
+  return path.join(targetRoot, profile, target.binaryName);
 }
 
 function copyBinary(sourcePath: string, targetPath: string) {
