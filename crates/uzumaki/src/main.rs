@@ -1,4 +1,5 @@
 pub mod runtime;
+pub mod standalone;
 
 pub mod clipboard;
 pub mod element;
@@ -968,6 +969,7 @@ struct Application {
     worker: MainWorker,
     app_state: SharedAppState,
     main_file: PathBuf,
+    app_root: PathBuf,
     event_loop: Option<winit::event_loop::EventLoop<UserEvent>>,
     module_loaded: bool,
     tokio_runtime: Option<tokio::runtime::Runtime>,
@@ -975,13 +977,16 @@ struct Application {
 }
 
 impl Application {
-    pub fn new(main_file: impl Into<PathBuf>) -> Result<Self> {
+    pub fn new_with_root(
+        main_file: impl Into<PathBuf>,
+        app_root: impl Into<PathBuf>,
+    ) -> Result<Self> {
         let main_file: PathBuf = main_file.into();
-        let cwd = std::env::current_dir()?;
+        let app_root: PathBuf = app_root.into();
         let sys = sys_traits::impls::RealSys;
 
         // --- BYONM node resolution ---
-        let root_node_modules = cwd.join("node_modules");
+        let root_node_modules = app_root.join("node_modules");
         let pkg_json_resolver: node_resolver::PackageJsonResolverRc<UzSys> =
             Arc::new(node_resolver::PackageJsonResolver::new(sys.clone(), None));
 
@@ -1034,7 +1039,7 @@ impl Application {
             deno_runtime::permissions::RuntimePermissionDescriptorParser::new(sys.clone()),
         );
 
-        let main_module = deno_core::resolve_path(main_file.to_str().unwrap(), &cwd)?;
+        let main_module = deno_core::resolve_path(main_file.to_str().unwrap(), &app_root)?;
 
         let services = WorkerServiceOptions {
             blob_store: Arc::new(BlobStore::default()),
@@ -1110,6 +1115,7 @@ impl Application {
             worker,
             app_state,
             main_file,
+            app_root,
             event_loop: Some(event_loop),
             module_loaded: false,
             tokio_runtime: None,
@@ -1144,7 +1150,7 @@ impl Application {
     fn load_main_module(&mut self) {
         let specifier = deno_core::resolve_path(
             self.main_file.to_str().unwrap(),
-            &std::env::current_dir().unwrap(),
+            &self.app_root,
         )
         .unwrap();
 
@@ -1635,16 +1641,99 @@ fn main() {
         std::env::set_var("WGPU_POWER_PREF", "high");
     }
 
-    let tokio_runtime = deno_runtime::tokio_util::create_basic_runtime();
+    // Standalone-first: if the current executable carries an embedded payload,
+    // always run it, ignoring any CLI args. This is what enables a
+    // double-clicked `MyApp.exe` to "just work".
+    match standalone::detect_and_prepare() {
+        Ok(Some(mode)) => {
+            run_launch_mode(mode);
+            return;
+        }
+        Ok(None) => {}
+        Err(err) => {
+            eprintln!("uzumaki: failed to read embedded standalone payload: {err}");
+            std::process::exit(1);
+        }
+    }
 
+    // Not a standalone executable — behave as the dev runtime.
     let mut args = std::env::args();
     args.next();
-    let entry_point = args.next().expect("no entry point provided");
+    let Some(first) = args.next() else {
+        eprintln!("usage: uzumaki <entry.(ts|tsx|js)> | pack --dist <dir> --entry <rel> --output <exe>");
+        std::process::exit(1);
+    };
+
+    if first == "pack" {
+        if let Err(err) = run_pack_command(args.collect()) {
+            eprintln!("uzumaki pack: {err:#}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let cwd = std::env::current_dir().expect("error getting current directory");
-    let entry_path =
-        std::fs::canonicalize(cwd.join(entry_point)).expect("invalid entry point path");
-    let mut app = tokio_runtime
-        .block_on(async { Application::new(entry_path).expect("error creating application") });
+    let entry_path = std::fs::canonicalize(cwd.join(&first)).expect("invalid entry point path");
+    let app_root = entry_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or(cwd.clone());
+    run_launch_mode(standalone::LaunchMode::Dev {
+        app_root,
+        entry_path,
+    });
+}
+
+fn run_launch_mode(mode: standalone::LaunchMode) {
+    let tokio_runtime = deno_runtime::tokio_util::create_basic_runtime();
+    let entry = mode.entry_path().to_path_buf();
+    let app_root = mode.app_root().to_path_buf();
+    let mut app = tokio_runtime.block_on(async {
+        Application::new_with_root(entry, app_root).expect("error creating application")
+    });
     app.tokio_runtime = Some(tokio_runtime);
     app.run().expect("error running application");
+}
+
+fn run_pack_command(args: Vec<String>) -> Result<()> {
+    let mut dist: Option<PathBuf> = None;
+    let mut entry: Option<String> = None;
+    let mut output: Option<PathBuf> = None;
+    let mut app_name: Option<String> = None;
+    let mut base_binary: Option<PathBuf> = None;
+
+    let mut it = args.into_iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--dist" => dist = it.next().map(PathBuf::from),
+            "--entry" => entry = it.next(),
+            "--output" | "-o" => output = it.next().map(PathBuf::from),
+            "--name" => app_name = it.next(),
+            "--base-binary" => base_binary = it.next().map(PathBuf::from),
+            other => anyhow::bail!("unknown pack arg: {other}"),
+        }
+    }
+
+    let dist = dist.ok_or_else(|| anyhow::anyhow!("--dist is required"))?;
+    let entry = entry.ok_or_else(|| anyhow::anyhow!("--entry is required"))?;
+    let output = output.ok_or_else(|| anyhow::anyhow!("--output is required"))?;
+    let base_binary = match base_binary {
+        Some(b) => b,
+        None => std::env::current_exe()?,
+    };
+    let app_name = app_name.unwrap_or_else(|| {
+        output
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("uzumaki-app")
+            .to_string()
+    });
+
+    standalone::pack::pack_app(&standalone::pack::PackOptions {
+        dist_dir: dist,
+        entry_rel: entry,
+        output,
+        app_name,
+        base_binary,
+    })
 }

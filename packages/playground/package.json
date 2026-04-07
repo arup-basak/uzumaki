@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "uzumaki src/index.tsx",
+    "bundle": "uzumaki pack --dist ./dist --entry index.js --output ./playground.exe",
     "build": "bun build src/index.tsx --target node --outdir dist --minify",
     "preview": "uzumaki dist/index.js"
   },

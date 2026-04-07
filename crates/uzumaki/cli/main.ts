@@ -174,8 +174,22 @@ async function main() {
     }
 
     case 'pack': {
-      console.error(dim('pack command is not implemented yet'));
-      return 1;
+      const binaryPath = resolveRuntimeBinaryPath();
+      if (!fs.existsSync(binaryPath)) {
+        console.error(
+          [
+            color('error:', '#ef4444'),
+            `native binary not found at ${dim(binaryPath)}`,
+          ].join(' '),
+        );
+        return 1;
+      }
+      const child = Bun.spawn([binaryPath, 'pack', ...args.slice(1)], {
+        stdin: 'inherit',
+        stdout: 'inherit',
+        stderr: 'inherit',
+      });
+      return await child.exited;
     }
 
     default: {
