@@ -123,7 +123,11 @@ fn set_windows_binary_to_gui(bin: &mut [u8]) -> Result<()> {
             .map_err(|_| anyhow!("PE header offset slice error"))?,
     ) as usize;
 
-    if bin.get(pe_off..pe_off + 4).map(|s| s != b"PE\0\0").unwrap_or(true) {
+    if bin
+        .get(pe_off..pe_off + 4)
+        .map(|s| s != b"PE\0\0")
+        .unwrap_or(true)
+    {
         bail!("base binary is not a valid PE file (missing PE signature)");
     }
 
@@ -158,8 +162,8 @@ fn set_windows_binary_to_gui(bin: &mut [u8]) -> Result<()> {
 /// This lets `uzumaki pack` be run against a binary that is itself a packed
 /// executable, or against a plain runtime binary.
 fn read_base_exe_without_payload(base: &Path) -> Result<Vec<u8>> {
-    let mut bytes = fs::read(base)
-        .with_context(|| format!("reading base binary {}", base.display()))?;
+    let mut bytes =
+        fs::read(base).with_context(|| format!("reading base binary {}", base.display()))?;
     if let Some(existing) = read_payload_from_exe(base)? {
         // Truncate to payload_start. We can recover it by re-opening via the
         // trailer, but simpler: search for the recorded start through the

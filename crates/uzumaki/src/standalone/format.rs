@@ -59,9 +59,12 @@ pub fn serialize_payload_bytes(
 
     let mut out: Vec<u8> = Vec::with_capacity(
         MAGIC_BYTES.len()
-            + 8 + metadata_json.len()
-            + 8 + manifest_json.len()
-            + 8 + blob.len()
+            + 8
+            + metadata_json.len()
+            + 8
+            + manifest_json.len()
+            + 8
+            + blob.len()
             + MAGIC_BYTES.len(),
     );
     out.extend_from_slice(MAGIC_BYTES);
@@ -94,8 +97,8 @@ pub fn deserialize_payload_bytes(bytes: &[u8]) -> Result<StandalonePayload> {
     let manifest_json = read_len_prefixed(&mut cursor)?;
     let blob = read_len_prefixed(&mut cursor)?;
 
-    let metadata: StandaloneMetadata = serde_json::from_slice(&metadata_json)
-        .context("parsing standalone metadata")?;
+    let metadata: StandaloneMetadata =
+        serde_json::from_slice(&metadata_json).context("parsing standalone metadata")?;
     if metadata.format_version != FORMAT_VERSION {
         return Err(anyhow!(
             "unsupported standalone format version: {} (expected {})",
@@ -103,8 +106,8 @@ pub fn deserialize_payload_bytes(bytes: &[u8]) -> Result<StandalonePayload> {
             FORMAT_VERSION
         ));
     }
-    let manifest: Vec<VfsEntry> = serde_json::from_slice(&manifest_json)
-        .context("parsing standalone manifest")?;
+    let manifest: Vec<VfsEntry> =
+        serde_json::from_slice(&manifest_json).context("parsing standalone manifest")?;
 
     Ok(StandalonePayload {
         metadata,
@@ -147,8 +150,8 @@ pub fn read_payload_from_exe(path: &Path) -> Result<Option<StandalonePayload>> {
     let manifest_json = read_len_prefixed(&mut f)?;
     let blob = read_len_prefixed(&mut f)?;
 
-    let metadata: StandaloneMetadata = serde_json::from_slice(&metadata_json)
-        .context("parsing standalone metadata")?;
+    let metadata: StandaloneMetadata =
+        serde_json::from_slice(&metadata_json).context("parsing standalone metadata")?;
     if metadata.format_version != FORMAT_VERSION {
         return Err(anyhow!(
             "unsupported standalone format version: {} (expected {})",
@@ -156,8 +159,8 @@ pub fn read_payload_from_exe(path: &Path) -> Result<Option<StandalonePayload>> {
             FORMAT_VERSION
         ));
     }
-    let manifest: Vec<VfsEntry> = serde_json::from_slice(&manifest_json)
-        .context("parsing standalone manifest")?;
+    let manifest: Vec<VfsEntry> =
+        serde_json::from_slice(&manifest_json).context("parsing standalone manifest")?;
 
     Ok(Some(StandalonePayload {
         metadata,

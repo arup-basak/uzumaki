@@ -29,20 +29,14 @@ pub const SECTION_NAME: &str = "uzumaki";
 /// Embed `payload` into `base_bytes` using a real PE resource / Mach-O
 /// section / ELF note section, and write the resulting executable to
 /// `output`. The format is chosen automatically from the base binary's magic.
-pub fn write_payload_into_exe(
-    base_bytes: Vec<u8>,
-    payload: Vec<u8>,
-    output: &Path,
-) -> Result<()> {
+pub fn write_payload_into_exe(base_bytes: Vec<u8>, payload: Vec<u8>, output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
         if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("creating {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
         }
     }
 
-    let mut out = File::create(output)
-        .with_context(|| format!("creating {}", output.display()))?;
+    let mut out = File::create(output).with_context(|| format!("creating {}", output.display()))?;
 
     if libsui::utils::is_pe(&base_bytes) {
         libsui::PortableExecutable::from(&base_bytes)

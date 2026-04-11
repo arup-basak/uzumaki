@@ -143,7 +143,11 @@ fn local_data_dir() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         if let Ok(home) = std::env::var("HOME") {
-            return Some(PathBuf::from(home).join("Library").join("Application Support"));
+            return Some(
+                PathBuf::from(home)
+                    .join("Library")
+                    .join("Application Support"),
+            );
         }
     }
     #[cfg(all(unix, not(target_os = "macos")))]

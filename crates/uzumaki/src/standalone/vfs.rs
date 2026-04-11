@@ -38,8 +38,7 @@ fn walk_inner(root: &Path, cur: &Path, out: &mut Vec<(String, PathBuf)>) -> Resu
 /// `target_root/<dist_root_dir_name>/<relative_path>` contains each file.
 pub fn extract(payload: &StandalonePayload, target_root: &Path) -> Result<()> {
     let dist_root = target_root.join(&payload.metadata.dist_root_dir_name);
-    fs::create_dir_all(&dist_root)
-        .with_context(|| format!("creating {}", dist_root.display()))?;
+    fs::create_dir_all(&dist_root).with_context(|| format!("creating {}", dist_root.display()))?;
 
     for entry in &payload.manifest {
         write_entry(payload, &dist_root, entry)?;
@@ -48,10 +47,13 @@ pub fn extract(payload: &StandalonePayload, target_root: &Path) -> Result<()> {
 }
 
 fn write_entry(payload: &StandalonePayload, dist_root: &Path, entry: &VfsEntry) -> Result<()> {
-    let target = dist_root.join(entry.relative_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+    let target = dist_root.join(
+        entry
+            .relative_path
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
+    );
     if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("creating {}", parent.display()))?;
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
     }
     let start = entry.offset as usize;
     let end = start

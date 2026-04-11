@@ -1148,11 +1148,8 @@ impl Application {
     }
 
     fn load_main_module(&mut self) {
-        let specifier = deno_core::resolve_path(
-            self.main_file.to_str().unwrap(),
-            &self.app_root,
-        )
-        .unwrap();
+        let specifier =
+            deno_core::resolve_path(self.main_file.to_str().unwrap(), &self.app_root).unwrap();
 
         let rt = self.tokio_runtime.as_ref().unwrap();
         rt.block_on(async {
@@ -1664,7 +1661,9 @@ fn main() {
     let mut args = std::env::args();
     args.next();
     let Some(first) = args.next() else {
-        eprintln!("usage: uzumaki <entry.(ts|tsx|js)> | pack --dist <dir> --entry <rel> --output <exe>");
+        eprintln!(
+            "usage: uzumaki <entry.(ts|tsx|js)> | pack --dist <dir> --entry <rel> --output <exe>"
+        );
         std::process::exit(1);
     };
 
