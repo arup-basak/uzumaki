@@ -450,9 +450,13 @@ async function buildApp(rawArgs: string[]) {
     outputValue,
   );
   const outputPath =
-    process.platform === 'win32' && !resolvedOutput.endsWith('.exe')
-      ? `${resolvedOutput}.exe`
-      : resolvedOutput;
+    process.platform === 'win32'
+      ? (resolvedOutput.endsWith('.exe')
+        ? resolvedOutput
+        : `${resolvedOutput}.exe`)
+      : (process.platform === 'darwin'
+        ? resolvedOutput.replace(/\.exe$/, '').replace(/\.app$/, '') + '.app'
+        : resolvedOutput.replace(/\.exe$/, ''));
   const entryPath = path.join(distPath, entryValue);
   const baseBinaryPath = baseBinaryValue
     ? resolveFromConfigDir(loadedConfig.configDir, baseBinaryValue)
