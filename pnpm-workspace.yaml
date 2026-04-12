@@ -1,4 +1,3 @@
 packages:
   - 'crates/uzumaki'
   - 'packages/*'
-  - 'npm/*'

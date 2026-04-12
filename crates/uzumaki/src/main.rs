@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod runtime;
 pub mod standalone;
 
@@ -1652,34 +1653,15 @@ fn main() {
         }
     }
 
-    // Not a standalone executable — behave as the dev runtime.
-    let mut args = std::env::args();
-    args.next();
-    let Some(first) = args.next() else {
-        eprintln!(
-            "usage: uzumaki <entry.(ts|tsx|js)> | pack --dist <dir> --entry <rel> --output <exe>"
-        );
-        std::process::exit(1);
-    };
-
-    if first == "pack" {
-        if let Err(err) = run_pack_command(args.collect()) {
-            eprintln!("uzumaki pack: {err:#}");
+    // Not a standalone executable — use clap-based CLI.
+    match cli::run_cli() {
+        Ok(Some(mode)) => run_launch_mode(mode),
+        Ok(None) => {} // Command handled (build/pack/update) or help printed
+        Err(err) => {
+            eprintln!("\x1b[1;31merror:\x1b[0m {err:#}");
             std::process::exit(1);
         }
-        return;
     }
-
-    let cwd = std::env::current_dir().expect("error getting current directory");
-    let entry_path = std::fs::canonicalize(cwd.join(&first)).expect("invalid entry point path");
-    let app_root = entry_path
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or(cwd.clone());
-    run_launch_mode(standalone::LaunchMode::Dev {
-        app_root,
-        entry_path,
-    });
 }
 
 fn run_launch_mode(mode: standalone::LaunchMode) {
@@ -1691,47 +1673,4 @@ fn run_launch_mode(mode: standalone::LaunchMode) {
     });
     app.tokio_runtime = Some(tokio_runtime);
     app.run().expect("error running application");
-}
-
-fn run_pack_command(args: Vec<String>) -> Result<()> {
-    let mut dist: Option<PathBuf> = None;
-    let mut entry: Option<String> = None;
-    let mut output: Option<PathBuf> = None;
-    let mut app_name: Option<String> = None;
-    let mut base_binary: Option<PathBuf> = None;
-
-    let mut it = args.into_iter();
-    while let Some(arg) = it.next() {
-        match arg.as_str() {
-            "--dist" => dist = it.next().map(PathBuf::from),
-            "--entry" => entry = it.next(),
-            "--output" | "-o" => output = it.next().map(PathBuf::from),
-            "--name" => app_name = it.next(),
-            "--base-binary" => base_binary = it.next().map(PathBuf::from),
-            other => anyhow::bail!("unknown pack arg: {other}"),
-        }
-    }
-
-    let dist = dist.ok_or_else(|| anyhow::anyhow!("--dist is required"))?;
-    let entry = entry.ok_or_else(|| anyhow::anyhow!("--entry is required"))?;
-    let output = output.ok_or_else(|| anyhow::anyhow!("--output is required"))?;
-    let base_binary = match base_binary {
-        Some(b) => b,
-        None => std::env::current_exe()?,
-    };
-    let app_name = app_name.unwrap_or_else(|| {
-        output
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("uzumaki-app")
-            .to_string()
-    });
-
-    standalone::pack::pack_app(&standalone::pack::PackOptions {
-        dist_dir: dist,
-        entry_rel: entry,
-        output,
-        app_name,
-        base_binary,
-    })
 }

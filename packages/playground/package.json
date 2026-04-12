@@ -7,10 +7,10 @@
     "react": "^19.2.4"
   },
   "scripts": {
-    "dev": "uzumaki src/index.tsx",
-    "build": "uzumaki build",
+    "dev": "cargo r -p uzumaki --release -- src/index.tsx",
+    "build": "cargo r -p uzumaki --release -- build",
     "build:js": "bun build src/index.tsx --target node --outdir dist --minify",
-    "preview": "uzumaki dist/index.js"
+    "preview": "cargo r -p uzumaki --release -- dist/index.js"
   },
   "devDependencies": {
     "@types/react": "^19.2.14"

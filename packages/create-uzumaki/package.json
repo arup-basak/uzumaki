@@ -1,0 +1,22 @@
+{
+  "name": "create-uzumaki",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Scaffold a new Uzumaki desktop app",
+  "bin": {
+    "create-uzumaki": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "template/**/*"
+  ],
+  "keywords": [
+    "uzumaki",
+    "desktop",
+    "ui",
+    "react",
+    "create",
+    "scaffold"
+  ],
+  "license": "MIT"
+}
