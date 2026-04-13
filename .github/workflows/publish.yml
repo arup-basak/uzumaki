@@ -29,6 +29,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm -r publish --access public --no-git-checks
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+          pnpm -r publish --access public --no-git-checks
+          rm .npmrc
