@@ -89,6 +89,11 @@ pub enum Commands {
         #[arg(long)]
         no_build: bool,
     },
+    /// Initialize a new Uzumaki project
+    Init {
+        /// Directory to create the project in (defaults to project name)
+        directory: Option<String>,
+    },
     /// Upgrade uzumaki to the latest version
     Upgrade {
         /// Specific version to install (e.g. 0.2.0)
@@ -116,7 +121,7 @@ fn clap_styles() -> clap::builder::Styles {
 // ─── Command implementations ───────────────────────────────────────────────
 
 /// Known subcommand names so we can distinguish `uzumaki build` from `uzumaki app.tsx`.
-const KNOWN_SUBCOMMANDS: &[&str] = &["run", "build", "upgrade", "help"];
+const KNOWN_SUBCOMMANDS: &[&str] = &["run", "build", "init", "upgrade", "help"];
 
 pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     let raw_args: Vec<String> = std::env::args().collect();
@@ -143,6 +148,10 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
         Commands::Run { entry, args: _ } => Ok(Some(resolve_run(&entry)?)),
         Commands::Build { config, no_build } => {
             cmd_build(config.as_deref(), no_build)?;
+            Ok(None)
+        }
+        Commands::Init { directory } => {
+            crate::init::cmd_init(directory.as_deref())?;
             Ok(None)
         }
         Commands::Upgrade { version } => {

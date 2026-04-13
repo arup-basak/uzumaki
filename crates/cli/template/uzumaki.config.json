@@ -1,7 +1,7 @@
 {
   "productName": "{{PROJECT_NAME}}",
   "version": "0.1.0",
-  "identifier": "com.example.{{PROJECT_NAME}}",
+  "identifier": "{{IDENTIFIER}}",
   "build": {
     "command": "bun build src/index.tsx --target node --outdir dist --minify"
   },

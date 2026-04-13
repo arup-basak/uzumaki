@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod init;
 pub mod standalone;
 
 use uzumaki_runtime::Application;
