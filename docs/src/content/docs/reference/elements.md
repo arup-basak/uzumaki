@@ -51,10 +51,6 @@ Text can also be placed directly inside a `<view>`:
 <view>Some text content here</view>
 ```
 
-## `<p>`
-
-Alias for `<text>`. Behaves identically.
-
 ## `<button>`
 
 A pressable element. Supports the same props as `<view>`.
