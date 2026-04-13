@@ -1,17 +1,14 @@
 name: Publish
 
 on:
-  # Runs after a GitHub Release is created (by the release workflow)
-  release:
-    types: [published]
-
-  # Can also be triggered manually to retry a failed publish
   workflow_dispatch:
 
 jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +26,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Publish
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          pnpm -r publish --access public --no-git-checks
-          rm .npmrc
+        run: pnpm -r publish --access public --no-git-checks --provenance
