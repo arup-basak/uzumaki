@@ -1,7 +1,7 @@
 {
   "name": "uzumaki-ui",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha.0",
   "description": "React Desktop UI Framework — native GPU-rendered apps with JSX",
   "devDependencies": {
     "@types/react": "^19.2.14",
