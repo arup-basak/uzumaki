@@ -40,12 +40,12 @@ pub struct WindowEntry {
 pub(crate) type WindowEntryId = u32;
 
 pub struct AppState {
-    pub gpu: GpuContext,
     pub windows: HashMap<WindowEntryId, WindowEntry>,
     pub winit_id_to_entry_id: HashMap<WindowId, WindowEntryId>,
-    pub mouse_buttons: u8,
-    pub modifiers: u32,
+    pub mouse_buttons: u8, // todo move to UIState ?
+    pub modifiers: u32,    // same
     pub clipboard: RefCell<clipboard::SystemClipboard>,
+    pub gpu: GpuContext,
 }
 
 impl AppState {

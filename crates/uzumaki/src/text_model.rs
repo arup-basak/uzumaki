@@ -2,7 +2,6 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::text_buffer::TextBuffer;
 
-// ── TextModel ────────────────────────────────────────────────────────
 // Mid-level editing abstraction over TextBuffer.
 // Provides position-based editing operations (delete_backward, delete_word, etc.)
 // but knows nothing about selection — that lives in InputState.
@@ -26,8 +25,6 @@ impl TextModel {
             max_length: None,
         }
     }
-
-    // ── Delegated accessors ──────────────────────────────────────────
 
     pub fn text(&self) -> String {
         self.buffer.text()
@@ -61,7 +58,6 @@ impl TextModel {
         self.buffer.text_in_range(start, end)
     }
 
-    // ── Editing operations ───────────────────────────────────────────
     // All take/return flat grapheme positions. No selection awareness.
 
     /// Insert `text` at `pos`. `selection_len` is subtracted from the current count
@@ -145,8 +141,6 @@ impl TextModel {
         self.buffer.set_value(&value);
     }
 
-    // ── Word boundary helpers ────────────────────────────────────────
-
     pub fn find_word_start(&self, pos: usize) -> usize {
         let text = self.buffer.text();
         let graphemes: Vec<&str> = text.graphemes(true).collect();
@@ -207,8 +201,6 @@ impl TextModel {
         (start, end)
     }
 }
-
-// ── Tests ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

@@ -143,8 +143,6 @@ impl Corners {
     }
 }
 
-// ── Box shadow ───────────────────────────────────────────────────────
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoxShadow {
     pub color: Color,
@@ -153,8 +151,6 @@ pub struct BoxShadow {
     pub blur_radius: f32,
     pub spread_radius: f32,
 }
-
-// ── Length types ─────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum Length {
@@ -185,8 +181,6 @@ impl Default for DefiniteLength {
         DefiniteLength::Px(0.0)
     }
 }
-
-// ── Layout enums ─────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Display {
@@ -698,8 +692,6 @@ impl UzStyle {
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
-
 fn border_widths_equal(bw: &Edges) -> Option<f32> {
     let first = bw.top;
     if first > 0.0
@@ -735,8 +727,6 @@ fn inset_radii(radii: &Corners, widths: &Edges) -> Corners {
         bottom_left: (radii.bottom_left - widths.bottom.max(widths.left)).max(0.0),
     }
 }
-
-// ── taffy conversion helpers ─────────────────────────────────────────
 
 fn length_to_dimension(l: Length) -> taffy::Dimension {
     match l {

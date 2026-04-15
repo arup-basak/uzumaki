@@ -12,8 +12,8 @@ use crate::text::TextRenderer;
 use crate::ui::UIState;
 
 pub struct Window {
-    pub(crate) winit_window: Arc<WinitWindow>,
     pub(crate) surface: wgpu::Surface<'static>,
+    pub(crate) winit_window: Arc<WinitWindow>,
     pub(crate) surface_config: wgpu::SurfaceConfiguration,
     pub(crate) renderer: vello::Renderer,
     pub(crate) scene: Scene,
