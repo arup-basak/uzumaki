@@ -72,7 +72,6 @@ const INTRINSIC_ELEMENTS = new Set([
   'button',
   /* 'canvas' */ // todo
 ]);
-// ── Prop type categorization ─────────────────────────────────────────
 
 const LENGTH_KEYS = new Set([PropKey.W, PropKey.H, PropKey.MinW, PropKey.MinH]);
 const COLOR_KEYS = new Set([
@@ -93,8 +92,6 @@ const ENUM_KEYS = new Set([
   PropKey.Display,
 ]);
 const STRING_KEYS = new Set([PropKey.Cursor]);
-
-// ── Value conversion helpers ─────────────────────────────────────────
 
 function toLength(value: any): { value: number; unit: number } {
   if (typeof value === 'number') return { value, unit: 0 };
@@ -282,8 +279,6 @@ function parseEventProp(key: string): { name: string; capture: boolean } {
   }
   return { name: raw.toLowerCase(), capture: false };
 }
-
-// ── Element classes ──────────────────────────────────────────────────
 
 abstract class BaseElement<
   TProps extends Record<string, any> = Record<string, any>,
@@ -945,8 +940,6 @@ const reconciler = ReactReconciler<
   suspendInstance: () => {},
   waitForCommitToBeReady: () => null,
 });
-
-// ── Public API ───────────────────────────────────────────────────────
 
 const roots = new Map<string, { root: any; container: Container }>();
 

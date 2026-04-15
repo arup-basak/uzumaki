@@ -99,6 +99,12 @@ impl<TRangeProvider: RangeProvider> BaseInputState<TRangeProvider> {
         }
     }
 
+    pub fn new_single_line(range_provider: TRangeProvider) -> Self {
+        let mut this = Self::new(range_provider);
+        this.multiline = false;
+        this
+    }
+
     pub fn set_range_provider(&mut self, provider: TRangeProvider) {
         self.range_provider = provider;
     }

@@ -109,7 +109,7 @@ pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
         return;
     };
     let scroll_info = dom.nodes.get(focused_id).and_then(|node| {
-        node.behavior.as_input().map(|is| {
+        node.as_text_input().map(|is| {
             let display_text = is.display_text();
             let font_size = node.style.text.font_size;
             let padding = node.style.padding.left;
@@ -154,7 +154,7 @@ pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
         };
         let line_height = (font_size * 1.2).round();
         if let Some(node) = dom.nodes.get_mut(focused_id)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.update_scroll_y(cursor_y, line_height, input_height - top_pad * 2.0);
         }
@@ -168,7 +168,7 @@ pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
             positions.last().copied().unwrap_or(0.0)
         };
         if let Some(node) = dom.nodes.get_mut(focused_id)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.update_scroll(cursor_x, input_width);
         }
@@ -206,7 +206,7 @@ pub fn handle_cursor_moved(
         if let Some(node) = dom.nodes.get_mut(nid) {
             if let Some(ss) = &mut node.scroll_state {
                 ss.scroll_offset_y = new_offset.clamp(0.0, max);
-            } else if let Some(is) = node.behavior.as_input_mut() {
+            } else if let Some(is) = node.as_text_input_mut() {
                 is.scroll_offset_y = new_offset.clamp(0.0, max);
             }
         }
@@ -217,7 +217,7 @@ pub fn handle_cursor_moved(
     if mouse_buttons & 1 != 0 {
         if let Some(drag_nid) = dom.dragging_input {
             let cursor_info = dom.nodes.get(drag_nid).and_then(|node| {
-                node.behavior.as_input().map(|is| {
+                node.as_text_input().map(|is| {
                     let display_text = is.display_text();
                     let font_size = node.style.text.font_size;
                     let scroll_offset = is.scroll_offset;
@@ -287,7 +287,7 @@ pub fn handle_cursor_moved(
                 };
 
                 if let Some(node) = dom.nodes.get_mut(drag_nid)
-                    && let Some(is) = node.behavior.as_input_mut()
+                    && let Some(is) = node.as_text_input_mut()
                 {
                     is.update_range(|range| {
                         range.active = grapheme_idx;
@@ -327,8 +327,6 @@ pub fn handle_cursor_moved(
     needs_redraw
 }
 
-// ── View text selection helpers ──────────────────────────────────────
-
 /// Hit-test a mouse position against all text nodes in a textSelect run.
 /// Returns the flat grapheme index if a suitable text node is found.
 fn hit_text_in_run(
@@ -360,7 +358,7 @@ fn hit_text_in_run(
     let (node_id, _, bounds) = best?;
     let entry = run.entries.iter().find(|e| e.node_id == node_id)?;
     let node = dom.nodes.get(node_id)?;
-    let text = node.behavior.as_text()?;
+    let text = node.as_text_node()?;
     let font_size = node.style.text.font_size;
 
     if text.content.is_empty() {
@@ -452,8 +450,6 @@ fn word_boundaries_in_run(
     (start_g, end_g)
 }
 
-// ── Mouse input ──────────────────────────────────────────────────────
-
 pub fn handle_mouse_input(
     dom: &mut UIState,
     handle: &mut Window,
@@ -509,7 +505,7 @@ pub fn handle_mouse_input(
                     n.scroll_state
                         .as_ref()
                         .map(|ss| ss.scroll_offset_y)
-                        .or_else(|| n.behavior.as_input().map(|is| is.scroll_offset_y))
+                        .or_else(|| n.as_text_input().map(|is| is.scroll_offset_y))
                         .unwrap_or(0.0)
                 })
                 .unwrap_or(0.0);
@@ -556,7 +552,7 @@ pub fn handle_mouse_input(
             if mouse_button == crate::interactivity::MouseButton::Left {
                 let clicked_is_input = js_target
                     .and_then(|nid| dom.nodes.get(nid))
-                    .map(|n| n.behavior.is_input())
+                    .map(|n| n.is_text_input())
                     .unwrap_or(false);
 
                 let old_focus = dom.focused_node;
@@ -595,7 +591,7 @@ pub fn handle_mouse_input(
                     // Place cursor at click position
                     let cursor_info = {
                         let node = &dom.nodes[nid];
-                        let is = node.behavior.as_input().unwrap();
+                        let is = node.as_text_input().unwrap();
                         let display_text = is.display_text();
                         let font_size = node.style.text.font_size;
                         let scroll_offset = is.scroll_offset;
@@ -672,7 +668,7 @@ pub fn handle_mouse_input(
                         });
 
                         if let Some(node) = dom.nodes.get_mut(nid)
-                            && let Some(is) = node.behavior.as_input_mut()
+                            && let Some(is) = node.as_text_input_mut()
                         {
                             match dom.click_count {
                                 2 => {
@@ -704,7 +700,7 @@ pub fn handle_mouse_input(
                     // Clicked non-input: blur focused input
                     if let Some(old_id) = old_focus {
                         if let Some(old_node) = dom.nodes.get_mut(old_id)
-                            && let Some(is) = old_node.behavior.as_input_mut()
+                            && let Some(is) = old_node.as_text_input_mut()
                         {
                             is.focused = false;
                         }
@@ -726,7 +722,7 @@ pub fn handle_mouse_input(
                         // Starting a view selection blurs any focused input
                         if let Some(old_id) = dom.focused_node.take() {
                             if let Some(old_node) = dom.nodes.get_mut(old_id)
-                                && let Some(is) = old_node.behavior.as_input_mut()
+                                && let Some(is) = old_node.as_text_input_mut()
                             {
                                 is.focused = false;
                             }
@@ -740,7 +736,7 @@ pub fn handle_mouse_input(
                         if let Some((run_root, flat_idx)) = {
                             dom.find_run_entry_for_node(nid).and_then(|(run, entry)| {
                                 let node = dom.nodes.get(nid)?;
-                                let text = node.behavior.as_text()?;
+                                let text = node.as_text_node()?;
                                 let font_size = node.style.text.font_size;
                                 let bounds = node
                                     .interactivity
@@ -945,7 +941,7 @@ pub fn handle_key_for_input(
                 let is_up = key_event.logical_key == Key::Named(NamedKey::ArrowUp);
                 let extend = shift;
 
-                if let Some(is) = node.behavior.as_input_mut() {
+                if let Some(is) = node.as_text_input_mut() {
                     let (_, cur_col) = is.cursor_rowcol();
                     let sticky = is.sticky_col.unwrap_or(cur_col);
                     if is_up {
@@ -961,7 +957,7 @@ pub fn handle_key_for_input(
                 needs_redraw = true;
             } else {
                 // Non-vertical key: delegate to InputState::handle_key
-                if let Some(input_state) = node.behavior.as_input_mut() {
+                if let Some(input_state) = node.as_text_input_mut() {
                     let result = input_state.handle_key(&key_event.logical_key, modifiers);
                     match result {
                         input::KeyResult::Edit(edit) => {
@@ -1118,7 +1114,7 @@ pub enum ClipboardCommand {
 fn resolve_clipboard_target(dom: &UIState) -> Option<ClipboardTarget> {
     if let Some(focused_id) = dom.focused_node
         && let Some(node) = dom.nodes.get(focused_id)
-        && node.behavior.as_input().is_some()
+        && node.as_text_input().is_some()
     {
         return Some(ClipboardTarget::Input(focused_id));
     }
@@ -1160,7 +1156,7 @@ pub fn build_clipboard_command(
             let selection_text = match &target {
                 Some(ClipboardTarget::Input(nid)) => {
                     let node = dom.nodes.get(*nid)?;
-                    let is = node.behavior.as_input()?;
+                    let is = node.as_text_input()?;
                     if is.secure {
                         return None; // Block copy on secure inputs
                     }
@@ -1194,7 +1190,7 @@ pub fn build_clipboard_command(
             let (target_id, is_input) = match &target {
                 Some(ClipboardTarget::Input(nid)) => {
                     let node = dom.nodes.get(*nid)?;
-                    let is = node.behavior.as_input()?;
+                    let is = node.as_text_input()?;
                     if is.secure {
                         return None; // Block cut on secure inputs
                     }
@@ -1206,7 +1202,7 @@ pub fn build_clipboard_command(
             let selection_text = match &target {
                 Some(ClipboardTarget::Input(nid)) => {
                     let node = dom.nodes.get(*nid)?;
-                    let is = node.behavior.as_input()?;
+                    let is = node.as_text_input()?;
                     let text = is.selected_text();
                     if text.is_empty() {
                         return None;
@@ -1308,7 +1304,7 @@ pub fn apply_clipboard_command(
             if is_input
                 && let Some(target_id) = target
                 && let Some(node) = dom.nodes.get_mut(target_id)
-                && let Some(is) = node.behavior.as_input_mut()
+                && let Some(is) = node.as_text_input_mut()
                 && let Some((_cut_text, _edit)) = is.cut_selected_text()
             {
                 let value = is.model.text();
@@ -1331,7 +1327,7 @@ pub fn apply_clipboard_command(
             if is_input
                 && let (Some(target_id), Some(text)) = (target, clipboard_text)
                 && let Some(node) = dom.nodes.get_mut(target_id)
-                && let Some(is) = node.behavior.as_input_mut()
+                && let Some(is) = node.as_text_input_mut()
                 && let Some(_edit) = is.paste_text(&text)
             {
                 let value = is.model.text();
@@ -1472,7 +1468,7 @@ pub fn handle_mouse_wheel(dom: &mut UIState, scroll_delta_y: f64) -> bool {
                 if let Some(ss) = &mut node.scroll_state {
                     ss.scroll_offset_y =
                         (ss.scroll_offset_y - scroll_delta_y as f32).clamp(0.0, max_scroll);
-                } else if let Some(is) = node.behavior.as_input_mut() {
+                } else if let Some(is) = node.as_text_input_mut() {
                     is.scroll_offset_y =
                         (is.scroll_offset_y - scroll_delta_y as f32).clamp(0.0, max_scroll);
                 }

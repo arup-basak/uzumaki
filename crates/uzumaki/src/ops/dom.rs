@@ -121,8 +121,6 @@ pub fn op_reset_dom(state: &mut OpState, #[smi] window_id: u32) {
     });
 }
 
-// ── Input attribute ops ─────────────────────────────────────────────
-
 #[op2(fast)]
 pub fn op_set_input_value(
     state: &mut OpState,
@@ -135,7 +133,7 @@ pub fn op_set_input_value(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.set_value(value);
         }
@@ -157,7 +155,7 @@ pub fn op_get_input_value(
             .dom
             .nodes
             .get(nid)
-            .and_then(|node| node.behavior.as_input())
+            .and_then(|node| node.as_text_input())
             .map(|is| is.model.text())
             .unwrap_or_default()
     })
@@ -175,7 +173,7 @@ pub fn op_set_input_placeholder(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.placeholder = placeholder;
         }
@@ -194,7 +192,7 @@ pub fn op_set_input_disabled(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.disabled = disabled;
         }
@@ -213,7 +211,7 @@ pub fn op_set_input_max_length(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.model.max_length = if max_length > 0 {
                 Some(max_length as usize)
@@ -236,7 +234,7 @@ pub fn op_set_input_multiline(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.multiline = multiline;
         }
@@ -255,7 +253,7 @@ pub fn op_set_input_secure(
     with_state(&app_state, |s| {
         let entry = s.windows.get_mut(&window_id).expect("window not found");
         if let Some(node) = entry.dom.nodes.get_mut(nid)
-            && let Some(is) = node.behavior.as_input_mut()
+            && let Some(is) = node.as_text_input_mut()
         {
             is.secure = secure;
         }
@@ -296,8 +294,7 @@ pub fn op_get_ancestor_path(
     })
 }
 
-// ── Selection query ops ──────────────────────────────────────────────
-
+// Selection
 #[op2]
 #[serde]
 pub fn op_get_selection(state: &mut OpState, #[smi] window_id: u32) -> serde_json::Value {

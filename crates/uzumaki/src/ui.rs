@@ -3,9 +3,9 @@ use slab::Slab;
 use crate::{
     cursor::UzCursorIcon,
     element::{
-        DomRangeProvider, InputBehavior, InputState, Node, NodeContext, ScrollDragState,
-        ScrollThumbRect, SharedSelectionState, TextBehavior, TextContent, TextRunEntry,
-        TextSelectRun, UzNodeId, ViewBehavior, render,
+        DomRangeProvider, ElementData, ElementNode, InputState, Node, NodeContext, ScrollDragState,
+        ScrollThumbRect, SharedSelectionState, TextNode, TextRunEntry, TextSelectRun, UzNodeId,
+        render,
     },
     interactivity::{HitTestState, HitboxStore},
     style::UzStyle,
@@ -108,10 +108,12 @@ impl UIState {
         let Some(node) = self.nodes.get(node_id) else {
             return UzCursorIcon::Default;
         };
+
         if let Some(c) = node.style.cursor {
             return c;
         }
-        if let Some(c) = node.behavior.default_cursor() {
+
+        if let Some(c) = node.default_cursor() {
             return c;
         }
 
@@ -134,9 +136,11 @@ impl UIState {
     pub fn create_view(&mut self, style: UzStyle) -> UzNodeId {
         let taffy_style = style.to_taffy();
         let taffy_node = self.taffy.new_leaf(taffy_style).unwrap();
-        let node_id = self
-            .nodes
-            .insert(Node::new(taffy_node, style, ViewBehavior));
+        let node_id = self.nodes.insert(Node::new(
+            taffy_node,
+            style,
+            ElementNode::new(ElementData::None),
+        ));
 
         self.taffy
             .set_node_context(
@@ -156,17 +160,13 @@ impl UIState {
     pub fn create_text(&mut self, content: String, style: UzStyle) -> UzNodeId {
         let taffy_style = style.to_taffy();
         let taffy_node = self.taffy.new_leaf(taffy_style).unwrap();
-        let text = TextContent {
+        let text = TextNode {
             content: content.clone(),
         };
         let font_size = style.text.font_size;
-        let node_id = self.nodes.insert(Node::new(
-            taffy_node,
-            style,
-            TextBehavior {
-                content: text.clone(),
-            },
-        ));
+        let node_id = self
+            .nodes
+            .insert(Node::new(taffy_node, style, TextNode::new(content)));
 
         self.taffy
             .set_node_context(
@@ -187,12 +187,14 @@ impl UIState {
         let taffy_style = style.to_taffy();
         let taffy_node = self.taffy.new_leaf(taffy_style).unwrap();
         let font_size = style.text.font_size;
+        let is = InputState::new_single_line(DomRangeProvider {
+            selection: self.selection.clone(),
+        });
+
         let node_id = self.nodes.insert(Node::new(
             taffy_node,
             style,
-            InputBehavior::new_single_line(InputState::new(DomRangeProvider {
-                selection: self.selection.clone(),
-            })),
+            ElementNode::new_text_input(is),
         ));
 
         self.taffy
@@ -365,12 +367,14 @@ impl UIState {
     /// Update a text node's content.
     pub fn set_text_content(&mut self, node_id: UzNodeId, text: String) {
         let node = &mut self.nodes[node_id];
-        let tc = TextContent { content: text };
-        if let Some(existing) = node.behavior.as_text_mut() {
-            existing.content = tc.content.clone();
-        } else {
-            node.behavior = Box::new(TextBehavior {
-                content: tc.clone(),
+        let tc = TextNode {
+            content: text.clone(),
+        };
+
+        if node.is_text_node() {
+            node.as_text_node_mut().and_then(|node| {
+                node.content = text;
+                Some(())
             });
         }
         let taffy_node = node.taffy_node;
@@ -430,26 +434,26 @@ impl UIState {
     }
 
     pub fn compute_layout(&mut self, width: f32, height: f32, text_renderer: &mut TextRenderer) {
-        if let Some(root) = self.root {
-            let taffy_root = self.nodes[root].taffy_node;
-            self.taffy
-                .compute_layout_with_measure(
-                    taffy_root,
-                    taffy::Size {
-                        width: taffy::AvailableSpace::Definite(width),
-                        height: taffy::AvailableSpace::Definite(height),
-                    },
-                    |known_dimensions, available_space, _node_id, node_context, _style| {
-                        render::measure(
-                            text_renderer,
-                            known_dimensions,
-                            available_space,
-                            node_context,
-                        )
-                    },
-                )
-                .unwrap();
-        }
+        let Some(root) = self.root else { return };
+        let taffy_root = self.nodes[root].taffy_node;
+
+        self.taffy
+            .compute_layout_with_measure(
+                taffy_root,
+                taffy::Size {
+                    width: taffy::AvailableSpace::Definite(width),
+                    height: taffy::AvailableSpace::Definite(height),
+                },
+                |known_dimensions, available_space, _node_id, node_context, _style| {
+                    render::measure(
+                        text_renderer,
+                        known_dimensions,
+                        available_space,
+                        node_context,
+                    )
+                },
+            )
+            .unwrap();
     }
 
     /// Run hit test at the given mouse position and update hit_state.

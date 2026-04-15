@@ -101,7 +101,7 @@ impl<'a> Painter<'a> {
                             &self.dom.hit_state,
                         );
 
-                        let text = node.behavior.as_text().map(|tc| {
+                        let text = node.as_text_node().map(|tc| {
                             (
                                 tc.content.clone(),
                                 computed_style.text.font_size,
@@ -109,7 +109,7 @@ impl<'a> Painter<'a> {
                             )
                         });
 
-                        let input = node.behavior.as_input().map(|is| {
+                        let input = node.as_text_input().map(|is| {
                             let range = is.range();
                             InputRenderInfo {
                                 display_text: is.display_text(),
@@ -128,7 +128,7 @@ impl<'a> Painter<'a> {
                         });
 
                         // Text nodes inside textSelect views need hitboxes for click-to-select
-                        let selectable_text = inherited.text_selectable && node.behavior.is_text();
+                        let selectable_text = inherited.text_selectable && node.is_text_node();
                         let needs_hitbox = node.interactivity.needs_hitbox() || selectable_text;
                         let is_scrollable = node.scroll_state.is_some();
                         let first_child = node.first_child;

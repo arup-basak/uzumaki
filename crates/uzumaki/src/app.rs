@@ -717,7 +717,7 @@ impl ApplicationHandler<UserEvent> for Application {
                     if focused
                         && let Some(nid) = entry.dom.focused_node
                         && let Some(node) = entry.dom.nodes.get_mut(nid)
-                        && let Some(is) = node.behavior.as_input_mut()
+                        && let Some(is) = node.data.as_text_input_mut()
                     {
                         is.reset_blink();
                     }

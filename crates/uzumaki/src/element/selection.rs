@@ -97,7 +97,7 @@ impl UIState {
             };
 
             // Add text nodes to the current run
-            if let Some(tc) = node.behavior.as_text()
+            if let Some(tc) = node.as_text_node()
                 && let Some(idx) = current_run
             {
                 let gc = tc.content.graphemes(true).count();
@@ -135,7 +135,7 @@ impl UIState {
         }
         // Input selection: delegate to InputState
         if let Some(node) = self.nodes.get(sel.root)
-            && let Some(is) = node.behavior.as_input()
+            && let Some(is) = node.as_text_input()
         {
             return is.selected_text();
         }
@@ -179,7 +179,7 @@ impl UIState {
         let sel = self.selection.get()?;
         // Input selection
         if let Some(node) = self.nodes.get(sel.root)
-            && let Some(is) = node.behavior.as_input()
+            && let Some(is) = node.as_text_input()
         {
             return Some(is.grapheme_count());
         }
@@ -203,20 +203,20 @@ impl UIState {
         let is_focusable = self
             .nodes
             .get(root)
-            .map(|n| n.behavior.is_input())
+            .map(|n| n.is_text_input())
             .unwrap_or(false);
 
         if is_focusable {
             if let Some(old_id) = self.focused_node
                 && old_id != root
                 && let Some(old_node) = self.nodes.get_mut(old_id)
-                && let Some(is) = old_node.behavior.as_input_mut()
+                && let Some(is) = old_node.as_text_input_mut()
             {
                 is.focused = false;
             }
             self.focused_node = Some(root);
             if let Some(node) = self.nodes.get_mut(root)
-                && let Some(is) = node.behavior.as_input_mut()
+                && let Some(is) = node.as_text_input_mut()
             {
                 is.focused = true;
                 is.reset_blink();

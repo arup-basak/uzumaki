@@ -55,11 +55,16 @@ pub struct ScrollThumbRect {
 }
 
 #[derive(Clone, Debug)]
-pub struct TextContent {
+pub struct TextNode {
     pub content: String,
 }
 
-// ── Inherited properties ─────────────────────────────────────────────
+impl TextNode {
+    pub fn new(content: String) -> Self {
+        Self { content }
+    }
+}
+
 // General-purpose mechanism for properties that propagate from parent to child
 // unless explicitly overridden. Designed for extension — future inheritable
 // properties (font color, font size, line height, etc.) go here.
@@ -68,8 +73,6 @@ pub struct TextContent {
 pub struct InheritedProperties {
     pub text_selectable: bool,
 }
-
-// ── View text selection ──────────────────────────────────────────────
 
 /// One text node's contribution to a textSelect run.
 pub struct TextRunEntry {
@@ -88,103 +91,212 @@ pub struct TextSelectRun {
     pub total_graphemes: usize,
 }
 
-// ── Element trait ──────────────────────────────────────────────────────
-
-pub trait ElementBehavior {
-    fn as_input(&self) -> Option<&InputState> {
-        None
-    }
-    fn as_input_mut(&mut self) -> Option<&mut InputState> {
-        None
-    }
-    fn as_text(&self) -> Option<&TextContent> {
-        None
-    }
-    fn as_text_mut(&mut self) -> Option<&mut TextContent> {
-        None
-    }
-    fn is_input(&self) -> bool {
-        false
-    }
-    fn is_text(&self) -> bool {
-        false
-    }
-
-    /// Default cursor for this behavior when unset by style.
-    fn default_cursor(&self) -> Option<UzCursorIcon> {
-        None
-    }
-}
-
-pub struct ViewBehavior;
-impl ElementBehavior for ViewBehavior {}
-
-pub struct TextBehavior {
-    pub content: TextContent,
-}
-
-impl ElementBehavior for TextBehavior {
-    fn as_text(&self) -> Option<&TextContent> {
-        Some(&self.content)
-    }
-    fn as_text_mut(&mut self) -> Option<&mut TextContent> {
-        Some(&mut self.content)
-    }
-    fn is_text(&self) -> bool {
-        true
-    }
-}
-
-pub struct InputBehavior {
-    pub state: InputState,
-}
-
-impl InputBehavior {
-    pub fn new(state: InputState) -> Self {
-        Self { state }
-    }
-
-    pub fn new_single_line(mut state: InputState) -> Self {
-        state.multiline = false;
-        Self::new(state)
-    }
-}
-
-impl ElementBehavior for InputBehavior {
-    fn as_input(&self) -> Option<&InputState> {
-        Some(&self.state)
-    }
-    fn as_input_mut(&mut self) -> Option<&mut InputState> {
-        Some(&mut self.state)
-    }
-    fn is_input(&self) -> bool {
-        true
-    }
-    fn default_cursor(&self) -> Option<UzCursorIcon> {
-        if self.state.disabled {
-            Some(UzCursorIcon::NotAllowed)
-        } else {
-            Some(UzCursorIcon::Text)
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct NodeContext {
     pub dom_id: UzNodeId,
-    pub text: Option<TextContent>,
+    pub text: Option<TextNode>,
     pub font_size: f32,
     pub is_input: bool,
 }
 
+pub struct ElementNode {
+    pub is_focussable: bool,
+    pub data: ElementData,
+}
+
+impl ElementNode {
+    pub fn new(data: ElementData) -> Self {
+        Self {
+            is_focussable: false,
+            data,
+        }
+    }
+
+    pub fn new_text_input(state: InputState) -> Self {
+        Self::new(ElementData::TextInput(state))
+    }
+
+    pub fn is_text_input(&self) -> bool {
+        self.data.is_text_input()
+    }
+
+    pub fn is_focussable(&self) -> bool {
+        self.is_focussable
+    }
+
+    pub fn set_focussable(&mut self, focussable: bool) {
+        self.is_focussable = focussable;
+    }
+}
+
+#[derive(Default)]
+pub enum ElementData {
+    // this is text Element <text>
+    TextInput(InputState),
+    // for view nodes
+    #[default]
+    None,
+}
+
+impl ElementData {
+    pub fn default_cursor(&self) -> Option<UzCursorIcon> {
+        match self {
+            Self::TextInput(_) => Some(UzCursorIcon::Text),
+            _ => None,
+        }
+    }
+
+    pub fn is_text_input(&self) -> bool {
+        matches!(self, Self::TextInput(_))
+    }
+
+    pub fn as_text_input(&self) -> Option<&InputState> {
+        match self {
+            Self::TextInput(state) => Some(state),
+            _ => None,
+        }
+    }
+
+    pub fn as_text_input_mut(&mut self) -> Option<&mut InputState> {
+        match self {
+            Self::TextInput(state) => Some(state),
+            _ => None,
+        }
+    }
+}
+
+pub enum NodeData {
+    Root,
+
+    Text(TextNode),
+    // element node
+    Element(ElementNode),
+}
+
+impl From<TextNode> for NodeData {
+    fn from(value: TextNode) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<ElementNode> for NodeData {
+    fn from(value: ElementNode) -> Self {
+        Self::Element(value)
+    }
+}
+
+impl NodeData {
+    pub fn default_cursor(&self) -> Option<UzCursorIcon> {
+        match self {
+            Self::Element(element) => element.data.default_cursor(),
+            Self::Text(_) => Some(UzCursorIcon::Text),
+            _ => None,
+        }
+    }
+
+    pub fn create_root() -> Self {
+        Self::Root
+    }
+
+    pub fn create_text(data: TextNode) -> Self {
+        Self::Text(data)
+    }
+
+    pub fn create_element(data: ElementNode) -> Self {
+        Self::Element(data)
+    }
+
+    pub fn as_text_node(&self) -> Option<&TextNode> {
+        match self {
+            Self::Text(text) => Some(text),
+            _ => None,
+        }
+    }
+
+    pub fn as_text_node_mut(&mut self) -> Option<&mut TextNode> {
+        match self {
+            Self::Text(text) => Some(text),
+            _ => None,
+        }
+    }
+
+    pub fn as_text_input(&self) -> Option<&InputState> {
+        match self {
+            Self::Element(element) => element.data.as_text_input(),
+            _ => None,
+        }
+    }
+
+    pub fn as_text_input_mut(&mut self) -> Option<&mut InputState> {
+        match self {
+            Self::Element(element) => element.data.as_text_input_mut(),
+            _ => None,
+        }
+    }
+
+    pub fn is_text_node(&self) -> bool {
+        matches!(self, Self::Text(_))
+    }
+
+    pub fn is_text_input(&self) -> bool {
+        match self {
+            Self::Element(element) => element.data.is_text_input(),
+            _ => false,
+        }
+    }
+
+    pub fn is_element(&self) -> bool {
+        matches!(self, Self::Element(_))
+    }
+
+    pub fn is_root(&self) -> bool {
+        matches!(self, Self::Root)
+    }
+
+    pub fn as_element(&self) -> Option<&ElementNode> {
+        match self {
+            Self::Element(element) => Some(element),
+            _ => None,
+        }
+    }
+
+    pub fn as_element_mut(&mut self) -> Option<&mut ElementNode> {
+        match self {
+            Self::Element(element) => Some(element),
+            _ => None,
+        }
+    }
+
+    pub fn as_element_kind(&self) -> Option<&ElementNode> {
+        match self {
+            Self::Element(element) => Some(element),
+            _ => None,
+        }
+    }
+
+    pub fn as_element_kind_mut(&mut self) -> Option<&mut ElementNode> {
+        match self {
+            Self::Element(element) => Some(element),
+            _ => None,
+        }
+    }
+}
+
 pub struct Node {
     pub parent: Option<UzNodeId>,
+
     pub first_child: Option<UzNodeId>,
+
     pub last_child: Option<UzNodeId>,
+
     pub next_sibling: Option<UzNodeId>,
+
     pub prev_sibling: Option<UzNodeId>,
+
     pub taffy_node: taffy::NodeId,
-    pub behavior: Box<dyn ElementBehavior>,
+
+    pub data: NodeData,
+
     /// The base style for this element. Converted to taffy for layout.
     pub style: UzStyle,
     /// Interactivity: hover/active style overrides, hitbox, event listeners.
@@ -196,11 +308,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(
-        taffy_node: taffy::NodeId,
-        style: UzStyle,
-        behavior: impl ElementBehavior + 'static,
-    ) -> Self {
+    pub fn new(taffy_node: taffy::NodeId, style: UzStyle, data: impl Into<NodeData>) -> Self {
         Self {
             parent: None,
             first_child: None,
@@ -208,7 +316,7 @@ impl Node {
             next_sibling: None,
             prev_sibling: None,
             taffy_node,
-            behavior: Box::new(behavior),
+            data: data.into(),
             style,
             interactivity: Interactivity::new(),
             scroll_state: None,
@@ -229,5 +337,41 @@ impl Node {
 
     pub fn set_text_selectable(&mut self, text_selectable: TextSelectable) {
         self.style.text_selectable = text_selectable
+    }
+
+    pub fn as_text_input(&self) -> Option<&InputState> {
+        self.data.as_text_input()
+    }
+
+    pub fn as_text_input_mut(&mut self) -> Option<&mut InputState> {
+        self.data.as_text_input_mut()
+    }
+
+    pub fn as_element(&self) -> Option<&ElementNode> {
+        self.data.as_element()
+    }
+
+    pub fn as_element_mut(&mut self) -> Option<&mut ElementNode> {
+        self.data.as_element_mut()
+    }
+
+    pub fn as_text_node(&self) -> Option<&TextNode> {
+        self.data.as_text_node()
+    }
+
+    pub fn as_text_node_mut(&mut self) -> Option<&mut TextNode> {
+        self.data.as_text_node_mut()
+    }
+
+    pub fn is_text_input(&self) -> bool {
+        self.data.is_text_input()
+    }
+
+    pub fn is_text_node(&self) -> bool {
+        self.data.is_text_node()
+    }
+
+    pub fn default_cursor(&self) -> Option<UzCursorIcon> {
+        self.data.default_cursor()
     }
 }
