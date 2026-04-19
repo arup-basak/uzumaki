@@ -897,8 +897,9 @@ const reconciler = ReactReconciler<
     core.setText(instance.windowId, instance.id, '');
   },
 
-  clearContainer(_container) {
-    console.log('[reconciler]: clear container');
+  clearContainer(container) {
+    const windowId = getWindowId(container);
+    core.resetDom(windowId);
   },
 
   getRootHostContext: () => ({}),
