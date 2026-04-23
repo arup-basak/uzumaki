@@ -3,7 +3,8 @@ import { C } from '../theme';
 import { Divider } from '../components';
 
 export function LayoutPage() {
-  const [showHidden, setShowHidden] = useState(false);
+  const [showVisibility, setShowVisibility] = useState(false);
+  const [showDisplay, setShowDisplay] = useState(false);
   const [gap, setGap] = useState(8);
   const [padding, setPadding] = useState(12);
   const [noRounding, setNoRounding] = useState(false);
@@ -372,12 +373,7 @@ export function LayoutPage() {
                   bg={C.surface}
                   rounded={8}
                 >
-                  <button
-                    w={120}
-                    bg={C.accent}
-                    cursor="pointer"
-                    hover:bg={C.accentDim}
-                  >
+                  <button bg={C.accent} cursor="pointer" hover:bg={C.accentDim}>
                     button text
                   </button>
                 </view>
@@ -411,7 +407,6 @@ export function LayoutPage() {
                   rounded={8}
                 >
                   <button
-                    w={120}
                     px={12}
                     py={6}
                     bg={C.accent}
@@ -451,7 +446,6 @@ export function LayoutPage() {
                   rounded={8}
                 >
                   <button
-                    w={120}
                     p={12}
                     bg={C.accent}
                     cursor="pointer"
@@ -492,7 +486,6 @@ export function LayoutPage() {
                   rounded={8}
                 >
                   <button
-                    w={120}
                     rounded={8}
                     px={12}
                     py={6}
@@ -536,7 +529,6 @@ export function LayoutPage() {
                     display="flex"
                     flexDir="row"
                     justify="center"
-                    w={120}
                     rounded={8}
                     px={12}
                     py={6}
@@ -723,82 +715,30 @@ export function LayoutPage() {
         <view display="flex" flexDir="col" gap={10}>
           <view display="flex" flexDir="row" items="center" gap={12}>
             <text fontSize={14} fontWeight={700} color={C.text}>
-              visible prop
-            </text>
-            <button
-              onClick={() => setShowHidden((s) => !s)}
-              px={14}
-              py={6}
-              bg={showHidden ? C.accentDim : C.surface3}
-              hover:bg={showHidden ? C.accent : C.surface4}
-              rounded={8}
-              border={1}
-              borderColor={showHidden ? C.accent : C.border}
-              cursor="pointer"
-            >
-              <text
-                fontSize={12}
-                fontWeight={600}
-                color={showHidden ? C.accentHi : C.textMuted}
-              >
-                {showHidden ? 'Hide it' : 'Reveal it'}
-              </text>
-            </button>
-          </view>
-          <view
-            visibility={showHidden ? 'visible' : 'hidden'}
-            p={14}
-            bg={C.accentDark}
-            rounded={8}
-            border={1}
-            borderColor={C.accent}
-          >
-            <text fontSize={14} color={C.accentHi} fontWeight={600}>
-              👁 Now you see me! (visibility)
-            </text>
-          </view>
-          <view
-            visibility={showHidden ? 'hidden' : 'visible'}
-            p={14}
-            bg={C.surface2}
-            rounded={8}
-            border={1}
-            borderColor={C.border}
-          >
-            <text fontSize={14} color={C.textMuted}>
-              Click the button to toggle visibility. It should appear above this
-              text.
-            </text>
-          </view>
-        </view>
-
-        <view display="flex" flexDir="col" gap={10}>
-          <view display="flex" flexDir="row" items="center" gap={12}>
-            <text fontSize={14} fontWeight={700} color={C.text}>
               display prop (fallback)
             </text>
             <button
-              onClick={() => setShowHidden((s) => !s)}
+              onClick={() => setShowDisplay((s) => !s)}
               px={14}
               py={6}
-              bg={showHidden ? C.accentDim : C.surface3}
-              hover:bg={showHidden ? C.accent : C.surface4}
+              bg={showDisplay ? C.accentDim : C.surface3}
+              hover:bg={showDisplay ? C.accent : C.surface4}
               rounded={8}
               border={1}
-              borderColor={showHidden ? C.accent : C.border}
+              borderColor={showDisplay ? C.accent : C.border}
               cursor="pointer"
             >
               <text
                 fontSize={12}
                 fontWeight={600}
-                color={showHidden ? C.accentHi : C.textMuted}
+                color={showDisplay ? C.accentHi : C.textMuted}
               >
-                {showHidden ? 'Hide it' : 'Show it'}
+                {showDisplay ? 'Hide it' : 'Show it'}
               </text>
             </button>
           </view>
           <view
-            display={showHidden ? 'flex' : 'none'}
+            display={showDisplay ? 'flex' : 'none'}
             p={14}
             bg={C.primaryDark}
             rounded={8}
@@ -810,7 +750,7 @@ export function LayoutPage() {
             </text>
           </view>
           <view
-            display={showHidden ? 'none' : 'flex'}
+            display={'flex'}
             p={14}
             bg={C.surface2}
             rounded={8}
@@ -818,8 +758,59 @@ export function LayoutPage() {
             borderColor={C.border}
           >
             <text fontSize={14} color={C.textMuted}>
-              Click the button to toggle with display. It should replace this
-              text.
+              Click the button to toggle with display.
+            </text>
+          </view>
+        </view>
+
+        <Divider />
+
+        <view display="flex" flexDir="col" gap={10}>
+          <view display="flex" flexDir="row" items="center" gap={12}>
+            <text fontSize={14} fontWeight={700} color={C.text}>
+              visible prop
+            </text>
+            <button
+              onClick={() => setShowVisibility((s) => !s)}
+              px={14}
+              py={6}
+              bg={showVisibility ? C.accentDim : C.surface3}
+              hover:bg={showVisibility ? C.accent : C.surface4}
+              rounded={8}
+              border={1}
+              borderColor={showVisibility ? C.accent : C.border}
+              cursor="pointer"
+            >
+              <text
+                fontSize={12}
+                fontWeight={600}
+                color={showVisibility ? C.accentHi : C.textMuted}
+              >
+                {showVisibility ? 'Hide it' : 'Reveal it'}
+              </text>
+            </button>
+          </view>
+          <view
+            visibility={showVisibility ? 'visible' : 'hidden'}
+            p={14}
+            bg={C.accentDark}
+            rounded={8}
+            border={1}
+            borderColor={C.accent}
+          >
+            <text fontSize={14} color={C.accentHi} fontWeight={600}>
+              👁 Now you see me! (visibility)
+            </text>
+          </view>
+          <view
+            p={14}
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+          >
+            <text fontSize={14} color={C.textMuted}>
+              Click the button to toggle visibility.
             </text>
           </view>
         </view>
