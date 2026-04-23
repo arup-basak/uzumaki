@@ -260,13 +260,11 @@ pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
 
     if let Some((_cursor_rect, scroll_offset_x, scroll_offset_y)) =
         sync_focused_input_cursor(dom, handle, focused_id, &meta)
+        && let Some(node) = dom.nodes.get(focused_id)
+        && let Some(is) = node.as_text_input()
     {
-        if let Some(node) = dom.nodes.get(focused_id)
-            && let Some(is) = node.as_text_input()
-        {
-            let ime_area = is.editor.ime_cursor_area();
-            set_ime_cursor_area(handle, &meta, &ime_area, scroll_offset_x, scroll_offset_y);
-        }
+        let ime_area = is.editor.ime_cursor_area();
+        set_ime_cursor_area(handle, &meta, &ime_area, scroll_offset_x, scroll_offset_y);
     }
 }
 
