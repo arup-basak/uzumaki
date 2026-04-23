@@ -9,7 +9,7 @@ use crate::{
     input::InputState,
     interactivity::{HitTestState, HitboxStore},
     selection::TextSelection,
-    style::{Length, UzStyle},
+    style::{Length, TextStyle, UzStyle},
     text::TextRenderer,
 };
 
@@ -150,7 +150,7 @@ impl UIState {
                 Some(NodeContext {
                     dom_id: node_id,
                     text: None,
-                    font_size: 16.0,
+                    text_style: TextStyle::default(),
                     is_input: false,
                 }),
             )
@@ -165,7 +165,7 @@ impl UIState {
         let text = TextNode {
             content: content.clone(),
         };
-        let font_size = style.text.font_size;
+        let text_style = style.text.clone();
         let node_id = self
             .nodes
             .insert(Node::new(taffy_node, style, TextNode::new(content)));
@@ -176,7 +176,7 @@ impl UIState {
                 Some(NodeContext {
                     dom_id: node_id,
                     text: Some(text),
-                    font_size,
+                    text_style,
                     is_input: false,
                 }),
             )
@@ -188,7 +188,7 @@ impl UIState {
     pub fn create_input(&mut self, style: UzStyle) -> UzNodeId {
         let taffy_style = style.to_taffy();
         let taffy_node = self.taffy.new_leaf(taffy_style).unwrap();
-        let font_size = style.text.font_size;
+        let text_style = style.text.clone();
         let is = InputState::new_single_line();
 
         let node_id = self.nodes.insert(Node::new(
@@ -203,7 +203,7 @@ impl UIState {
                 Some(NodeContext {
                     dom_id: node_id,
                     text: None,
-                    font_size,
+                    text_style,
                     is_input: true,
                 }),
             )
@@ -235,7 +235,7 @@ impl UIState {
                 Some(NodeContext {
                     dom_id: node_id,
                     text: None,
-                    font_size: 16.0,
+                    text_style: TextStyle::default(),
                     is_input: false,
                 }),
             )
@@ -410,14 +410,14 @@ impl UIState {
         }
 
         let taffy_node = node.taffy_node;
-        let font_size = node.style.text.font_size;
+        let text_style = node.style.text.clone();
         self.taffy
             .set_node_context(
                 taffy_node,
                 Some(NodeContext {
                     dom_id: node_id,
                     text: Some(tc),
-                    font_size,
+                    text_style,
                     is_input: false,
                 }),
             )

@@ -1,6 +1,6 @@
 use vello::Scene;
 
-use crate::style::{Bounds, Color, UzStyle};
+use crate::style::{Bounds, Color, TextStyle, UzStyle};
 use crate::text::TextRenderer;
 
 #[allow(clippy::too_many_arguments)]
@@ -10,7 +10,7 @@ pub fn paint_text(
     bounds: Bounds,
     style: &UzStyle,
     content: &str,
-    font_size: f32,
+    text_style: &TextStyle,
     color: Color,
     scale: f64,
 ) {
@@ -18,7 +18,7 @@ pub fn paint_text(
         text_renderer.draw_text(
             scene,
             content,
-            font_size,
+            text_style,
             bounds.width as f32,
             bounds.height as f32,
             (bounds.x as f32, bounds.y as f32),

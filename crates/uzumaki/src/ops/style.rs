@@ -380,6 +380,22 @@ fn set_enum_style_prop(style: &mut UzStyle, prop: PropKey, value: i32) -> bool {
                 _ => Display::Flex,
             };
         }
+        PropKey::OverflowWrap => {
+            style.text.overflow_wrap = match value {
+                0 => OverflowWrap::Normal,
+                1 => OverflowWrap::Anywhere,
+                2 => OverflowWrap::BreakWord,
+                _ => OverflowWrap::Normal,
+            };
+        }
+        PropKey::WordBreak => {
+            style.text.word_break = match value {
+                0 => WordBreak::Normal,
+                1 => WordBreak::BreakAll,
+                2 => WordBreak::KeepAll,
+                _ => WordBreak::Normal,
+            };
+        }
         _ => return false,
     }
     true
@@ -391,9 +407,9 @@ fn sync_taffy(dom: &mut UIState, node_id: UzNodeId) {
     };
     let taffy_style = node.style.to_taffy();
     let tn = node.taffy_node;
-    let font_size = node.style.text.font_size;
+    let text_style = node.style.text.clone();
     dom.taffy.set_style(tn, taffy_style).unwrap();
     if let Some(ctx) = dom.taffy.get_node_context_mut(tn) {
-        ctx.font_size = font_size;
+        ctx.text_style = text_style;
     }
 }

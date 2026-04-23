@@ -1,9 +1,11 @@
+use parley::{LineHeight, StyleProperty};
 use refineable::Refineable;
 use vello::Scene;
 use vello::kurbo::{Affine, Rect, RoundedRect, RoundedRectRadii, Stroke};
 use vello::peniko::Color as VelloColor;
 
 use crate::cursor::UzCursorIcon;
+use crate::text::TextBrush;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Color {
@@ -275,12 +277,83 @@ pub struct GapSize {
     pub height: DefiniteLength,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum FontWeight {
+    Thin,
+    ExtraLight,
+    Light,
+    #[default]
+    Regular,
+    Medium,
+    SemiBold,
+    Bold,
+    ExtraBold,
+    Black,
+}
+
+impl FontWeight {
+    pub fn to_parley(self) -> parley::FontWeight {
+        match self {
+            Self::Thin => parley::FontWeight::THIN,
+            Self::ExtraLight => parley::FontWeight::EXTRA_LIGHT,
+            Self::Light => parley::FontWeight::LIGHT,
+            Self::Regular => parley::FontWeight::NORMAL,
+            Self::Medium => parley::FontWeight::MEDIUM,
+            Self::SemiBold => parley::FontWeight::SEMI_BOLD,
+            Self::Bold => parley::FontWeight::BOLD,
+            Self::ExtraBold => parley::FontWeight::EXTRA_BOLD,
+            Self::Black => parley::FontWeight::BLACK,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OverflowWrap {
+    Normal,
+    Anywhere,
+    #[default]
+    BreakWord,
+}
+
+impl OverflowWrap {
+    pub fn to_parley(self) -> parley::OverflowWrap {
+        match self {
+            Self::Normal => parley::OverflowWrap::Normal,
+            Self::Anywhere => parley::OverflowWrap::Anywhere,
+            Self::BreakWord => parley::OverflowWrap::BreakWord,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum WordBreak {
+    #[default]
+    Normal,
+    BreakAll,
+    KeepAll,
+}
+
+impl WordBreak {
+    pub fn to_parley(self) -> parley::WordBreak {
+        match self {
+            Self::Normal => parley::WordBreak::Normal,
+            Self::BreakAll => parley::WordBreak::BreakAll,
+            Self::KeepAll => parley::WordBreak::KeepAll,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Refineable)]
 #[refineable(Debug)]
 pub struct TextStyle {
     pub font_size: f32,
     pub color: Color,
     pub line_height: f32,
+    pub font_weight: FontWeight,
+    pub letter_spacing: f32,
+    pub word_spacing: f32,
+    pub overflow_wrap: OverflowWrap,
+    pub word_break: WordBreak,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -313,7 +386,32 @@ impl Default for TextStyle {
             font_size: 16.0,
             color: Color::WHITE,
             line_height: 1.2,
+            font_weight: FontWeight::default(),
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            overflow_wrap: OverflowWrap::default(),
+            word_break: WordBreak::default(),
         }
+    }
+}
+
+impl TextStyle {
+    pub fn to_parley_styles(&self) -> impl Iterator<Item = StyleProperty<'static, TextBrush>> {
+        let letter_spacing = (self.letter_spacing != 0.0)
+            .then_some(StyleProperty::LetterSpacing(self.letter_spacing));
+        let word_spacing =
+            (self.word_spacing != 0.0).then_some(StyleProperty::WordSpacing(self.word_spacing));
+
+        [
+            StyleProperty::FontSize(self.font_size),
+            StyleProperty::LineHeight(LineHeight::FontSizeRelative(self.line_height)),
+            StyleProperty::FontWeight(self.font_weight.to_parley()),
+            StyleProperty::OverflowWrap(self.overflow_wrap.to_parley()),
+            StyleProperty::WordBreak(self.word_break.to_parley()),
+        ]
+        .into_iter()
+        .chain(letter_spacing)
+        .chain(word_spacing)
     }
 }
 

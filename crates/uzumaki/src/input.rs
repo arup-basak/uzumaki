@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use parley::PlainEditor;
 use winit::keyboard::{Key, NamedKey};
@@ -40,7 +40,6 @@ pub struct InputState {
     pub secure: bool,
     pub multiline: bool,
     pub max_length: Option<usize>,
-    pub font_size: f32,
     pub preedit: Option<PreeditState>,
 }
 
@@ -57,6 +56,9 @@ impl Default for InputState {
 }
 
 impl InputState {
+    const BLINK_ON_MS: u128 = 530;
+    const BLINK_CYCLE_MS: u128 = 1060;
+
     pub fn new() -> Self {
         Self {
             editor: PlainEditor::new(16.0),
@@ -69,7 +71,6 @@ impl InputState {
             secure: false,
             multiline: true,
             max_length: None,
-            font_size: 16.0,
             preedit: None,
         }
     }
@@ -434,97 +435,6 @@ impl InputState {
         self.editor.set_scale(scale);
     }
 
-    pub fn set_font_size(&mut self, font_size: f32) {
-        use parley::{LineHeight, StyleProperty};
-        self.font_size = font_size;
-        self.editor
-            .edit_styles()
-            .insert(StyleProperty::FontSize(font_size));
-        self.editor
-            .edit_styles()
-            .insert(StyleProperty::LineHeight(LineHeight::FontSizeRelative(1.2)));
-    }
-
-    pub fn refresh_layout(&mut self, renderer: &mut TextRenderer) {
-        self.editor
-            .refresh_layout(&mut renderer.font_ctx, &mut renderer.layout_ctx);
-    }
-
-    pub fn display_cursor_geometry(
-        &mut self,
-        width: f32,
-        renderer: &mut TextRenderer,
-    ) -> Option<parley::BoundingBox> {
-        if !self.secure {
-            return self.editor.cursor_geometry(width);
-        }
-        let sel = self.editor.raw_selection();
-        let byte_idx = sel.focus().index();
-        let char_count = self.editor.raw_text()[..byte_idx].chars().count();
-        let masked = "\u{2022}".repeat(char_count);
-        let font_size = self.font_size;
-        let x = renderer.grapheme_x_positions(&masked, font_size);
-        let cursor_x = *x.last().unwrap_or(&0.0);
-        let line_height = (font_size * 1.2).round();
-        Some(parley::BoundingBox {
-            x0: cursor_x as f64,
-            y0: 0.0,
-            x1: (cursor_x + width) as f64,
-            y1: line_height as f64,
-        })
-    }
-
-    pub fn display_selection_geometry(
-        &mut self,
-        renderer: &mut TextRenderer,
-    ) -> Vec<parley::BoundingBox> {
-        if !self.secure {
-            return self
-                .editor
-                .selection_geometry()
-                .into_iter()
-                .map(|(bb, _)| bb)
-                .collect();
-        }
-        let sel = self.editor.raw_selection();
-        if sel.is_collapsed() {
-            return vec![];
-        }
-        let text = self.editor.raw_text();
-        let anchor_chars = text[..sel.anchor().index()].chars().count();
-        let focus_chars = text[..sel.focus().index()].chars().count();
-        let (start, end) = if anchor_chars < focus_chars {
-            (anchor_chars, focus_chars)
-        } else {
-            (focus_chars, anchor_chars)
-        };
-        let full_masked = "\u{2022}".repeat(end);
-        let font_size = self.font_size;
-        let positions = renderer.grapheme_x_positions(&full_masked, font_size);
-        let x0 = if start < positions.len() {
-            positions[start]
-        } else {
-            0.0
-        };
-        let x1 = if end < positions.len() {
-            positions[end]
-        } else {
-            *positions.last().unwrap_or(&0.0)
-        };
-        let line_height = (font_size * 1.2).round();
-        vec![parley::BoundingBox {
-            x0: x0 as f64,
-            y0: 0.0,
-            x1: x1 as f64,
-            y1: line_height as f64,
-        }]
-    }
-
-    pub fn layout(&mut self, renderer: &mut TextRenderer) -> &parley::Layout<TextBrush> {
-        self.editor
-            .layout(&mut renderer.font_ctx, &mut renderer.layout_ctx)
-    }
-
     pub fn reset_blink(&mut self) {
         self.blink_reset = Instant::now();
     }
@@ -533,8 +443,27 @@ impl InputState {
         if !self.focused || !window_focused {
             return false;
         }
-        let elapsed = self.blink_reset.elapsed().as_millis();
-        (elapsed % 1060) < 530
+        let elapsed = self.blink_phase_elapsed_ms();
+        elapsed < Self::BLINK_ON_MS
+    }
+
+    pub fn next_blink_toggle_in(&self, window_focused: bool) -> Option<Duration> {
+        if !self.focused || !window_focused {
+            return None;
+        }
+
+        let elapsed = self.blink_phase_elapsed_ms();
+        let remaining = if elapsed < Self::BLINK_ON_MS {
+            Self::BLINK_ON_MS - elapsed
+        } else {
+            Self::BLINK_CYCLE_MS - elapsed
+        };
+
+        Some(Duration::from_millis(remaining.max(1) as u64))
+    }
+
+    fn blink_phase_elapsed_ms(&self) -> u128 {
+        self.blink_reset.elapsed().as_millis() % Self::BLINK_CYCLE_MS
     }
 
     pub fn update_scroll(&mut self, cursor_x: f32, visible_width: f32) {
@@ -815,14 +744,6 @@ mod tests {
     }
 
     #[test]
-    fn set_font_size_stores_value() {
-        let mut is = InputState::new();
-        assert_eq!(is.font_size, 16.0);
-        is.set_font_size(24.0);
-        assert_eq!(is.font_size, 24.0);
-    }
-
-    #[test]
     fn update_scroll_scrolls_right() {
         let mut is = InputState::new();
         is.scroll_offset = 0.0;
@@ -873,5 +794,29 @@ mod tests {
         let mut is = InputState::new();
         is.focused = true;
         assert!(!is.blink_visible(false));
+    }
+
+    #[test]
+    fn next_blink_toggle_is_absent_when_unfocused() {
+        let is = InputState::new();
+        assert!(is.next_blink_toggle_in(true).is_none());
+    }
+
+    #[test]
+    fn next_blink_toggle_matches_visible_phase() {
+        let mut is = InputState::new();
+        is.focused = true;
+        is.blink_reset = Instant::now() - Duration::from_millis(200);
+        let next = is.next_blink_toggle_in(true).unwrap();
+        assert!((329..=330).contains(&next.as_millis()));
+    }
+
+    #[test]
+    fn next_blink_toggle_matches_hidden_phase() {
+        let mut is = InputState::new();
+        is.focused = true;
+        is.blink_reset = Instant::now() - Duration::from_millis(700);
+        let next = is.next_blink_toggle_in(true).unwrap();
+        assert!((359..=360).contains(&next.as_millis()));
     }
 }

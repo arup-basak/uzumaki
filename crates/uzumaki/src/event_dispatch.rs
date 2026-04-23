@@ -5,6 +5,8 @@ use crate::clipboard::SystemClipboard;
 use crate::element::{ScrollDragState, UzNodeId};
 use crate::input::{self, KeyResult};
 use crate::selection::{SelectionRange, TextSelection};
+use crate::style::TextStyle;
+use crate::text::{apply_text_style_to_editor, secure_cursor_geometry};
 use crate::ui::UIState;
 use crate::window::Window;
 
@@ -108,28 +110,24 @@ pub fn handle_redraw(
     handle.paint_and_present(device, queue, dom);
 }
 
-struct FocusedInputLayoutMeta {
-    taffy_x: f64,
-    taffy_y: f64,
-    input_padding: f32,
-    top_pad: f32,
-    multiline: bool,
-    font_size: f32,
-    input_width: f32,
-    input_height: f32,
+pub struct FocusedInputLayoutMeta {
+    pub taffy_x: f64,
+    pub taffy_y: f64,
+    pub input_padding: f32,
+    pub top_pad: f32,
+    pub multiline: bool,
+    pub text_style: TextStyle,
+    pub input_width: f32,
+    pub input_height: f32,
 }
 
-fn focused_input_layout_meta(
-    dom: &UIState,
-    focused_id: UzNodeId,
-) -> Option<FocusedInputLayoutMeta> {
+pub fn input_layout_meta(dom: &UIState, focused_id: UzNodeId) -> Option<FocusedInputLayoutMeta> {
     let node = dom.nodes.get(focused_id)?;
     let is = node.as_text_input()?;
-    let padding = node.style.padding.left;
-    let input_padding = if padding > 0.0 { padding } else { 8.0 };
-    let pt = node.style.padding.top;
-    let top_pad = if pt > 0.0 { pt } else { 4.0 };
-    let font_size = node.style.text.font_size;
+    let input_padding = node.style.padding.left;
+    let top_pad = node.style.padding.top;
+    let pad_h = node.style.padding.left + node.style.padding.right;
+    let text_style = node.style.text.clone();
     let hb = node
         .interactivity
         .hitbox_id
@@ -141,8 +139,8 @@ fn focused_input_layout_meta(
         input_padding,
         top_pad,
         multiline: is.multiline,
-        font_size,
-        input_width: (layout.size.width - input_padding * 2.0).max(0.0),
+        text_style,
+        input_width: (layout.size.width - pad_h).max(0.0),
         input_height: layout.size.height,
     })
 }
@@ -155,14 +153,21 @@ fn sync_focused_input_cursor(
 ) -> Option<(parley::BoundingBox, f32, f32)> {
     let node = dom.nodes.get_mut(focused_id)?;
     let is = node.as_text_input_mut()?;
-    is.set_font_size(meta.font_size);
-    if meta.multiline {
-        is.set_width(Some(meta.input_width));
+    apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+    is.editor.set_width(if meta.multiline {
+        Some(meta.input_width)
     } else {
-        is.set_width(None);
-    }
-    is.refresh_layout(&mut handle.text_renderer);
-    let cursor_rect = is.display_cursor_geometry(1.5, &mut handle.text_renderer)?;
+        None
+    });
+    is.editor.refresh_layout(
+        &mut handle.text_renderer.font_ctx,
+        &mut handle.text_renderer.layout_ctx,
+    );
+    let cursor_rect = if is.secure {
+        secure_cursor_geometry(&is.editor, 1.5, &meta.text_style, &mut handle.text_renderer)
+    } else {
+        is.editor.cursor_geometry(1.5)
+    }?;
     Some((cursor_rect, is.scroll_offset, is.scroll_offset_y))
 }
 
@@ -173,7 +178,7 @@ fn set_ime_cursor_area(
     _scroll_offset_x: f32,
     scroll_offset_y: f32,
 ) {
-    let line_height = (meta.font_size * 1.2).round() as f64;
+    let line_height = (meta.text_style.font_size * meta.text_style.line_height).round() as f64;
     let text_origin_y = if meta.multiline {
         meta.taffy_y + meta.top_pad as f64 - scroll_offset_y as f64
     } else {
@@ -194,7 +199,7 @@ pub fn update_ime_cursor_area(dom: &mut UIState, handle: &mut Window) {
     let Some(focused_id) = dom.focused_node else {
         return;
     };
-    let Some(meta) = focused_input_layout_meta(dom, focused_id) else {
+    let Some(meta) = input_layout_meta(dom, focused_id) else {
         return;
     };
     let Some((cursor_rect, scroll_offset_x, scroll_offset_y)) =
@@ -217,24 +222,31 @@ pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
     let Some(focused_id) = dom.focused_node else {
         return;
     };
-    let Some(meta) = focused_input_layout_meta(dom, focused_id) else {
+    let Some(meta) = input_layout_meta(dom, focused_id) else {
         return;
     };
 
     if let Some(node) = dom.nodes.get_mut(focused_id)
         && let Some(is) = node.as_text_input_mut()
     {
-        is.set_font_size(meta.font_size);
-        if meta.multiline {
-            is.set_width(Some(meta.input_width));
+        apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+        is.editor.set_width(if meta.multiline {
+            Some(meta.input_width)
         } else {
-            is.set_width(None);
-        }
-        is.refresh_layout(&mut handle.text_renderer);
-        let cursor_rect = is.display_cursor_geometry(1.5, &mut handle.text_renderer);
+            None
+        });
+        is.editor.refresh_layout(
+            &mut handle.text_renderer.font_ctx,
+            &mut handle.text_renderer.layout_ctx,
+        );
+        let cursor_rect = if is.secure {
+            secure_cursor_geometry(&is.editor, 1.5, &meta.text_style, &mut handle.text_renderer)
+        } else {
+            is.editor.cursor_geometry(1.5)
+        };
         if let Some(rect) = cursor_rect {
             if meta.multiline {
-                let line_height = (meta.font_size * 1.2).round();
+                let line_height = (meta.text_style.font_size * meta.text_style.line_height).round();
                 is.update_scroll_y(
                     rect.y0 as f32,
                     line_height,
@@ -300,10 +312,8 @@ pub fn handle_cursor_moved(
         if let Some(drag_nid) = dom.dragging_input {
             let hit_info = dom.nodes.get(drag_nid).and_then(|node| {
                 let is = node.as_text_input()?;
-                let padding = node.style.padding.left as f64;
-                let input_padding = if padding > 0.0 { padding } else { 8.0 };
-                let pad_top = node.style.padding.top;
-                let top_pad = if pad_top > 0.0 { pad_top } else { 4.0 };
+                let input_padding = node.style.padding.left as f64;
+                let top_pad = node.style.padding.top;
                 let hb = node
                     .interactivity
                     .hitbox_id
@@ -335,11 +345,25 @@ pub fn handle_cursor_moved(
                 };
                 let relative_y = (logical_y - hb.y) as f32 + scroll_offset_y - top_pad;
 
+                // Apply styles/width so the driver's layout accounts for wrapping
+                if let Some(meta) = input_layout_meta(dom, drag_nid)
+                    && let Some(node) = dom.nodes.get_mut(drag_nid)
+                    && let Some(is) = node.as_text_input_mut()
+                {
+                    apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+                    is.editor.set_width(if meta.multiline {
+                        Some(meta.input_width)
+                    } else {
+                        None
+                    });
+                }
+
                 if let Some(node) = dom.nodes.get_mut(drag_nid)
                     && let Some(is) = node.as_text_input_mut()
                 {
                     is.extend_selection_to_point(relative_x, relative_y, &mut handle.text_renderer);
                 }
+
                 scroll_input_to_cursor(dom, handle);
                 needs_redraw = true;
             }
@@ -409,7 +433,6 @@ fn hit_text_in_run(
     let entry = run.entries.iter().find(|e| e.node_id == node_id)?;
     let node = dom.nodes.get(node_id)?;
     let text = node.as_text_node()?;
-    let font_size = node.style.text.font_size;
 
     if text.content.is_empty() {
         return Some(TextRunHit {
@@ -422,7 +445,7 @@ fn hit_text_in_run(
     let relative_y = (my - bounds.y) as f32;
     let local_idx = text_renderer.hit_to_grapheme_2d(
         &text.content,
-        font_size,
+        &node.style.text,
         Some(bounds.width as f32),
         relative_x,
         relative_y,
@@ -453,7 +476,6 @@ fn text_range_at_point(
     let (run, entry) = dom.find_run_entry_for_node(node_id)?;
     let node = dom.nodes.get(node_id)?;
     let text = node.as_text_node()?;
-    let font_size = node.style.text.font_size;
     let bounds = node
         .interactivity
         .hitbox_id
@@ -469,7 +491,7 @@ fn text_range_at_point(
     let (local_start, local_end) = if select_line {
         text_renderer.line_range_at_point(
             &text.content,
-            font_size,
+            &node.style.text,
             Some(bounds.width as f32),
             rel_x,
             rel_y,
@@ -477,7 +499,7 @@ fn text_range_at_point(
     } else {
         text_renderer.word_range_at_point(
             &text.content,
-            font_size,
+            &node.style.text,
             Some(bounds.width as f32),
             rel_x,
             rel_y,
@@ -637,10 +659,8 @@ pub fn handle_mouse_input(
                     let click_info = {
                         let node = &dom.nodes[nid];
                         let is = node.as_text_input().unwrap();
-                        let padding = node.style.padding.left as f64;
-                        let input_padding = if padding > 0.0 { padding } else { 8.0 };
-                        let pad_top = node.style.padding.top;
-                        let top_pad = if pad_top > 0.0 { pad_top } else { 4.0 };
+                        let input_padding = node.style.padding.left as f64;
+                        let top_pad = node.style.padding.top;
                         let hb = node
                             .interactivity
                             .hitbox_id
@@ -673,6 +693,19 @@ pub fn handle_mouse_input(
                         let relative_y = (my - hb.y) as f32 + scroll_offset_y - top_pad;
 
                         dom.focus_input(nid);
+
+                        // Apply styles/width so hit-testing accounts for wrapping
+                        if let Some(meta) = input_layout_meta(dom, nid)
+                            && let Some(node) = dom.nodes.get_mut(nid)
+                            && let Some(is) = node.as_text_input_mut()
+                        {
+                            apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+                            is.editor.set_width(if meta.multiline {
+                                Some(meta.input_width)
+                            } else {
+                                None
+                            });
+                        }
 
                         if let Some(node) = dom.nodes.get_mut(nid)
                             && let Some(is) = node.as_text_input_mut()
@@ -946,6 +979,20 @@ pub fn handle_key_for_input(
 
     if key_event.state != ElementState::Pressed {
         return (needs_redraw, events);
+    }
+
+    // Apply text styles and width to the editor BEFORE handling the key,
+    // so parley's driver has the correct layout for cursor movement in wrapped text.
+    if let Some(meta) = dom.focused_node.and_then(|id| input_layout_meta(dom, id))
+        && let Some(node) = dom.focused_node.and_then(|id| dom.nodes.get_mut(id))
+        && let Some(is) = node.as_text_input_mut()
+    {
+        apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+        is.editor.set_width(if meta.multiline {
+            Some(meta.input_width)
+        } else {
+            None
+        });
     }
 
     let new_focus = dom

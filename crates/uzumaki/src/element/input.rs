@@ -3,7 +3,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, Rect};
 use vello::peniko::{Color as VelloColor, Fill};
 
-use crate::style::{Bounds, Color, Corners, Edges, UzStyle};
+use crate::style::{Bounds, Color, Corners, Edges, TextStyle, UzStyle};
 use crate::text::TextRenderer;
 
 pub struct InputContentInfo {
@@ -15,8 +15,7 @@ pub struct InputContentInfo {
 pub struct InputRenderInfo {
     pub display_text: String,
     pub placeholder: String,
-    pub font_size: f32,
-    pub text_color: Color,
+    pub text_style: TextStyle,
     pub focused: bool,
     pub cursor_rect: Option<BoundingBox>,
     pub selection_rects: Vec<BoundingBox>,
@@ -44,11 +43,14 @@ pub fn paint_input(
     input: &InputRenderInfo,
     scale: f64,
 ) -> Option<InputContentInfo> {
-    let padding: f64 = 8.0;
-    let text_x = bounds.x + padding;
-    let text_y = bounds.y;
-    let text_w = (bounds.width - padding * 2.0).max(0.0);
-    let text_h = bounds.height;
+    let pad_l = style.padding.left as f64;
+    let pad_r = style.padding.right as f64;
+    let pad_t = style.padding.top as f64;
+    let pad_b = style.padding.bottom as f64;
+    let content_x = bounds.x + pad_l;
+    let content_y = bounds.y + pad_t;
+    let content_w = (bounds.width - pad_l - pad_r).max(0.0);
+    let content_h = (bounds.height - pad_t - pad_b).max(0.0);
 
     // Paint background with focus-aware border
     let mut paint_style = style.clone();
@@ -73,33 +75,32 @@ pub fn paint_input(
     paint_style.paint(bounds, scene, scale, |_| {});
 
     // Clip to text area
-    let clip_rect = Rect::new(text_x, text_y, text_x + text_w, text_y + text_h);
+    let clip_rect = Rect::new(
+        content_x,
+        content_y,
+        content_x + content_w,
+        content_y + content_h,
+    );
     scene.push_clip_layer(Fill::NonZero, Affine::scale(scale), &clip_rect);
 
     let is_empty = input.display_text.is_empty();
-    let line_height = (input.font_size * 1.2).round();
+    let line_height = (input.text_style.font_size * input.text_style.line_height).round();
     let scroll_y = input.scroll_offset_y as f64;
-
-    let top_pad: f64 = if style.padding.top > 0.0 {
-        style.padding.top as f64
-    } else {
-        4.0
-    };
 
     // Placeholder
     if is_empty && !input.placeholder.is_empty() {
         let py = if input.multiline {
-            (text_y + top_pad) as f32
+            content_y as f32
         } else {
-            text_y as f32 + ((text_h as f32 - line_height) / 2.0).max(0.0)
+            content_y as f32 + ((content_h as f32 - line_height) / 2.0).max(0.0)
         };
         text_renderer.draw_text(
             scene,
             &input.placeholder,
-            input.font_size,
-            text_w as f32,
-            text_h as f32,
-            (text_x as f32, py),
+            &input.text_style,
+            content_w as f32,
+            content_h as f32,
+            (content_x as f32, py),
             VelloColor::from_rgba8(128, 128, 128, 255),
             scale,
         );
@@ -110,18 +111,18 @@ pub fn paint_input(
         if input.focused && !input.selection_rects.is_empty() {
             let sel_color = VelloColor::from_rgba8(56, 121, 185, 128);
             let oy = if input.multiline {
-                text_y + top_pad - scroll_y
+                content_y - scroll_y
             } else {
-                text_y + ((text_h - line_height as f64) / 2.0).max(0.0)
+                content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
             };
             for rect in &input.selection_rects {
-                let x1 = text_x + rect.x0
+                let x1 = content_x + rect.x0
                     - if input.multiline {
                         0.0
                     } else {
                         input.scroll_offset as f64
                     };
-                let x2 = text_x + rect.x1
+                let x2 = content_x + rect.x1
                     - if input.multiline {
                         0.0
                     } else {
@@ -141,33 +142,33 @@ pub fn paint_input(
 
         // Text
         let ty = if input.multiline {
-            (text_y + top_pad - scroll_y) as f32
+            (content_y - scroll_y) as f32
         } else {
-            text_y as f32 + ((text_h as f32 - line_height) / 2.0).max(0.0)
+            content_y as f32 + ((content_h as f32 - line_height) / 2.0).max(0.0)
         };
         let tw = if input.multiline {
-            text_w as f32
+            content_w as f32
         } else {
-            text_w as f32 + input.scroll_offset + 10000.0
+            content_w as f32 + input.scroll_offset + 10000.0
         };
         let tx = if input.multiline {
-            text_x as f32
+            content_x as f32
         } else {
-            text_x as f32 - input.scroll_offset
+            content_x as f32 - input.scroll_offset
         };
         text_renderer.draw_text(
             scene,
             &input.display_text,
-            input.font_size,
+            &input.text_style,
             tw,
-            text_h as f32
+            content_h as f32
                 + if input.multiline {
                     input.scroll_offset_y + 10000.0
                 } else {
                     0.0
                 },
             (tx, ty),
-            input.text_color.to_vello(),
+            input.text_style.color.to_vello(),
             scale,
         );
     }
@@ -177,11 +178,11 @@ pub fn paint_input(
         && let Some(cr) = &input.cursor_rect
     {
         let oy = if input.multiline {
-            text_y + top_pad - scroll_y
+            content_y - scroll_y
         } else {
-            text_y + ((text_h - line_height as f64) / 2.0).max(0.0)
+            content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
         };
-        let px = text_x + cr.x0
+        let px = content_x + cr.x0
             - if input.multiline {
                 0.0
             } else {
@@ -205,11 +206,11 @@ pub fn paint_input(
         text_renderer.draw_text(
             scene,
             &preedit.text,
-            input.font_size,
+            &input.text_style,
             preedit.width + 100.0,
-            text_h as f32,
+            content_h as f32,
             (px as f32, py as f32),
-            input.text_color.to_vello(),
+            input.text_style.color.to_vello(),
             scale,
         );
 
@@ -237,11 +238,11 @@ pub fn paint_input(
         && let Some(cr) = &input.cursor_rect
     {
         let oy = if input.multiline {
-            text_y + top_pad - scroll_y
+            content_y - scroll_y
         } else {
-            text_y + ((text_h - line_height as f64) / 2.0).max(0.0)
+            content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
         };
-        let cx = text_x + cr.x0
+        let cx = content_x + cr.x0
             - if input.multiline {
                 0.0
             } else {
@@ -261,10 +262,10 @@ pub fn paint_input(
     scene.pop_layer();
 
     if input.multiline {
-        let content_height = input.layout_height as f64 + top_pad;
+        let content_height = input.layout_height as f64 + pad_t + pad_b;
         Some(InputContentInfo {
             content_height,
-            visible_height: text_h,
+            visible_height: content_h,
             scroll_offset_y: scroll_y,
         })
     } else {
