@@ -11,10 +11,12 @@ pub enum LaunchMode {
     Dev {
         app_root: PathBuf,
         entry_path: PathBuf,
+        args: Vec<String>,
     },
     Standalone {
         app_root: PathBuf,
         entry_path: PathBuf,
+        args: Vec<String>,
         #[allow(dead_code)]
         extraction_dir: PathBuf,
     },
@@ -33,6 +35,13 @@ impl LaunchMode {
             LaunchMode::Standalone { entry_path, .. } => entry_path,
         }
     }
+
+    pub fn args(&self) -> &[String] {
+        match self {
+            LaunchMode::Dev { args, .. } => args,
+            LaunchMode::Standalone { args, .. } => args,
+        }
+    }
 }
 
 /// Detect whether the current executable contains an embedded standalone
@@ -40,6 +49,7 @@ impl LaunchMode {
 /// mode. Otherwise return `Ok(None)` so the caller can fall back to dev mode.
 pub fn detect_and_prepare() -> Result<Option<LaunchMode>> {
     let exe = std::env::current_exe().context("resolving current_exe")?;
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
     let Some(payload) = load_payload(&exe)? else {
         return Ok(None);
     };
@@ -60,6 +70,7 @@ pub fn detect_and_prepare() -> Result<Option<LaunchMode>> {
     Ok(Some(LaunchMode::Standalone {
         app_root,
         entry_path,
+        args,
         extraction_dir,
     }))
 }

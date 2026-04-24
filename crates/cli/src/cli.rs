@@ -138,7 +138,7 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     };
 
     match cli.command {
-        Commands::Run { entry, args: _ } => Ok(Some(resolve_run(&entry)?)),
+        Commands::Run { entry, args } => Ok(Some(resolve_run(&entry, args)?)),
         Commands::Build { config, no_build } => {
             cmd_build(config.as_deref(), no_build)?;
             Ok(None)
@@ -154,7 +154,7 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     }
 }
 
-fn resolve_run(entry: &str) -> Result<standalone::LaunchMode> {
+fn resolve_run(entry: &str, args: Vec<String>) -> Result<standalone::LaunchMode> {
     let cwd = std::env::current_dir()?;
     let entry_path = fs::canonicalize(cwd.join(entry))
         .with_context(|| format!("entry point not found: {entry}"))?;
@@ -162,6 +162,7 @@ fn resolve_run(entry: &str) -> Result<standalone::LaunchMode> {
     Ok(standalone::LaunchMode::Dev {
         app_root,
         entry_path,
+        args,
     })
 }
 

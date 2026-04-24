@@ -156,6 +156,7 @@ impl Application {
     pub fn new_with_root(
         main_file: impl Into<PathBuf>,
         app_root: impl Into<PathBuf>,
+        args: Vec<String>,
         startup_snapshot: Option<&'static [u8]>,
     ) -> Result<Self> {
         let main_file: PathBuf = main_file.into();
@@ -253,7 +254,7 @@ impl Application {
             startup_snapshot,
             skip_op_registration: false,
             bootstrap: BootstrapOptions {
-                args: vec![],
+                args: args.clone(),
                 mode: deno_runtime::WorkerExecutionMode::None,
                 ..Default::default()
             },
