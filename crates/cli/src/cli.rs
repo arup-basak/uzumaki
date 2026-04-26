@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser, Subcommand};
 use std::fs;
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -148,7 +149,7 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
             Ok(None)
         }
         Commands::Upgrade { version } => {
-            cmd_update(version.as_deref())?;
+            cmd_upgrade(version.as_deref())?;
             Ok(None)
         }
     }
@@ -185,7 +186,6 @@ fn cmd_build(config_path: Option<&str>, no_build: bool) -> Result<()> {
     let config_dir = config_file.parent().unwrap().to_path_buf();
     let config = load_config(&config_file)?;
 
-    // Run build command
     if !no_build && let Some(ref cmd) = config.build.command {
         println!(
             "\x1b[1;38;5;75muzumaki\x1b[0m \x1b[2mrunning build:\x1b[0m {}",
@@ -244,9 +244,7 @@ fn cmd_build(config_path: Option<&str>, no_build: bool) -> Result<()> {
     })
 }
 
-// ─── update ────────────────────────────────────────────────────────────────
-
-fn cmd_update(target_version: Option<&str>) -> Result<()> {
+fn cmd_upgrade(target_version: Option<&str>) -> Result<()> {
     println!("\x1b[1;38;5;75muzumaki\x1b[0m \x1b[2mchecking for updates...\x1b[0m");
 
     let version_tag = match target_version {
@@ -295,15 +293,44 @@ fn cmd_update(target_version: Option<&str>) -> Result<()> {
         .call()
         .with_context(|| format!("failed to download {download_url}"))?;
 
-    let body_bytes = response
-        .body_mut()
-        .read_to_vec()
-        .context("failed to read download body")?;
+    let total = response
+        .headers()
+        .get("content-length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
 
-    // The asset is a zip file containing the binary
+    let mut body_bytes = Vec::with_capacity(total as usize);
+    let mut reader = response.body_mut().as_reader();
+    let mut downloaded: u64 = 0;
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = reader
+            .read(&mut buf)
+            .context("failed to read download body")?;
+        if n == 0 {
+            break;
+        }
+        body_bytes.extend_from_slice(&buf[..n]);
+        downloaded += n as u64;
+        if total > 0 {
+            let pct = (downloaded as f64 / total as f64 * 100.0) as u8;
+            let filled = (pct as usize) / 2;
+            eprint!(
+                "\r\x1b[1;38;5;75muzumaki\x1b[0m \x1b[2m[{:█<filled$}{:·<empty$}] {pct}%\x1b[0m",
+                "",
+                "",
+                filled = filled,
+                empty = 50 - filled,
+                pct = pct,
+            );
+        }
+    }
+    if total > 0 {
+        eprintln!();
+    }
+
     let binary_bytes = extract_binary_from_zip(&body_bytes, &get_binary_name())?;
-
-    // Replace the current executable
     let current_exe = std::env::current_exe()?;
     replace_exe(&current_exe, &binary_bytes)?;
 
@@ -334,19 +361,15 @@ fn replace_exe(current_exe: &Path, new_bytes: &[u8]) -> Result<()> {
     let tmp_file = tempfile::NamedTempFile::new_in(dir)?;
     fs::write(tmp_file.path(), new_bytes)?;
 
-    // On Unix, set executable permission
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(tmp_file.path(), fs::Permissions::from_mode(0o755))?;
     }
 
-    // Rename strategy: move old away, move new in
     let backup_path = current_exe.with_extension("old");
-    // Remove leftover backup from a previous update
     let _ = fs::remove_file(&backup_path);
 
-    // On Windows we can't overwrite a running exe, but we CAN rename it away
     fs::rename(current_exe, &backup_path)
         .with_context(|| format!("failed to move current exe to {}", backup_path.display()))?;
 
@@ -356,7 +379,6 @@ fn replace_exe(current_exe: &Path, new_bytes: &[u8]) -> Result<()> {
         return Err(e).context("failed to place new binary");
     }
 
-    // Keep the temp file from being deleted since we already moved it
     tmp_file.into_temp_path().keep()?;
 
     // Clean up backup
@@ -375,7 +397,6 @@ fn resolve_from(base: &Path, value: &str) -> PathBuf {
     normalize_path(&joined)
 }
 
-/// Lexically normalize a path — resolves `.` and `..` without requiring the path to exist.
 fn normalize_path(path: &Path) -> PathBuf {
     use std::path::Component;
     let mut out = PathBuf::new();
