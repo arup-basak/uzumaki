@@ -765,7 +765,31 @@ impl ApplicationHandler<UserEvent> for Application {
                     if let Some(event_dispatch::AppEvent::HotReload) = raw_event {
                         // todo hotreload :3
                     } else {
-                        // 2a. Check for clipboard shortcuts (Ctrl+C/X/V)
+                        // 2a. Tab: switch focus to next focusable element
+                        let tab_outcome = {
+                            let mut state = self.app_state.borrow_mut();
+                            state.windows.get_mut(&wid).map(|entry| {
+                                event_dispatch::handle_tab_focus(
+                                    &mut entry.dom,
+                                    wid,
+                                    &key_event,
+                                    modifiers,
+                                )
+                            })
+                        };
+                        let tab_consumed = if let Some(outcome) = tab_outcome {
+                            if outcome.needs_redraw {
+                                needs_redraw = true;
+                            }
+                            for event in &outcome.events {
+                                self.dispatch_event_to_js(event);
+                            }
+                            outcome.consumed
+                        } else {
+                            false
+                        };
+
+                        // 2b. Check for clipboard shortcuts (Ctrl+C/X/V)
                         let clipboard_cmd = {
                             let state = self.app_state.borrow();
 
@@ -777,7 +801,9 @@ impl ApplicationHandler<UserEvent> for Application {
                             })
                         };
 
-                        let clipboard_consumed = if let Some(cmd) = clipboard_cmd {
+                        let clipboard_consumed = if tab_consumed {
+                            true
+                        } else if let Some(cmd) = clipboard_cmd {
                             // Dispatch clipboard event to JS
                             let clipboard_event =
                                 event_dispatch::clipboard_command_to_event(&cmd, wid);
@@ -854,14 +880,24 @@ impl ApplicationHandler<UserEvent> for Application {
                                             wid,
                                             &key_event,
                                         );
+                                    let (button_redraw, button_events) =
+                                        event_dispatch::handle_key_for_button(
+                                            &mut entry.dom,
+                                            wid,
+                                            &key_event,
+                                        );
                                     if redraw {
                                         needs_redraw = true;
                                     }
                                     if checkbox_redraw {
                                         needs_redraw = true;
                                     }
+                                    if button_redraw {
+                                        needs_redraw = true;
+                                    }
                                     let mut all_events = events;
                                     all_events.extend(checkbox_events);
+                                    all_events.extend(button_events);
                                     all_events
                                 })
                             };

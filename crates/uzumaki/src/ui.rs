@@ -111,9 +111,12 @@ impl UIState {
             return UzCursorIcon::Default;
         };
 
-        let style = node
-            .interactivity
-            .compute_style(&node.style, node_id, &self.hit_state);
+        let style = node.interactivity.compute_style(
+            &node.style,
+            node_id,
+            &self.hit_state,
+            self.focused_node == Some(node_id),
+        );
         if let Some(c) = style.cursor {
             return c;
         }
@@ -129,7 +132,12 @@ impl UIState {
         let mut cur = node.parent;
         while let Some(id) = cur {
             let n = &self.nodes[id];
-            let style = n.interactivity.compute_style(&n.style, id, &self.hit_state);
+            let style = n.interactivity.compute_style(
+                &n.style,
+                id,
+                &self.hit_state,
+                self.focused_node == Some(id),
+            );
             if let Some(c) = style.cursor {
                 return c;
             }
@@ -217,6 +225,10 @@ impl UIState {
             .unwrap();
         // Input always needs a hitbox for click-to-focus
         self.nodes[node_id].interactivity.js_interactive = true;
+        self.nodes[node_id]
+            .as_element_mut()
+            .expect("input should be an element")
+            .set_focussable(true);
         node_id
     }
 
@@ -570,8 +582,13 @@ impl UIState {
     pub(crate) fn computed_style(&self, node_id: UzNodeId, parent: Option<&UzStyle>) -> UzStyle {
         let node = &self.nodes[node_id];
         let parent = parent.unwrap_or(&node.style);
-        node.interactivity
-            .compute_style_inherited(&node.style, parent, node_id, &self.hit_state)
+        node.interactivity.compute_style_inherited(
+            &node.style,
+            parent,
+            node_id,
+            &self.hit_state,
+            self.focused_node == Some(node_id),
+        )
     }
 
     fn collect_computed_styles(

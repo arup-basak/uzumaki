@@ -568,4 +568,11 @@ impl Node {
     pub fn default_cursor(&self) -> Option<UzCursorIcon> {
         self.data.default_cursor()
     }
+
+    /// Whether this node can receive keyboard focus.
+    pub fn is_focusable(&self) -> bool {
+        self.as_element()
+            .map(|e| e.is_focussable())
+            .unwrap_or(false)
+    }
 }

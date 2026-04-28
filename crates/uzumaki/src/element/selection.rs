@@ -176,4 +176,130 @@ impl UIState {
     pub fn clear_selection(&mut self) {
         self.text_selection.clear();
     }
+
+    /// Walk the DOM in document order from `start_id`, returning the next node
+    /// for which `filter` returns true. Wraps to the root once and stops if the
+    /// traversal returns to `start_id` without a match.
+    pub fn next_node(
+        &self,
+        start_id: UzNodeId,
+        mut filter: impl FnMut(&super::Node) -> bool,
+    ) -> Option<UzNodeId> {
+        let mut node_id = start_id;
+        let mut look_in_children = true;
+        loop {
+            let cur = self.nodes.get(node_id)?;
+            let next_id = if look_in_children && let Some(first) = cur.first_child {
+                first
+            } else if let Some(parent_id) = cur.parent {
+                if let Some(sibling) = cur.next_sibling {
+                    look_in_children = true;
+                    sibling
+                } else {
+                    look_in_children = false;
+                    node_id = parent_id;
+                    continue;
+                }
+            } else {
+                look_in_children = true;
+                self.root?
+            };
+
+            let next = self.nodes.get(next_id)?;
+            if filter(next) {
+                return Some(next_id);
+            }
+            if next_id == start_id {
+                return None;
+            }
+            node_id = next_id;
+        }
+    }
+
+    /// Walk the DOM in reverse document order. At each step go to the previous
+    /// sibling's deepest-last descendant, or up to the parent. Wraps to the
+    /// deepest-last descendant of root.
+    pub fn prev_node(
+        &self,
+        start_id: UzNodeId,
+        mut filter: impl FnMut(&super::Node) -> bool,
+    ) -> Option<UzNodeId> {
+        let mut node_id = start_id;
+        loop {
+            let cur = self.nodes.get(node_id)?;
+            let next_id = if let Some(prev) = cur.prev_sibling {
+                self.deepest_last(prev)
+            } else if let Some(parent) = cur.parent {
+                parent
+            } else {
+                self.deepest_last(self.root?)
+            };
+
+            let next = self.nodes.get(next_id)?;
+            if filter(next) {
+                return Some(next_id);
+            }
+            if next_id == start_id {
+                return None;
+            }
+            node_id = next_id;
+        }
+    }
+
+    fn deepest_last(&self, mut id: UzNodeId) -> UzNodeId {
+        while let Some(last) = self.nodes.get(id).and_then(|n| n.last_child) {
+            id = last;
+        }
+        id
+    }
+
+    /// Move focus to the next focusable element in document order.
+    pub fn focus_next_node(&mut self) -> Option<FocusChange> {
+        self.focus_step(false)
+    }
+
+    /// Move focus to the previous focusable element in document order.
+    pub fn focus_prev_node(&mut self) -> Option<FocusChange> {
+        self.focus_step(true)
+    }
+
+    fn focus_step(&mut self, backward: bool) -> Option<FocusChange> {
+        let start_id = self.focused_node.or(self.root)?;
+        let new_id = if backward {
+            self.prev_node(start_id, |n| n.is_focusable())?
+        } else {
+            self.next_node(start_id, |n| n.is_focusable())?
+        };
+
+        let old = self.focused_node;
+        if old == Some(new_id) {
+            return None;
+        }
+        if let Some(old_id) = old
+            && let Some(node) = self.nodes.get_mut(old_id)
+            && let Some(is) = node.as_text_input_mut()
+        {
+            is.focused = false;
+        }
+
+        let is_input = self
+            .nodes
+            .get(new_id)
+            .map(|n| n.is_text_input())
+            .unwrap_or(false);
+        if is_input {
+            self.focus_input(new_id);
+        } else {
+            self.clear_selection();
+            self.focused_node = Some(new_id);
+        }
+
+        Some(FocusChange { old, new: new_id })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FocusChange {
+    pub old: Option<UzNodeId>,
+    pub new: UzNodeId,
 }
