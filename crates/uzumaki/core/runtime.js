@@ -55,3 +55,8 @@ Object.defineProperty(globalThis, '__uzumaki_ops_dont_touch_this__', {
   writable: false,
   configurable: false,
 });
+
+
+export function hello() {
+  console.log("Hello, Uzumaki!")
+}

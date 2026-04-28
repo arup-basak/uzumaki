@@ -1,11 +1,13 @@
 [workspace]
 resolver = "2"
-members = [ "crates/uzumaki", "crates/cli", "crates/refineable"]
+members = ["crates/uzumaki", "crates/cli", "crates/refineable", "runtime"]
 
 [workspace.package]
+authors = ["The Spiral"]
 publish = false
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/golok727/uzumaki"
 
 [workspace.dependencies]
 refineable = { path = "./crates/refineable" }
@@ -18,15 +20,94 @@ anyhow = "1.0.102"
 tsify = "0.5.6"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-deno_runtime = "0.249.0"
-deno_core = "0.394.0"
 clap = { version = "4", features = ["derive", "color"] }
 ureq = "3"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tempfile = "3"
 dirs = "6"
-tokio = "1"
+tokio = { version = "1.47.1", features = ["full"] }
 
+deno_runtime = { path = "./runtime" }
+
+# deno core/runtime
+deno_ast = { version = "=0.53.1", features = ["transpiling"] }
+deno_bundle_runtime = "0.34.0"
+deno_cache = "0.180.0"
+deno_core = "0.400.0"
+deno_cron = "0.127.0"
+deno_crypto = "0.261.0"
+deno_error = "=0.7.1"
+deno_features = "0.44.0"
+deno_fetch = "0.271.0"
+deno_ffi = "0.234.0"
+deno_fs = "0.157.0"
+deno_http = "0.245.0"
+deno_image = "0.23.0"
+deno_inspector_server = "0.21.0"
+deno_io = "0.157.0"
+deno_kv = "0.155.0"
+deno_napi = "0.178.0"
+deno_net = "0.239.0"
+deno_node = "0.185.0"
+deno_node_crypto = "0.17.0"
+deno_node_sqlite = "0.17.0"
+deno_os = "0.64.0"
+deno_path_util = "=0.6.4"
+deno_permissions = "0.106.0"
+deno_process = "0.62.0"
+deno_resolver = "0.78.0"
+deno_signals = "0.38.0"
+deno_telemetry = "0.69.0"
+deno_terminal = "=0.2.3"
+deno_tls = "0.234.0"
+deno_web = "0.278.0"
+deno_webgpu = "0.214.0"
+deno_webidl = "0.247.0"
+deno_websocket = "0.252.0"
+deno_webstorage = "0.242.0"
+node_resolver = "0.85.0"
+
+# runtime support
+async-trait = "0.1.73"
+boxed_error = "0.2.3"
+color-print = "0.3.5"
+encoding_rs = "=0.8.35"
+fastwebsockets = { version = "^0.8.1", features = ["upgrade", "unstable-split"] }
+http = "1.0"
+http-body-util = "0.1.2"
+hyper = { version = "1.6.0", features = ["full"] }
+hyper-util = { version = "0.1.17", features = ["tokio", "client", "client-legacy", "server", "server-auto"] }
+indexmap = { version = "2", features = ["serde"] }
+libc = "0.2.168"
+log = { version = "0.4.28", features = ["kv"] }
+notify = "=6.1.1"
+once_cell = "1.17.1"
+regex = "^1.7.0"
+rustyline = { version = "=17.0.0", features = ["custom-bindings"] }
+same-file = "1.0.6"
+sys_traits = "=0.1.27"
+thiserror = "2.0.12"
+tokio-metrics = { version = "0.3.0", features = ["rt"] }
+twox-hash = { version = "=2.1.0", features = ["std", "xxhash64"], default-features = false }
+unicode-normalization = "0.1"
+uuid = { version = "1.3.0", features = ["v4"] }
+
+# runtime permissions
+capacity_builder = "0.5.0"
+chrono = { version = "0.4", default-features = false, features = ["std", "serde", "now"] }
+deno_unsync = { version = "0.4.4", default-features = false }
+fqdn = "0.5"
+ipnetwork = "0.20.0"
+percent-encoding = "2.3.0"
+url = { version = "2.5", features = ["serde", "expose_internals"] }
+which = { version = "8.0.0", default-features = false }
+
+# windows
+winapi = "=0.3.9"
+windows-sys = { version = "0.59.0", features = ["Win32_Foundation", "Win32_Media", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_WindowsProgramming", "Wdk", "Wdk_System", "Wdk_System_SystemInformation", "Win32_Security", "Win32_System_Pipes", "Wdk_Storage_FileSystem", "Win32_System_Registry", "Win32_System_Kernel", "Win32_System_Threading", "Win32_UI", "Win32_UI_Shell"] }
+
+# unix
+nix = "=0.30.1"
 
 [profile.dist]
 inherits = "release"
