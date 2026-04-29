@@ -4,6 +4,8 @@ import { Element } from './elements/element';
 import { UzElement } from './elements/base';
 import { UzRootElement } from './elements/root';
 import { UzImageElement } from './elements/image';
+import { UzInputElement } from './elements/input';
+import { UzCheckboxElement } from './elements/checkbox';
 import { EventEmitter, type ListenerOptions } from './event-emitter';
 import {
   buildLifecycleEvent,
@@ -119,9 +121,9 @@ export class Window {
   }
 
   createElement(type: string): Element<any> {
-    if (type === 'image') {
-      return new UzImageElement(this);
-    }
+    if (type === 'image') return new UzImageElement(this);
+    if (type === 'input') return new UzInputElement(this);
+    if (type === 'checkbox') return new UzCheckboxElement(this);
     return new UzElement(type, this);
   }
 

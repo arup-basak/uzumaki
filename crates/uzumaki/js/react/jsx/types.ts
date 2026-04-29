@@ -159,7 +159,7 @@ export namespace JSX {
         maxLength?: number;
         multiline?: boolean;
         secure?: boolean;
-        onChangeText?: (value: string) => void;
+        onChange?: (ev: UzumakiInputEvent) => void;
         onInput?: (ev: UzumakiInputEvent) => void;
         onFocus?: (ev: UzumakiFocusEvent) => void;
         onBlur?: (ev: UzumakiFocusEvent) => void;
@@ -170,7 +170,7 @@ export namespace JSX {
     checkbox: ElementAttributes &
       EventProps & {
         checked?: boolean;
-        onChange?: (checked: boolean) => void;
+        onChange?: (ev: UzumakiInputEvent) => void;
         onInput?: (ev: UzumakiInputEvent) => void;
         onFocus?: (ev: UzumakiFocusEvent) => void;
         onBlur?: (ev: UzumakiFocusEvent) => void;

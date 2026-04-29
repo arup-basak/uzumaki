@@ -6,9 +6,13 @@ import { disposeWindow, Window } from './window';
 export { Window } from './window';
 export { UzNode, UzTextNode } from './node';
 export { Element } from './elements/element';
+// todo cleanup imports
 export { UzElement } from './elements/base';
 export { UzRootElement } from './elements/root';
 export { UzImageElement } from './elements/image';
+export { UzInputElement } from './elements/input';
+export { UzCheckboxElement } from './elements/checkbox';
+
 export { Clipboard } from './clipboard';
 export { EventEmitter } from './event-emitter';
 export { EventType } from './events';

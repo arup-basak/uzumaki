@@ -81,6 +81,7 @@ export interface EventHandlerMap {
   keydown: UzumakiKeyboardEvent;
   keyup: UzumakiKeyboardEvent;
   input: UzumakiInputEvent;
+  change: UzumakiInputEvent;
   focus: UzumakiFocusEvent;
   blur: UzumakiFocusEvent;
   copy: UzumakiClipboardEvent;

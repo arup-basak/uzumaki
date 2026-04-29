@@ -18,8 +18,6 @@ export interface HostInstance {
   /** The DOM node — Element for intrinsics, UzNode for #text instances. */
   node: UzNode;
   type: string;
-  onChangeTextListener?: (ev: any) => void;
-  onChangeListener?: (ev: any) => void;
 }
 
 export function createHostInstance(
@@ -100,7 +98,6 @@ export function unhideInstance(instance: HostInstance): void {
 }
 
 export function disposeHostInstance(instance: HostInstance): void {
-  unbindSpecialEvents(instance);
   instance.node.destroy();
 }
 
@@ -121,7 +118,6 @@ export function applyReactProps(
   updateAttributes(node, oldBuckets.styles, newBuckets.styles);
   updateAttributes(node, oldBuckets.attrs, newBuckets.attrs);
   updateEvents(instance, oldBuckets.events, newBuckets.events);
-  updateSpecialEvents(instance, newProps, oldProps);
   syncInteractive(instance, newBuckets.events.size > 0);
   if (instance.type === 'text') {
     node.textContent = String(newProps.children ?? '');
@@ -167,12 +163,6 @@ function collectProps(
 
 function skippedPropsForType(type: string): Set<string> {
   if (type === 'image') return IMAGE_RESERVED_PROPS;
-  if (type === 'input') {
-    return new Set([...RESERVED_PROPS, 'onChangeText']);
-  }
-  if (type === 'checkbox') {
-    return new Set([...RESERVED_PROPS, 'onChange']);
-  }
   return RESERVED_PROPS;
 }
 
@@ -229,67 +219,10 @@ function updateEvents(
   }
 }
 
-function updateSpecialEvents(
-  instance: HostInstance,
-  newProps: Record<string, any>,
-  oldProps: Record<string, any>,
-): void {
-  if (!(instance.node instanceof Element)) return;
-  const el = instance.node;
-
-  if (
-    instance.type === 'input' &&
-    newProps.onChangeText !== oldProps.onChangeText
-  ) {
-    unbindOnChangeText(instance);
-    if (typeof newProps.onChangeText === 'function') {
-      const onChangeText = newProps.onChangeText;
-      instance.onChangeTextListener = (ev: any) => {
-        onChangeText(ev.value);
-      };
-      el.on('input', instance.onChangeTextListener as any);
-    }
-  }
-
-  if (instance.type === 'checkbox' && newProps.onChange !== oldProps.onChange) {
-    unbindOnChange(instance);
-    if (typeof newProps.onChange === 'function') {
-      const onChange = newProps.onChange;
-      instance.onChangeListener = (ev: any) => {
-        onChange(ev.value === 'true');
-      };
-      el.on('input', instance.onChangeListener as any);
-    }
-  }
-}
-
-function unbindSpecialEvents(instance: HostInstance): void {
-  unbindOnChangeText(instance);
-  unbindOnChange(instance);
-}
-
-function unbindOnChangeText(instance: HostInstance): void {
-  if (instance.onChangeTextListener && instance.node instanceof Element) {
-    instance.node.off('input', instance.onChangeTextListener as any);
-    instance.onChangeTextListener = undefined;
-  }
-}
-
-function unbindOnChange(instance: HostInstance): void {
-  if (instance.onChangeListener && instance.node instanceof Element) {
-    instance.node.off('input', instance.onChangeListener as any);
-    instance.onChangeListener = undefined;
-  }
-}
-
 function syncInteractive(
   instance: HostInstance,
   hasReactEvents: boolean,
 ): void {
   if (!(instance.node instanceof Element)) return;
-  const interactive =
-    hasReactEvents ||
-    Boolean(instance.onChangeTextListener) ||
-    Boolean(instance.onChangeListener);
-  instance.node.setAttribute('interactive', interactive);
+  instance.node.setAttribute('interactive', hasReactEvents);
 }

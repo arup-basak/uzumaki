@@ -3,3 +3,6 @@ export { UzElement } from './base';
 export { UzRootElement } from './root';
 export { UzImageElement } from './image';
 export type { ImageLoadEvent, ImageErrorEvent } from './image';
+export { UzInputElement } from './input';
+export type { InputEventMap } from './input';
+export { UzCheckboxElement } from './checkbox';
