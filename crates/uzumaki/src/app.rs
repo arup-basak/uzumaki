@@ -176,7 +176,7 @@ pub struct Application {
     app_root: PathBuf,
     event_loop: Option<winit::event_loop::EventLoop<UserEvent>>,
     module_loaded: bool,
-    pub tokio_runtime: Option<tokio::runtime::Runtime>,
+    pub(crate) tokio_runtime: tokio::runtime::Runtime,
     global_app_event_dispatch_fn: v8::Global<v8::Function>,
     js_wake_handle: Arc<JsWakeHandle>,
 }
@@ -188,6 +188,13 @@ impl Application {
         args: Vec<String>,
         startup_snapshot: Option<&'static [u8]>,
     ) -> Result<Self> {
+        let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_io()
+            .enable_time()
+            .build()
+            .expect("failed to create tokio runtime");
+
         let main_file: PathBuf = main_file.into();
         let app_root: PathBuf = app_root.into();
         let sys = sys_traits::impls::RealSys;
@@ -350,7 +357,7 @@ impl Application {
             app_root,
             event_loop: Some(event_loop),
             module_loaded: false,
-            tokio_runtime: None,
+            tokio_runtime,
             global_app_event_dispatch_fn,
             js_wake_handle,
         })
@@ -369,7 +376,7 @@ impl Application {
         let wake_handle = self.js_wake_handle.clone();
         wake_handle.clear();
 
-        let rt = self.tokio_runtime.as_ref().unwrap();
+        let rt = &self.tokio_runtime;
         let _guard = rt.enter();
         let waker = waker(wake_handle);
         let mut cx = Context::from_waker(&waker);
@@ -388,7 +395,7 @@ impl Application {
         let specifier =
             deno_core::resolve_path(self.main_file.to_str().unwrap(), &self.app_root).unwrap();
 
-        let rt = self.tokio_runtime.as_ref().unwrap();
+        let rt = &self.tokio_runtime;
         rt.block_on(async {
             self.worker.execute_main_module(&specifier).await.unwrap();
         });
@@ -397,7 +404,7 @@ impl Application {
 
     /// Dispatch an event to JS. Returns true if `preventDefault()` was called.
     fn dispatch_event_to_js(&mut self, event: &event_dispatch::AppEvent) -> bool {
-        let rt = self.tokio_runtime.as_ref().unwrap();
+        let rt = &self.tokio_runtime;
         // Deno's timer ops require an active Tokio runtime. App events are invoked
         // directly from winit callbacks, so we need to re-enter the runtime before
         // calling into JS event handlers.
@@ -438,7 +445,7 @@ impl Application {
 
     fn spawn_cursor_blink_timer(&self, id: WindowEntryId, generation: u64, delay: Duration) {
         let proxy = self.js_wake_handle.proxy.clone();
-        let handle = self.tokio_runtime.as_ref().unwrap().handle().clone();
+        let handle = self.tokio_runtime.handle().clone();
         handle.spawn(async move {
             tokio::time::sleep(delay).await;
             let _ = proxy.send_event(UserEvent::CursorBlink { id, generation });
