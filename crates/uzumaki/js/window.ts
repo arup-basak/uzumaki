@@ -68,7 +68,7 @@ export class Window {
   }
 
   close() {
-    eventManager.clearWindowHandlers(this._id);
+    this._emitter._clear();
     windowsByLabel.delete(this._label);
     windowsById.delete(this._id);
     this._native.close();
@@ -118,7 +118,7 @@ export class Window {
     return this._root;
   }
 
-  createElement(type: string): Element {
+  createElement(type: string): Element<any> {
     if (type === 'image') {
       return new UzImageElement(this);
     }

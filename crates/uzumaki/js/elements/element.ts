@@ -1,13 +1,15 @@
 import core, { type CoreNode } from '../core';
 import { EventEmitter, type ListenerOptions } from '../event-emitter';
-import type { EventHandlerMap, EventName, EventHandler } from '../events';
+import type { EventHandlerMap } from '../events';
 import { UzNode } from '../node';
 import type { Window } from '../window';
 
-export class Element extends UzNode {
+export class Element<
+  M extends EventHandlerMap = EventHandlerMap,
+> extends UzNode {
   private _elementId: string | null = null;
   /** @internal */
-  readonly _emitter: EventEmitter<EventHandlerMap> = new EventEmitter();
+  readonly _emitter: EventEmitter<M> = new EventEmitter<M>();
 
   constructor(window: Window, native: CoreNode) {
     super(window, native);
@@ -22,17 +24,17 @@ export class Element extends UzNode {
       typeof value === 'string' && value.length > 0 ? value : null;
   }
 
-  on<K extends EventName>(
+  on<K extends keyof M>(
     name: K,
-    handler: EventHandler<K>,
+    handler: (event: M[K]) => void,
     options?: ListenerOptions,
   ): void {
     this._emitter.on(name, handler, options);
   }
 
-  off<K extends EventName>(
+  off<K extends keyof M>(
     name: K,
-    handler: EventHandler<K>,
+    handler: (event: M[K]) => void,
     options?: ListenerOptions,
   ): void {
     this._emitter.off(name, handler, options);

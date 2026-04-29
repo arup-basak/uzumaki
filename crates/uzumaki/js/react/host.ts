@@ -2,7 +2,6 @@ import { CHECKBOX_ATTR_NAMES, INPUT_ATTR_NAMES } from '../constants';
 import { Element } from '../elements/element';
 import { UzImageElement } from '../elements/image';
 import { UzNode } from '../node';
-import type { EventName } from '../events';
 import type { ListenerEntry } from '../types';
 import {
   assignNativeStyle,
@@ -13,16 +12,7 @@ import {
 import type { Window } from '../window';
 
 const RESERVED_PROPS = new Set(['children', 'key', 'ref', 'id']);
-const IMAGE_LIFECYCLE_PROPS = new Set([
-  'children',
-  'key',
-  'ref',
-  'id',
-  'src',
-  'onLoad',
-  'onLoadStart',
-  'onError',
-]);
+const IMAGE_RESERVED_PROPS = new Set([...RESERVED_PROPS, 'src']);
 
 export interface HostInstance {
   /** The DOM node — Element for intrinsics, UzNode for #text instances. */
@@ -137,10 +127,6 @@ export function applyReactProps(
     node.textContent = String(newProps.children ?? '');
   }
   if (instance.type === 'image' && node instanceof UzImageElement) {
-    // assign callbacks before src so they fire on this update's load
-    node.onLoadStart = newProps.onLoadStart;
-    node.onLoad = newProps.onLoad;
-    node.onError = newProps.onError;
     node.src = newProps.src;
   }
 }
@@ -180,7 +166,7 @@ function collectProps(
 }
 
 function skippedPropsForType(type: string): Set<string> {
-  if (type === 'image') return IMAGE_LIFECYCLE_PROPS;
+  if (type === 'image') return IMAGE_RESERVED_PROPS;
   if (type === 'input') {
     return new Set([...RESERVED_PROPS, 'onChangeText']);
   }
@@ -219,7 +205,7 @@ function updateEvents(
   newListeners: Map<string, ListenerEntry>,
 ): void {
   if (!(instance.node instanceof Element)) return;
-  const el = instance.node;
+  const el = instance.node as Element<any>;
   for (const [key, newEntry] of newListeners) {
     const old = oldListeners.get(key);
     if (
@@ -228,11 +214,9 @@ function updateEvents(
       old.capture !== newEntry.capture
     ) {
       if (old) {
-        el.off(old.name as EventName, old.handler as any, {
-          capture: old.capture,
-        });
+        el.off(old.name, old.handler as any, { capture: old.capture });
       }
-      el.on(newEntry.name as EventName, newEntry.handler as any, {
+      el.on(newEntry.name, newEntry.handler as any, {
         capture: newEntry.capture,
       });
     }
@@ -240,9 +224,7 @@ function updateEvents(
 
   for (const [key, old] of oldListeners) {
     if (!newListeners.has(key)) {
-      el.off(old.name as EventName, old.handler as any, {
-        capture: old.capture,
-      });
+      el.off(old.name, old.handler as any, { capture: old.capture });
     }
   }
 }
