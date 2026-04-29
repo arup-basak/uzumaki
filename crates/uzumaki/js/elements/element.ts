@@ -1,16 +1,48 @@
 import core, { type CoreNode } from '../core';
+import { dispatchDomEvent, dispatchEvent } from '../dispatcher';
 import { UzEventTarget, type ListenerOptions } from '../event-target';
-import type { UzEventMap } from '../events';
+import {
+  EVENT_NAME_TO_TYPE,
+  EventPhase,
+  UzEvent,
+  type EventName,
+  type UzEventMap,
+} from '../events';
 import { UzNode } from '../node';
 import type { Window } from '../window';
 
 export class Element<M extends UzEventMap = UzEventMap> extends UzNode {
   private _elementId: string | null = null;
   /** @internal */
-  readonly _emitter: UzEventTarget<M> = new UzEventTarget<M>();
+  readonly _emitter: UzEventTarget<M>;
 
   constructor(window: Window, native: CoreNode) {
     super(window, native);
+    this._emitter = new UzEventTarget<M>({
+      dispatch: (name, event) => {
+        if (typeof name !== 'string') return;
+        const type = EVENT_NAME_TO_TYPE[name];
+        if (type === undefined) return;
+        if (event instanceof UzEvent) {
+          if (!event.target) event._setTarget(this);
+          if (!event.bubbles) {
+            event._setPhase(EventPhase.Target);
+            event.currentTarget = this;
+            return this._emitter._emitLocal(
+              name as keyof M,
+              event as M[keyof M],
+            );
+          }
+          return dispatchEvent(
+            this._window,
+            name as EventName,
+            this.nodeId,
+            event,
+          );
+        }
+        return dispatchDomEvent(this._window, type, this.nodeId, event);
+      },
+    });
   }
 
   get id(): string | null {
@@ -36,6 +68,10 @@ export class Element<M extends UzEventMap = UzEventMap> extends UzNode {
     options?: ListenerOptions,
   ): void {
     this._emitter.off(name, handler, options);
+  }
+
+  emit<K extends keyof M>(name: K, event: M[K]): boolean {
+    return this._emitter.emit(name, event);
   }
 
   focus(): void {
@@ -70,7 +106,7 @@ export class Element<M extends UzEventMap = UzEventMap> extends UzNode {
     return this._native.getAttribute(name);
   }
 
-  destroy(): void {
+  override destroy(): void {
     this._emitter._clear();
     super.destroy();
   }

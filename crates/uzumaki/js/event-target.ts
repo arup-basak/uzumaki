@@ -7,8 +7,20 @@ export interface EmitterEntry<F extends Function = Function> {
   capture: boolean;
 }
 
+export interface EventTargetOptions<M extends Record<string, any>> {
+  dispatch?: <K extends keyof M>(name: K, event: M[K]) => boolean | undefined;
+}
+
 export class UzEventTarget<M extends Record<string, any>> {
   private _entries: Map<keyof M, EmitterEntry[]> = new Map();
+  private _dispatch?: <K extends keyof M>(
+    name: K,
+    event: M[K],
+  ) => boolean | undefined;
+
+  constructor(options: EventTargetOptions<M> = {}) {
+    this._dispatch = options.dispatch;
+  }
 
   on<K extends keyof M>(
     name: K,
@@ -39,14 +51,22 @@ export class UzEventTarget<M extends Record<string, any>> {
     if (list.length === 0) this._entries.delete(name);
   }
 
-  emit<K extends keyof M>(name: K, event: M[K]): void {
+  emit<K extends keyof M>(name: K, event: M[K]): boolean {
+    const prevented = this._dispatch?.(name, event);
+    if (prevented !== undefined) return prevented;
+    return this._emitLocal(name, event);
+  }
+
+  /** @internal Fire local listeners without DOM-style propagation. */
+  _emitLocal<K extends keyof M>(name: K, event: M[K]): boolean {
     const list = this._entries.get(name);
-    if (!list || list.length === 0) return;
+    if (!list || list.length === 0) return false;
     // snapshot: a handler may call off() during dispatch
     // eslint-disable-next-line unicorn/no-useless-spread
     for (const entry of [...list]) {
       entry.handler(event);
     }
+    return !!(event && typeof event === 'object' && event.defaultPrevented);
   }
 
   /** @internal Used by the dispatcher to filter handlers by phase. */

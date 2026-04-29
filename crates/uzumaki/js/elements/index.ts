@@ -1,6 +1,9 @@
 export { Element } from './element';
 export { UzElement } from './base';
 export { UzRootElement } from './root';
+export { UzViewElement } from './view';
+export { UzTextElement } from './text';
+export { UzButtonElement } from './button';
 export { UzImageElement } from './image';
 export type { ImageLoadEvent, ImageErrorEvent } from './image';
 export { UzInputElement } from './input';

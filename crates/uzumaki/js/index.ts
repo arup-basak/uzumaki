@@ -9,15 +9,18 @@ export { Element } from './elements/element';
 // todo cleanup imports
 export { UzElement } from './elements/base';
 export { UzRootElement } from './elements/root';
+export { UzViewElement } from './elements/view';
+export { UzTextElement } from './elements/text';
+export { UzButtonElement } from './elements/button';
 export { UzImageElement } from './elements/image';
 export { UzInputElement } from './elements/input';
 export { UzCheckboxElement } from './elements/checkbox';
 
 export { Clipboard } from './clipboard';
 export { UzEventTarget as EventEmitter } from './event-target';
-export { EventType } from './events';
+export { EventType, UzEvent } from './events';
+export { EventPhase } from './events';
 export type {
-  EventPhase,
   EventName,
   EventHandler,
   UzEventMap as EventHandlerMap,

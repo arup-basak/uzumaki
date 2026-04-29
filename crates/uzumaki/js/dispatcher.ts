@@ -1,10 +1,9 @@
 import core from './core';
-import { Element } from './elements/element';
+import { UzEventTarget } from './event-target';
 import {
   EventPhase,
   EventType,
   EVENT_TYPE_TO_NAME,
-  NON_BUBBLING_TYPES,
   _eventFlags,
   _setEventPhase,
   buildDomEvent,
@@ -18,6 +17,19 @@ import type { Window } from './window';
 function nodeAt(windowId: number, id: NodeId | null) {
   if (id == null) return null;
   return getNode(windowId, id) ?? null;
+}
+
+function eventNodeEmitter(
+  node: any,
+): UzEventTarget<Record<any, any>> | undefined {
+  if (
+    node &&
+    typeof node === 'object' &&
+    node._emitter instanceof UzEventTarget
+  ) {
+    return (node as any)._emitter;
+  }
+  return undefined;
 }
 
 function fireEmitter(
@@ -47,7 +59,7 @@ function fireEmitter(
 }
 
 /**
- * Walk capture → target → bubble for a DOM event originating from a node in
+ * Walk capture -> target -> bubble for a DOM event originating from a node in
  * `window`. Returns true if `preventDefault()` was called.
  */
 export function dispatchDomEvent(
@@ -59,14 +71,31 @@ export function dispatchDomEvent(
   const name = EVENT_TYPE_TO_NAME[type];
   if (!name) return false;
 
+  const target = nodeAt(window.id, targetNodeId);
+  return dispatchEvent(
+    window,
+    name,
+    targetNodeId,
+    buildDomEvent(type, target, payload),
+  );
+}
+
+export function dispatchEvent(
+  window: Window,
+  name: EventName,
+  targetNodeId: NodeId | null,
+  event: UzumakiEvent,
+): boolean {
   const windowId = window.id;
   const path: NodeId[] =
     targetNodeId == null ? [] : core.getAncestorPath(windowId, targetNodeId);
 
   const target = nodeAt(windowId, targetNodeId);
-  const event = buildDomEvent(type, target, payload);
+  if (!event.target && '_setTarget' in event) {
+    (event as any)._setTarget(target);
+  }
   const flags = _eventFlags(event);
-  const bubbles = !NON_BUBBLING_TYPES.has(type);
+  const bubbles = event.bubbles;
 
   // No DOM target: fire window-level bubble handlers only.
   if (path.length === 0) {
@@ -82,20 +111,22 @@ export function dispatchDomEvent(
   fireEmitter(window._emitter as any, name, event, true);
 
   for (let i = path.length - 1; i > 0 && !flags._stopped; i--) {
-    const node = nodeAt(windowId, path[i]);
-    if (node instanceof Element) {
+    const node = nodeAt(windowId, path[i]!);
+    const emitter = eventNodeEmitter(node);
+    if (emitter) {
       event.currentTarget = node;
-      fireEmitter(node._emitter, name, event, true);
+      fireEmitter(emitter, name, event, true);
     }
   }
 
   // Target
   if (!flags._stopped) {
     _setEventPhase(event, EventPhase.Target);
-    const node = nodeAt(windowId, path[0]);
-    if (node instanceof Element) {
+    const node = nodeAt(windowId, path[0]!);
+    const emitter = eventNodeEmitter(node);
+    if (emitter) {
       event.currentTarget = node;
-      fireEmitter(node._emitter, name, event, false);
+      fireEmitter(emitter, name, event, false);
     }
   }
 
@@ -103,10 +134,11 @@ export function dispatchDomEvent(
   if (bubbles && !flags._stopped) {
     _setEventPhase(event, EventPhase.Bubble);
     for (let i = 1; i < path.length && !flags._stopped; i++) {
-      const node = nodeAt(windowId, path[i]);
-      if (node instanceof Element) {
+      const node = nodeAt(windowId, path[i]!);
+      const emitter = eventNodeEmitter(node);
+      if (emitter) {
         event.currentTarget = node;
-        fireEmitter(node._emitter, name, event, false);
+        fireEmitter(emitter, name, event, false);
       }
     }
     if (!flags._stopped) {

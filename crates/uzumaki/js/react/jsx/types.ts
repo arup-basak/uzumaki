@@ -8,10 +8,12 @@ import type {
 } from '../../events';
 import { UzNode } from '../../node';
 import {
+  UzButtonElement,
   UzCheckboxElement,
-  UzElement,
   UzImageElement,
   UzInputElement,
+  UzTextElement,
+  UzViewElement,
 } from '../../elements';
 
 interface ElementStyles {
@@ -135,19 +137,19 @@ export namespace JSX {
 
   export interface IntrinsicElements {
     view: ElementAttributes &
-      EventProps<UzElement> & {
+      EventProps<UzViewElement> & {
         children?: any;
         key?: string | number;
         id?: string;
       };
     text: ElementAttributes &
-      EventProps<UzElement> & {
+      EventProps<UzTextElement> & {
         children?: any;
         key?: string | number;
         id?: string;
       };
     button: ElementAttributes &
-      EventProps<UzElement> & {
+      EventProps<UzButtonElement> & {
         children?: any;
         key?: string | number;
         id?: string;

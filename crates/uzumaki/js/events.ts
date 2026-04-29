@@ -180,43 +180,99 @@ interface InternalFlags {
   _phase: EventPhase;
 }
 
+export interface UzEventInit<T extends UzNode = UzNode> {
+  bubbles?: boolean;
+  currentTarget?: T | null;
+  eventPhase?: EventPhase;
+}
+
+export class UzEvent<T extends UzNode = UzNode> implements UzumakiEvent<T> {
+  readonly type: EventType | string;
+  currentTarget: T | null;
+  readonly bubbles: boolean;
+  private _target: UzNode | null;
+  private readonly _flags: InternalFlags;
+
+  constructor(
+    type: EventType | string,
+    targetOrInit: UzNode | UzEventInit<T> | null = null,
+    init: UzEventInit<T> = {},
+  ) {
+    const target =
+      targetOrInit && isEventInit(targetOrInit) ? null : targetOrInit;
+    const {
+      bubbles = false,
+      currentTarget = target as T | null,
+      eventPhase = EventPhase.None,
+    } = targetOrInit && isEventInit(targetOrInit) ? targetOrInit : init;
+
+    this.type = type;
+    this._target = target as UzNode | null;
+    this.currentTarget = currentTarget;
+    this.bubbles = bubbles;
+    this._flags = {
+      _stopped: false,
+      _stoppedImmediate: false,
+      _prevented: false,
+      _phase: eventPhase,
+    };
+  }
+
+  get target(): UzNode | null {
+    return this._target;
+  }
+
+  get eventPhase(): EventPhase {
+    return this._flags._phase;
+  }
+
+  get defaultPrevented(): boolean {
+    return this._flags._prevented;
+  }
+
+  stopPropagation(): void {
+    this._flags._stopped = true;
+  }
+
+  stopImmediatePropagation(): void {
+    this._flags._stopped = true;
+    this._flags._stoppedImmediate = true;
+  }
+
+  preventDefault(): void {
+    this._flags._prevented = true;
+  }
+
+  /** @internal */
+  _getFlags(): InternalFlags {
+    return this._flags;
+  }
+
+  /** @internal */
+  _setPhase(phase: EventPhase): void {
+    this._flags._phase = phase;
+  }
+
+  /** @internal */
+  _setTarget(target: UzNode | null): void {
+    this._target = target;
+  }
+}
+
+function isEventInit(value: object): value is UzEventInit {
+  return (
+    'bubbles' in value || 'currentTarget' in value || 'eventPhase' in value
+  );
+}
+
 export function buildDomEvent(
   type: EventType,
   target: UzNode | null,
   payload: any,
 ): UzumakiEvent {
-  const flags: InternalFlags = {
-    _stopped: false,
-    _stoppedImmediate: false,
-    _prevented: false,
-    _phase: EventPhase.None,
-  };
   const bubbles = !NON_BUBBLING_TYPES.has(type);
 
-  const base: UzumakiEvent = {
-    type,
-    target,
-    currentTarget: target,
-    get eventPhase(): EventPhase {
-      return flags._phase;
-    },
-    bubbles,
-    get defaultPrevented(): boolean {
-      return flags._prevented;
-    },
-    stopPropagation() {
-      flags._stopped = true;
-    },
-    stopImmediatePropagation() {
-      flags._stopped = true;
-      flags._stoppedImmediate = true;
-    },
-    preventDefault() {
-      flags._prevented = true;
-    },
-  };
-
-  (base as any)._flags = flags;
+  const base = new UzEvent(type, target, { bubbles });
 
   if (isMouseType(type)) {
     return Object.assign(base, {
@@ -269,35 +325,10 @@ export function buildLifecycleEvent(
   type: string,
   payload: any,
 ): UzumakiEvent | UzumakiResizeEvent {
-  const flags: InternalFlags = {
-    _stopped: false,
-    _stoppedImmediate: false,
-    _prevented: false,
-    _phase: EventPhase.Target,
-  };
-
-  const base: UzumakiEvent = {
-    type,
-    target: null,
+  const base = new UzEvent(type, null, {
     currentTarget: null,
     eventPhase: EventPhase.Target,
-    bubbles: false,
-    get defaultPrevented(): boolean {
-      return flags._prevented;
-    },
-    stopPropagation() {
-      flags._stopped = true;
-    },
-    stopImmediatePropagation() {
-      flags._stopped = true;
-      flags._stoppedImmediate = true;
-    },
-    preventDefault() {
-      flags._prevented = true;
-    },
-  };
-
-  (base as any)._flags = flags;
+  });
 
   if (type === 'resize') {
     return Object.assign(base, {
@@ -311,10 +342,17 @@ export function buildLifecycleEvent(
 
 /** @internal Reads private flags set by buildDomEvent. */
 export function _eventFlags(event: UzumakiEvent): InternalFlags {
-  return (event as any)._flags as InternalFlags;
+  if (event instanceof UzEvent) return event._getFlags();
+  const flags = (event as any)._flags as InternalFlags | undefined;
+  if (flags) return flags;
+  throw new Error('[uzumaki] Cannot dispatch an event without internal state');
 }
 
 /** @internal Set the current phase on an event built by buildDomEvent. */
 export function _setEventPhase(event: UzumakiEvent, phase: EventPhase): void {
-  (event as any)._flags._phase = phase;
+  if (event instanceof UzEvent) {
+    event._setPhase(phase);
+    return;
+  }
+  _eventFlags(event)._phase = phase;
 }

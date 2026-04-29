@@ -3,6 +3,9 @@ import { UzTextNode } from './node';
 import { Element } from './elements/element';
 import { UzElement } from './elements/base';
 import { UzRootElement } from './elements/root';
+import { UzViewElement } from './elements/view';
+import { UzTextElement } from './elements/text';
+import { UzButtonElement } from './elements/button';
 import { UzImageElement } from './elements/image';
 import { UzInputElement } from './elements/input';
 import { UzCheckboxElement } from './elements/checkbox';
@@ -17,6 +20,24 @@ import { clearWindowNodes } from './registry';
 
 const windowsByLabel = new Map<string, Window>();
 const windowsById = new Map<number, Window>();
+
+type ElementConstructor<T extends Element<any> = Element<any>> = new (
+  window: Window,
+) => T;
+
+const ELEMENT_CONSTRUCTORS = {
+  view: UzViewElement,
+  text: UzTextElement,
+  button: UzButtonElement,
+  input: UzInputElement,
+  checkbox: UzCheckboxElement,
+  image: UzImageElement,
+} satisfies Record<string, ElementConstructor>;
+
+export type ElementTagName = keyof typeof ELEMENT_CONSTRUCTORS;
+export type ElementForTag<T extends ElementTagName> = InstanceType<
+  (typeof ELEMENT_CONSTRUCTORS)[T]
+>;
 
 export interface WindowAttributes {
   width: number;
@@ -120,10 +141,13 @@ export class Window {
     return this._root;
   }
 
+  createElement<T extends ElementTagName>(type: T): ElementForTag<T>;
+  createElement(type: string): Element<any>;
   createElement(type: string): Element<any> {
-    if (type === 'image') return new UzImageElement(this);
-    if (type === 'input') return new UzInputElement(this);
-    if (type === 'checkbox') return new UzCheckboxElement(this);
+    const Constructor = ELEMENT_CONSTRUCTORS[type as ElementTagName] as
+      | ElementConstructor
+      | undefined;
+    if (Constructor) return new Constructor(this);
     return new UzElement(type, this);
   }
 
