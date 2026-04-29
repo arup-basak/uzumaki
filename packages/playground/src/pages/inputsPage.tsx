@@ -80,9 +80,7 @@ export function InputsPage() {
             </text>
             <input
               value={username}
-              onChange={(ev) =>
-                setUsername((ev.target as UzInputElement).value)
-              }
+              onInput={(ev) => setUsername((ev.target as UzInputElement).value)}
               placeholder="johndoe"
               fontSize={14}
               color={C.text}
@@ -100,7 +98,7 @@ export function InputsPage() {
             </text>
             <input
               value={email}
-              onChange={(ev) => setEmail((ev.target as UzInputElement).value)}
+              onInput={(ev) => setEmail((ev.target as UzInputElement).value)}
               placeholder="john@example.com"
               fontSize={14}
               color={C.text}
@@ -122,9 +120,7 @@ export function InputsPage() {
             <input
               secure
               value={password}
-              onChange={(ev) =>
-                setPassword((ev.target as UzInputElement).value)
-              }
+              onInput={(ev) => setPassword((ev.target as UzInputElement).value)}
               placeholder="Enter password"
               fontSize={14}
               color={C.text}
@@ -143,7 +139,7 @@ export function InputsPage() {
             <input
               secure
               value={confirm}
-              onChange={(ev) => setConfirm((ev.target as UzInputElement).value)}
+              onInput={(ev) => setConfirm((ev.target as UzInputElement).value)}
               placeholder="Repeat password"
               fontSize={14}
               color={C.text}
@@ -189,7 +185,7 @@ export function InputsPage() {
           <input
             multiline
             value={bio}
-            onChange={(ev) => setBio((ev.target as UzInputElement).value)}
+            onInput={(ev) => setBio((ev.target as UzInputElement).value)}
             placeholder="Tell us about yourself... (multiline input, try pasting long text)"
             fontSize={16}
             color={C.text}
