@@ -6,7 +6,7 @@ import { UzRootElement } from './elements/root';
 import { UzImageElement } from './elements/image';
 import { UzInputElement } from './elements/input';
 import { UzCheckboxElement } from './elements/checkbox';
-import { EventEmitter, type ListenerOptions } from './event-emitter';
+import { UzEventTarget, type ListenerOptions } from './event-target';
 import {
   buildLifecycleEvent,
   type WindowEventMap,
@@ -37,7 +37,7 @@ export class Window {
   private _disposables: (() => void)[] = [];
   private _root: UzRootElement | null = null;
   /** @internal Used by the dispatcher and runtime glue. */
-  readonly _emitter: EventEmitter<WindowEventMap> = new EventEmitter();
+  readonly _emitter: UzEventTarget<WindowEventMap> = new UzEventTarget();
 
   constructor(
     label: string,

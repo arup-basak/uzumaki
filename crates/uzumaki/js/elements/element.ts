@@ -1,15 +1,13 @@
 import core, { type CoreNode } from '../core';
-import { EventEmitter, type ListenerOptions } from '../event-emitter';
-import type { EventHandlerMap } from '../events';
+import { UzEventTarget, type ListenerOptions } from '../event-target';
+import type { UzEventMap } from '../events';
 import { UzNode } from '../node';
 import type { Window } from '../window';
 
-export class Element<
-  M extends EventHandlerMap = EventHandlerMap,
-> extends UzNode {
+export class Element<M extends UzEventMap = UzEventMap> extends UzNode {
   private _elementId: string | null = null;
   /** @internal */
-  readonly _emitter: EventEmitter<M> = new EventEmitter<M>();
+  readonly _emitter: UzEventTarget<M> = new UzEventTarget<M>();
 
   constructor(window: Window, native: CoreNode) {
     super(window, native);

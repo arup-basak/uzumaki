@@ -22,10 +22,10 @@ export const enum EventPhase {
   Bubble = 3,
 }
 
-export interface UzumakiEvent {
+export interface UzumakiEvent<T extends UzNode = UzNode> {
   readonly type: EventType | string;
   readonly target: UzNode | null;
-  currentTarget: UzNode | null;
+  currentTarget: T | null;
   readonly eventPhase: EventPhase;
   readonly bubbles: boolean;
   readonly defaultPrevented: boolean;
@@ -34,7 +34,9 @@ export interface UzumakiEvent {
   preventDefault(): void;
 }
 
-export interface UzumakiMouseEvent extends UzumakiEvent {
+export interface UzMouseEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {
   readonly x: number;
   readonly y: number;
   readonly screenX: number;
@@ -43,7 +45,9 @@ export interface UzumakiMouseEvent extends UzumakiEvent {
   readonly buttons: number;
 }
 
-export interface UzumakiKeyboardEvent extends UzumakiEvent {
+export interface UzKeyboardEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {
   readonly key: string;
   readonly code: string;
   readonly keyCode: number;
@@ -54,53 +58,60 @@ export interface UzumakiKeyboardEvent extends UzumakiEvent {
   readonly metaKey: boolean;
 }
 
-export interface UzumakiInputEvent extends UzumakiEvent {
-  readonly value: string;
+export interface UzInputEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {
   readonly inputType: string;
   readonly data: string | null;
 }
 
-export interface UzumakiFocusEvent extends UzumakiEvent {}
+export interface UzFocusEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {}
 
-export interface UzumakiClipboardEvent extends UzumakiEvent {
+export interface UzClipboardEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {
   readonly selectionText: string | null;
   readonly clipboardText: string | null;
 }
 
-export interface UzumakiResizeEvent extends UzumakiEvent {
+export interface UzumakiResizeEvent<
+  T extends UzNode = UzNode,
+> extends UzumakiEvent<T> {
   readonly width: number;
   readonly height: number;
 }
 
 /** DOM-style events that can be attached to any element. */
-export interface EventHandlerMap {
-  mousemove: UzumakiMouseEvent;
-  mousedown: UzumakiMouseEvent;
-  mouseup: UzumakiMouseEvent;
-  click: UzumakiMouseEvent;
-  keydown: UzumakiKeyboardEvent;
-  keyup: UzumakiKeyboardEvent;
-  input: UzumakiInputEvent;
-  change: UzumakiInputEvent;
-  focus: UzumakiFocusEvent;
-  blur: UzumakiFocusEvent;
-  copy: UzumakiClipboardEvent;
-  cut: UzumakiClipboardEvent;
-  paste: UzumakiClipboardEvent;
+export interface UzEventMap {
+  mousemove: UzMouseEvent;
+  mousedown: UzMouseEvent;
+  mouseup: UzMouseEvent;
+  click: UzMouseEvent;
+  keydown: UzKeyboardEvent;
+  keyup: UzKeyboardEvent;
+  input: UzInputEvent;
+  change: UzInputEvent;
+  focus: UzFocusEvent;
+  blur: UzFocusEvent;
+  copy: UzClipboardEvent;
+  cut: UzClipboardEvent;
+  paste: UzClipboardEvent;
 }
 
 /** Window receives all DOM events (for bubble/capture) plus its lifecycle events. */
-export interface WindowEventMap extends EventHandlerMap {
+export interface WindowEventMap extends UzEventMap {
   load: UzumakiEvent;
   close: UzumakiEvent;
   resize: UzumakiResizeEvent;
 }
 
-export type EventName = keyof EventHandlerMap;
+export type EventName = keyof UzEventMap;
 export type WindowEventName = keyof WindowEventMap;
 
 export type EventHandler<K extends EventName = EventName> = (
-  event: EventHandlerMap[K],
+  event: UzEventMap[K],
 ) => void;
 
 export type WindowEventHandler<K extends WindowEventName = WindowEventName> = (
@@ -215,7 +226,7 @@ export function buildDomEvent(
       screenY: payload?.screenY ?? 0,
       button: payload?.button ?? 0,
       buttons: payload?.buttons ?? 0,
-    }) as UzumakiMouseEvent;
+    }) as UzMouseEvent;
   }
 
   if (isKeyboardType(type)) {
@@ -229,7 +240,7 @@ export function buildDomEvent(
       altKey: !!(mods & 2),
       shiftKey: !!(mods & 4),
       metaKey: !!(mods & 8),
-    }) as UzumakiKeyboardEvent;
+    }) as UzKeyboardEvent;
   }
 
   if (isInputType(type)) {
@@ -237,18 +248,18 @@ export function buildDomEvent(
       value: payload?.value ?? '',
       inputType: payload?.inputType ?? '',
       data: payload?.data ?? null,
-    }) as UzumakiInputEvent;
+    }) as UzInputEvent;
   }
 
   if (isClipboardType(type)) {
     return Object.assign(base, {
       selectionText: payload?.selectionText ?? null,
       clipboardText: payload?.clipboardText ?? null,
-    }) as UzumakiClipboardEvent;
+    }) as UzClipboardEvent;
   }
 
   if (isFocusType(type)) {
-    return base as UzumakiFocusEvent;
+    return base as UzFocusEvent;
   }
 
   return base;

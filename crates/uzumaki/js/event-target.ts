@@ -7,7 +7,7 @@ export interface EmitterEntry<F extends Function = Function> {
   capture: boolean;
 }
 
-export class EventEmitter<M extends Record<string, any>> {
+export class UzEventTarget<M extends Record<string, any>> {
   private _entries: Map<keyof M, EmitterEntry[]> = new Map();
 
   on<K extends keyof M>(
@@ -57,6 +57,10 @@ export class EventEmitter<M extends Record<string, any>> {
   /** @internal */
   _hasAny(): boolean {
     return this._entries.size > 0;
+  }
+
+  _listenerCount<K extends keyof M>(name: K): number {
+    return this._entries.get(name)?.length ?? 0;
   }
 
   /** @internal */

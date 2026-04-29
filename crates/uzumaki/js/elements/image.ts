@@ -1,5 +1,5 @@
 import core from '../core';
-import type { EventHandlerMap } from '../events';
+import type { UzEventMap } from '../events';
 import type { Window } from '../window';
 import { UzElement } from './base';
 
@@ -56,7 +56,7 @@ export interface ImageErrorEvent {
   readonly message: string;
 }
 
-export interface ImageEventMap extends EventHandlerMap {
+export interface ImageEventMap extends UzEventMap {
   load: ImageLoadEvent;
   loadstart: ImageLoadEvent;
   error: ImageErrorEvent;

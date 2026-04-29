@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { C } from '../theme';
 import { Divider, Badge } from '../components';
 import { Icon } from '../icon';
-import type { UzCheckboxElement, UzInputElement } from 'uzumaki-ui';
 
 export function InputsPage() {
   const [username, setUsername] = useState('');
@@ -44,7 +43,7 @@ export function InputsPage() {
           </text>
           <input
             value={search}
-            onChange={(ev) => setSearch((ev.target as UzInputElement).value)}
+            onValueChange={setSearch}
             placeholder="Search anything... (try IME input)"
             fontSize={15}
             color={C.text}
@@ -80,7 +79,7 @@ export function InputsPage() {
             </text>
             <input
               value={username}
-              onInput={(ev) => setUsername((ev.target as UzInputElement).value)}
+              onValueChange={setUsername}
               placeholder="johndoe"
               fontSize={14}
               color={C.text}
@@ -98,7 +97,7 @@ export function InputsPage() {
             </text>
             <input
               value={email}
-              onInput={(ev) => setEmail((ev.target as UzInputElement).value)}
+              onValueChange={setEmail}
               placeholder="john@example.com"
               fontSize={14}
               color={C.text}
@@ -120,7 +119,7 @@ export function InputsPage() {
             <input
               secure
               value={password}
-              onInput={(ev) => setPassword((ev.target as UzInputElement).value)}
+              onValueChange={setPassword}
               placeholder="Enter password"
               fontSize={14}
               color={C.text}
@@ -139,7 +138,7 @@ export function InputsPage() {
             <input
               secure
               value={confirm}
-              onInput={(ev) => setConfirm((ev.target as UzInputElement).value)}
+              onValueChange={setConfirm}
               placeholder="Repeat password"
               fontSize={14}
               color={C.text}
@@ -185,7 +184,7 @@ export function InputsPage() {
           <input
             multiline
             value={bio}
-            onInput={(ev) => setBio((ev.target as UzInputElement).value)}
+            onValueChange={setBio}
             placeholder="Tell us about yourself... (multiline input, try pasting long text)"
             fontSize={16}
             color={C.text}
@@ -290,9 +289,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={noRounding}
-                onChange={(ev) => {
-                  setNoRounding((ev.target as UzCheckboxElement).checked);
-                }}
+                onValueChange={setNoRounding}
                 bg={C.accent}
                 borderColor={noRounding ? C.accent : C.border}
                 color="#ffffff"
@@ -307,9 +304,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={rounded}
-                onChange={(ev) =>
-                  setRounded((ev.target as UzCheckboxElement).checked)
-                }
+                onValueChange={setRounded}
                 bg={C.success}
                 borderColor={rounded ? C.success : C.border}
                 color="#08110a"
@@ -324,9 +319,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={circle}
-                onChange={(ev) =>
-                  setCircle((ev.target as UzCheckboxElement).checked)
-                }
+                onValueChange={setCircle}
                 bg={C.warning}
                 borderColor={circle ? C.warning : C.border}
                 color="#1b1104"

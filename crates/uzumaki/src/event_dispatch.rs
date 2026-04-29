@@ -54,7 +54,6 @@ pub struct ResizeEventData {
 pub struct InputEventData {
     pub window_id: u32,
     pub node_id: UzNodeId,
-    pub value: String,
     pub input_type: String,
     pub data: Option<String>,
 }
@@ -78,6 +77,7 @@ pub struct ClipboardEventData {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum AppEvent {
+    // move all this to UzUIEvent ?
     Click(MouseEventData),
     MouseDown(MouseEventData),
     MouseUp(MouseEventData),
@@ -95,10 +95,6 @@ pub enum AppEvent {
     #[serde(rename = "windowClose")]
     WindowClose(WindowLoadEventData),
     HotReload,
-}
-
-fn checkbox_value_string(checked: bool) -> String {
-    checked.to_string()
 }
 
 pub fn handle_redraw(
@@ -883,13 +879,11 @@ pub fn handle_mouse_input(
                     && let Some(checked) = node.as_checkbox_input_mut()
                 {
                     *checked = !*checked;
-                    let value = checkbox_value_string(*checked);
                     events.push(AppEvent::Input(InputEventData {
                         window_id: wid,
                         node_id: target,
-                        value: value.clone(),
                         input_type: "toggle".to_string(),
-                        data: Some(value),
+                        data: None,
                     }));
                 }
                 dom.dispatch_click(mx, my, mouse_button);
@@ -1004,7 +998,6 @@ pub fn handle_key_for_input(
                 );
                 match result {
                     KeyResult::Edit(edit) => {
-                        let value = input_state.text();
                         let input_type = match edit.kind {
                             input::EditKind::Insert => "insertText",
                             input::EditKind::InsertFromPaste => "insertFromPaste",
@@ -1017,7 +1010,6 @@ pub fn handle_key_for_input(
                         events.push(AppEvent::Input(InputEventData {
                             window_id: wid,
                             node_id: focused_id,
-                            value,
                             input_type: input_type.to_string(),
                             data: edit.inserted,
                         }));
@@ -1081,15 +1073,13 @@ pub fn handle_key_for_checkbox(
     };
 
     *checked = !*checked;
-    let value = checkbox_value_string(*checked);
     (
         true,
         vec![AppEvent::Input(InputEventData {
             window_id: wid,
             node_id: focused_id,
-            value: value.clone(),
             input_type: "toggle".to_string(),
-            data: Some(value),
+            data: None,
         })],
     )
 }
@@ -1509,11 +1499,9 @@ pub fn apply_clipboard_command(
                 && let Some(is) = node.as_text_input_mut()
                 && let Some((_cut_text, _edit)) = is.cut_selected_text(text_renderer)
             {
-                let value = is.text();
                 events.push(AppEvent::Input(InputEventData {
                     window_id: wid,
                     node_id: target_id,
-                    value,
                     input_type: "deleteByCut".to_string(),
                     data: None,
                 }));
@@ -1532,11 +1520,9 @@ pub fn apply_clipboard_command(
                 && let Some(is) = node.as_text_input_mut()
                 && let Some(_edit) = is.paste_text(&text, text_renderer)
             {
-                let value = is.text();
                 events.push(AppEvent::Input(InputEventData {
                     window_id: wid,
                     node_id: target_id,
-                    value,
                     input_type: "insertFromPaste".to_string(),
                     data: Some(text),
                 }));

@@ -998,14 +998,12 @@ impl ApplicationHandler<UserEvent> for Application {
                                 let node = entry.dom.nodes.get_mut(fid)?;
                                 let is = node.as_text_input_mut()?;
                                 let _edit = is.commit_ime_text(&text, &mut handle.text_renderer)?;
-                                let value = is.text();
                                 event_dispatch::update_ime_cursor_area(&mut entry.dom, handle);
                                 needs_redraw = true;
                                 Some(vec![event_dispatch::AppEvent::Input(
                                     event_dispatch::InputEventData {
                                         window_id: wid,
                                         node_id: fid,
-                                        value,
                                         input_type: "insertCompositionText".to_string(),
                                         data: Some(text.clone()),
                                     },

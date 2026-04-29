@@ -14,22 +14,22 @@ export { UzInputElement } from './elements/input';
 export { UzCheckboxElement } from './elements/checkbox';
 
 export { Clipboard } from './clipboard';
-export { EventEmitter } from './event-emitter';
+export { UzEventTarget as EventEmitter } from './event-target';
 export { EventType } from './events';
 export type {
   EventPhase,
   EventName,
   EventHandler,
-  EventHandlerMap,
+  UzEventMap as EventHandlerMap,
   WindowEventName,
   WindowEventHandler,
   WindowEventMap,
   UzumakiEvent,
-  UzumakiMouseEvent,
-  UzumakiKeyboardEvent,
-  UzumakiInputEvent,
-  UzumakiFocusEvent,
-  UzumakiClipboardEvent,
+  UzMouseEvent as UzumakiMouseEvent,
+  UzKeyboardEvent as UzumakiKeyboardEvent,
+  UzInputEvent as UzumakiInputEvent,
+  UzFocusEvent as UzumakiFocusEvent,
+  UzClipboardEvent as UzumakiClipboardEvent,
   UzumakiResizeEvent,
 } from './events';
 
