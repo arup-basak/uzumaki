@@ -142,12 +142,8 @@ impl UIState {
 
     /// Set the active view selection. Clears any focused input.
     pub fn set_selection(&mut self, selection: TextSelection) {
-        if selection.root.is_some()
-            && let Some(old_id) = self.focused_node.take()
-            && let Some(old_node) = self.nodes.get_mut(old_id)
-            && let Some(is) = old_node.as_text_input_mut()
-        {
-            is.focused = false;
+        if selection.root.is_some() {
+            self.focused_node = None;
         }
         self.text_selection = selection;
     }
@@ -156,18 +152,10 @@ impl UIState {
     /// previously focused input.
     pub fn focus_element(&mut self, node_id: UzNodeId) {
         self.text_selection.clear();
-        if let Some(old_id) = self.focused_node
-            && old_id != node_id
-            && let Some(old_node) = self.nodes.get_mut(old_id)
-            && let Some(is) = old_node.as_text_input_mut()
-        {
-            is.focused = false;
-        }
         self.focused_node = Some(node_id);
         if let Some(node) = self.nodes.get_mut(node_id)
             && let Some(is) = node.as_text_input_mut()
         {
-            is.focused = true;
             is.reset_blink();
         }
     }
@@ -274,12 +262,6 @@ impl UIState {
         let old = self.focused_node;
         if old == Some(new_id) {
             return None;
-        }
-        if let Some(old_id) = old
-            && let Some(node) = self.nodes.get_mut(old_id)
-            && let Some(is) = node.as_text_input_mut()
-        {
-            is.focused = false;
         }
 
         let is_input = self

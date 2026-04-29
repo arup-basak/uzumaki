@@ -474,7 +474,7 @@ impl Application {
                 .focused_node
                 .and_then(|focused_id| entry.dom.nodes.get(focused_id))
                 .and_then(|node| node.as_text_input())
-                .and_then(|input| input.next_blink_toggle_in(entry.dom.window_focused));
+                .and_then(|input| input.next_blink_toggle_in(true, entry.dom.window_focused));
 
             next_delay.map(|delay| (generation, delay))
         };
@@ -606,7 +606,7 @@ impl ApplicationHandler<UserEvent> for Application {
                                 .and_then(|focused_id| entry.dom.nodes.get(focused_id))
                                 .and_then(|node| node.as_text_input())
                                 .and_then(|input| {
-                                    input.next_blink_toggle_in(entry.dom.window_focused)
+                                    input.next_blink_toggle_in(true, entry.dom.window_focused)
                                 })
                                 .map(|_| ())
                         })

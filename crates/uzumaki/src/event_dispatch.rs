@@ -721,11 +721,6 @@ pub fn handle_mouse_input(
 
                     if old_focus != Some(nid) {
                         if let Some(old_id) = old_focus {
-                            if let Some(old_node) = dom.nodes.get_mut(old_id)
-                                && let Some(is) = old_node.as_text_input_mut()
-                            {
-                                is.focused = false;
-                            }
                             events.push(AppEvent::Blur(FocusEventData {
                                 window_id: wid,
                                 node_id: old_id,
@@ -742,11 +737,6 @@ pub fn handle_mouse_input(
                 } else {
                     // Clicked non-input: blur focused input
                     if let Some(old_id) = old_focus {
-                        if let Some(old_node) = dom.nodes.get_mut(old_id)
-                            && let Some(is) = old_node.as_text_input_mut()
-                        {
-                            is.focused = false;
-                        }
                         dom.focused_node = None;
                         events.push(AppEvent::Blur(FocusEventData {
                             window_id: wid,
@@ -764,11 +754,6 @@ pub fn handle_mouse_input(
 
                         // Starting a view selection blurs any focused input
                         if let Some(old_id) = dom.focused_node.take() {
-                            if let Some(old_node) = dom.nodes.get_mut(old_id)
-                                && let Some(is) = old_node.as_text_input_mut()
-                            {
-                                is.focused = false;
-                            }
                             events.push(AppEvent::Blur(FocusEventData {
                                 window_id: wid,
                                 node_id: old_id,
@@ -1016,7 +1001,6 @@ pub fn handle_key_for_input(
                         needs_redraw = true;
                     }
                     KeyResult::Blur => {
-                        input_state.focused = false;
                         new_focus = None;
                         events.push(AppEvent::Blur(FocusEventData {
                             window_id: wid,
