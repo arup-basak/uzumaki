@@ -1,9 +1,13 @@
 import core, { type CoreNode } from '../core';
+import { EventEmitter, type ListenerOptions } from '../event-emitter';
+import type { EventHandlerMap, EventName, EventHandler } from '../events';
 import { UzNode } from '../node';
 import type { Window } from '../window';
 
 export class Element extends UzNode {
   private _elementId: string | null = null;
+  /** @internal */
+  readonly _emitter: EventEmitter<EventHandlerMap> = new EventEmitter();
 
   constructor(window: Window, native: CoreNode) {
     super(window, native);
@@ -16,6 +20,22 @@ export class Element extends UzNode {
   set id(value: string | null) {
     this._elementId =
       typeof value === 'string' && value.length > 0 ? value : null;
+  }
+
+  on<K extends EventName>(
+    name: K,
+    handler: EventHandler<K>,
+    options?: ListenerOptions,
+  ): void {
+    this._emitter.on(name, handler, options);
+  }
+
+  off<K extends EventName>(
+    name: K,
+    handler: EventHandler<K>,
+    options?: ListenerOptions,
+  ): void {
+    this._emitter.off(name, handler, options);
   }
 
   focus(): void {
@@ -48,6 +68,11 @@ export class Element extends UzNode {
 
   getAttribute(name: string): unknown {
     return this._native.getAttribute(name);
+  }
+
+  destroy(): void {
+    this._emitter._clear();
+    super.destroy();
   }
 }
 

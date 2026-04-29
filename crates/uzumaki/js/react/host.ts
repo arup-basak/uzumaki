@@ -2,7 +2,7 @@ import { CHECKBOX_ATTR_NAMES, INPUT_ATTR_NAMES } from '../constants';
 import { Element } from '../elements/element';
 import { UzImageElement } from '../elements/image';
 import { UzNode } from '../node';
-import { eventManager } from '../events';
+import type { EventName } from '../events';
 import type { ListenerEntry } from '../types';
 import {
   assignNativeStyle,
@@ -218,7 +218,8 @@ function updateEvents(
   oldListeners: Map<string, ListenerEntry>,
   newListeners: Map<string, ListenerEntry>,
 ): void {
-  const { windowId, nodeId } = instance.node;
+  if (!(instance.node instanceof Element)) return;
+  const el = instance.node;
   for (const [key, newEntry] of newListeners) {
     const old = oldListeners.get(key);
     if (
@@ -227,33 +228,21 @@ function updateEvents(
       old.capture !== newEntry.capture
     ) {
       if (old) {
-        eventManager.removeHandlerByName(
-          windowId,
-          nodeId,
-          old.name,
-          old.handler,
-          old.capture,
-        );
+        el.off(old.name as EventName, old.handler as any, {
+          capture: old.capture,
+        });
       }
-      eventManager.addHandlerByName(
-        windowId,
-        nodeId,
-        newEntry.name,
-        newEntry.handler,
-        newEntry.capture,
-      );
+      el.on(newEntry.name as EventName, newEntry.handler as any, {
+        capture: newEntry.capture,
+      });
     }
   }
 
   for (const [key, old] of oldListeners) {
     if (!newListeners.has(key)) {
-      eventManager.removeHandlerByName(
-        windowId,
-        nodeId,
-        old.name,
-        old.handler,
-        old.capture,
-      );
+      el.off(old.name as EventName, old.handler as any, {
+        capture: old.capture,
+      });
     }
   }
 }
@@ -263,6 +252,9 @@ function updateSpecialEvents(
   newProps: Record<string, any>,
   oldProps: Record<string, any>,
 ): void {
+  if (!(instance.node instanceof Element)) return;
+  const el = instance.node;
+
   if (
     instance.type === 'input' &&
     newProps.onChangeText !== oldProps.onChangeText
@@ -273,12 +265,7 @@ function updateSpecialEvents(
       instance.onChangeTextListener = (ev: any) => {
         onChangeText(ev.value);
       };
-      eventManager.addHandlerByName(
-        instance.node.windowId,
-        instance.node.nodeId,
-        'input',
-        instance.onChangeTextListener,
-      );
+      el.on('input', instance.onChangeTextListener as any);
     }
   }
 
@@ -289,12 +276,7 @@ function updateSpecialEvents(
       instance.onChangeListener = (ev: any) => {
         onChange(ev.value === 'true');
       };
-      eventManager.addHandlerByName(
-        instance.node.windowId,
-        instance.node.nodeId,
-        'input',
-        instance.onChangeListener,
-      );
+      el.on('input', instance.onChangeListener as any);
     }
   }
 }
@@ -305,25 +287,15 @@ function unbindSpecialEvents(instance: HostInstance): void {
 }
 
 function unbindOnChangeText(instance: HostInstance): void {
-  if (instance.onChangeTextListener) {
-    eventManager.removeHandlerByName(
-      instance.node.windowId,
-      instance.node.nodeId,
-      'input',
-      instance.onChangeTextListener,
-    );
+  if (instance.onChangeTextListener && instance.node instanceof Element) {
+    instance.node.off('input', instance.onChangeTextListener as any);
     instance.onChangeTextListener = undefined;
   }
 }
 
 function unbindOnChange(instance: HostInstance): void {
-  if (instance.onChangeListener) {
-    eventManager.removeHandlerByName(
-      instance.node.windowId,
-      instance.node.nodeId,
-      'input',
-      instance.onChangeListener,
-    );
+  if (instance.onChangeListener && instance.node instanceof Element) {
+    instance.node.off('input', instance.onChangeListener as any);
     instance.onChangeListener = undefined;
   }
 }

@@ -8,7 +8,6 @@ import type { JSX } from './jsx/runtime';
 
 import core from '../core';
 import { UzNode } from '../node';
-import { eventManager } from '../events';
 import { clearNodeRegistry } from '../registry';
 import { Window } from '../window';
 import {
@@ -308,6 +307,5 @@ export function disposeAllRoots() {
 }
 
 export function clearEventRegistry() {
-  eventManager.clear();
   clearNodeRegistry();
 }

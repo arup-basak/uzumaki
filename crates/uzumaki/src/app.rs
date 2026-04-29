@@ -390,12 +390,12 @@ impl Application {
             let key = v8::String::new_external_onebyte_static(scope, b"__uzumaki_on_app_event__")
                 .ok_or_else(|| anyhow::anyhow!("failed to create v8 string"))?;
 
-            let val = global_obj
-                .get(scope, key.into())
-                .ok_or_else(|| anyhow::anyhow!("__uzumaki_dispatch__ not found on globalThis"))?;
+            let val = global_obj.get(scope, key.into()).ok_or_else(|| {
+                anyhow::anyhow!("__uzumaki_on_app_event__ not found on globalThis")
+            })?;
 
             let func = v8::Local::<v8::Function>::try_from(val)
-                .map_err(|_| anyhow::anyhow!("__uzumaki_dispatch__ is not a function"))?;
+                .map_err(|_| anyhow::anyhow!("__uzumaki_on_app_event__ is not a function"))?;
 
             v8::Global::new(scope, func)
         };
@@ -707,8 +707,12 @@ impl ApplicationHandler<UserEvent> for Application {
 
                     // 2. Update bitmask state
                     match btn_state {
-                        ElementState::Pressed => state.mouse_buttons |= button_bit,
-                        ElementState::Released => state.mouse_buttons &= !button_bit,
+                        ElementState::Pressed => {
+                            state.mouse_buttons |= button_bit;
+                        }
+                        ElementState::Released => {
+                            state.mouse_buttons &= !button_bit;
+                        }
                     }
 
                     let mouse_buttons = state.mouse_buttons;
@@ -1061,7 +1065,7 @@ impl ApplicationHandler<UserEvent> for Application {
             WindowEvent::MouseWheel { delta, .. } => {
                 let mut state = self.app_state.borrow_mut();
                 let scroll_delta_y = match delta {
-                    winit::event::MouseScrollDelta::LineDelta(_, y) => y as f64 * 40.0,
+                    winit::event::MouseScrollDelta::LineDelta(_, y) => (y as f64) * 40.0,
                     winit::event::MouseScrollDelta::PixelDelta(pos) => pos.y,
                 };
                 if let Some(entry) = state.windows.get_mut(&wid)

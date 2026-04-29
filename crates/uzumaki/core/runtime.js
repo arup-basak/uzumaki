@@ -18,6 +18,19 @@ import {
   op_get_uz_runtime_version,
 } from 'ext:core/ops';
 
+const appEventSubscribers = [];
+
+function onAppEvent(handler) {
+  if (typeof handler !== 'function') {
+    throw new TypeError('onAppEvent expects a function');
+  }
+  appEventSubscribers.push(handler);
+  return function dispose() {
+    const idx = appEventSubscribers.indexOf(handler);
+    if (idx !== -1) appEventSubscribers.splice(idx, 1);
+  };
+}
+
 Object.defineProperty(globalThis, '__uzumaki_ops_dont_touch_this__', {
   value: Object.freeze({
     createWindow: op_create_window,
@@ -34,9 +47,34 @@ Object.defineProperty(globalThis, '__uzumaki_ops_dont_touch_this__', {
     getAncestorPath: op_get_ancestor_path,
     readClipboardText: op_read_clipboard_text,
     writeClipboardText: op_write_clipboard_text,
+    onAppEvent,
   }),
   writable: false,
   configurable: false,
 });
+
+// Native side looks up this exact name. Runtime owns it; user code should
+// register through `__uzumaki.onAppEvent` instead of overwriting it.
+globalThis.__uzumaki_on_app_event__ = function (event) {
+  let prevented = false;
+  const ctx = {
+    preventDefault() {
+      prevented = true;
+    },
+    get defaultPrevented() {
+      return prevented;
+    },
+  };
+  // copy so a subscriber unsubscribing during dispatch doesn't shift iteration
+  const subs = appEventSubscribers.slice();
+  for (let i = 0; i < subs.length; i++) {
+    try {
+      subs[i](event, ctx);
+    } catch (err) {
+      console.error('[uzumaki] app event subscriber threw:', err);
+    }
+  }
+  return prevented;
+};
 
 export const RUNTIME_VERSION = op_get_uz_runtime_version();

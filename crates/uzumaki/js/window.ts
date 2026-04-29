@@ -4,11 +4,12 @@ import { Element } from './elements/element';
 import { UzElement } from './elements/base';
 import { UzRootElement } from './elements/root';
 import { UzImageElement } from './elements/image';
+import { EventEmitter, type ListenerOptions } from './event-emitter';
 import {
-  eventManager,
-  EVENT_NAME_TO_TYPE,
-  type EventName,
-  type EventHandler,
+  buildLifecycleEvent,
+  type WindowEventMap,
+  type WindowEventName,
+  type WindowEventHandler,
 } from './events';
 import { clearWindowNodes } from './registry';
 
@@ -33,6 +34,8 @@ export class Window {
   private _disposed: boolean = false;
   private _disposables: (() => void)[] = [];
   private _root: UzRootElement | null = null;
+  /** @internal Used by the dispatcher and runtime glue. */
+  readonly _emitter: EventEmitter<WindowEventMap> = new EventEmitter();
 
   constructor(
     label: string,
@@ -139,36 +142,30 @@ export class Window {
     this._native.remBase = value;
   }
 
-  on<K extends EventName>(
+  on<K extends WindowEventName>(
     eventName: K,
-    handler: EventHandler<K>,
-    options?: { capture?: boolean },
+    handler: WindowEventHandler<K>,
+    options?: ListenerOptions,
   ): void {
-    const t = EVENT_NAME_TO_TYPE[eventName];
-    if (t !== undefined) {
-      eventManager.addWindowHandler(
-        this._id,
-        t,
-        handler as Function,
-        options?.capture ?? false,
-      );
-    }
+    this._emitter.on(eventName, handler, options);
   }
 
-  off<K extends EventName>(
+  off<K extends WindowEventName>(
     eventName: K,
-    handler: EventHandler<K>,
-    options?: { capture?: boolean },
+    handler: WindowEventHandler<K>,
+    options?: ListenerOptions,
   ): void {
-    const t = EVENT_NAME_TO_TYPE[eventName];
-    if (t !== undefined) {
-      eventManager.removeWindowHandler(
-        this._id,
-        t,
-        handler as Function,
-        options?.capture ?? false,
-      );
-    }
+    this._emitter.off(eventName, handler, options);
+  }
+
+  /** @internal Fire a lifecycle event (load/close/resize). */
+  _dispatchLifecycle(
+    name: 'load' | 'close' | 'resize',
+    payload?: any,
+  ): boolean {
+    const event = buildLifecycleEvent(name, payload);
+    this._emitter.emit(name, event as any);
+    return event.defaultPrevented;
   }
 }
 
@@ -179,6 +176,7 @@ export function disposeWindow(_window: Window) {
     label: string;
     _disposed: boolean;
     _disposables: (() => void)[];
+    _emitter: { _clear(): void };
   };
 
   window._disposed = true;
@@ -186,8 +184,8 @@ export function disposeWindow(_window: Window) {
     cb();
   }
   window._disposables = [];
+  window._emitter._clear();
   clearWindowNodes(window.id);
-  eventManager.clearWindowHandlers(window.id);
   windowsByLabel.delete(window.label);
   windowsById.delete(window.id);
 }
