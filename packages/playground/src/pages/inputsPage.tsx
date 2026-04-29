@@ -43,7 +43,7 @@ export function InputsPage() {
           </text>
           <input
             value={search}
-            onChangeText={setSearch}
+            onValueChange={setSearch}
             placeholder="Search anything... (try IME input)"
             fontSize={15}
             color={C.text}
@@ -79,7 +79,7 @@ export function InputsPage() {
             </text>
             <input
               value={username}
-              onChangeText={setUsername}
+              onValueChange={setUsername}
               placeholder="johndoe"
               fontSize={14}
               color={C.text}
@@ -97,7 +97,7 @@ export function InputsPage() {
             </text>
             <input
               value={email}
-              onChangeText={setEmail}
+              onValueChange={setEmail}
               placeholder="john@example.com"
               fontSize={14}
               color={C.text}
@@ -119,7 +119,7 @@ export function InputsPage() {
             <input
               secure
               value={password}
-              onChangeText={setPassword}
+              onValueChange={setPassword}
               placeholder="Enter password"
               fontSize={14}
               color={C.text}
@@ -138,7 +138,7 @@ export function InputsPage() {
             <input
               secure
               value={confirm}
-              onChangeText={setConfirm}
+              onValueChange={setConfirm}
               placeholder="Repeat password"
               fontSize={14}
               color={C.text}
@@ -184,7 +184,7 @@ export function InputsPage() {
           <input
             multiline
             value={bio}
-            onChangeText={setBio}
+            onValueChange={setBio}
             placeholder="Tell us about yourself... (multiline input, try pasting long text)"
             fontSize={16}
             color={C.text}
@@ -256,9 +256,13 @@ export function InputsPage() {
             flexDir="col"
             gap={4}
           >
-            <text fontSize={14} fontWeight={700} color={C.successHi}>
-              ✓ Form submitted
-            </text>
+            <view gap={2}>
+              <text fontSize={14} fontWeight={700} color={C.successHi}>
+                Form submitted
+              </text>
+              <Icon name="check" color={C.success} size={12} />
+            </view>
+
             <text fontSize={12} color={C.success}>
               user={username || '(empty)'} · email={email || '(empty)'} · bio=
               {bio.length} chars
@@ -285,7 +289,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={noRounding}
-                onChange={setNoRounding}
+                onValueChange={setNoRounding}
                 bg={C.accent}
                 borderColor={noRounding ? C.accent : C.border}
                 color="#ffffff"
@@ -300,7 +304,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={rounded}
-                onChange={setRounded}
+                onValueChange={setRounded}
                 bg={C.success}
                 borderColor={rounded ? C.success : C.border}
                 color="#08110a"
@@ -315,7 +319,7 @@ export function InputsPage() {
             <view display="flex" items="center" gap={12}>
               <checkbox
                 checked={circle}
-                onChange={setCircle}
+                onValueChange={setCircle}
                 bg={C.warning}
                 borderColor={circle ? C.warning : C.border}
                 color="#1b1104"

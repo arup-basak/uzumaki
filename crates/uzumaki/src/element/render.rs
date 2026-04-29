@@ -111,15 +111,16 @@ impl<'a> Painter<'a> {
                             .map(|tc| (tc.content.clone(), computed_style.text.clone()));
 
                         let is_input = node.is_text_input();
+                        let focused = self.dom.focused_node == Some(node_id);
                         let input_snapshot = if is_input {
                             let is = node.as_text_input().unwrap();
                             Some((
                                 is.display_text(),
                                 is.placeholder.clone(),
-                                is.focused,
+                                focused,
                                 is.scroll_offset,
                                 is.scroll_offset_y,
-                                is.blink_visible(self.dom.window_focused),
+                                is.blink_visible(focused, self.dom.window_focused),
                                 is.multiline,
                                 is.preedit.clone(),
                             ))

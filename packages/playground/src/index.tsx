@@ -17,7 +17,7 @@ const window = new Window('main', {
   },
 });
 
-window.on('windowload', () => {
+window.on('load', () => {
   console.log(
     'Window loaded width =',
     window.innerWidth,

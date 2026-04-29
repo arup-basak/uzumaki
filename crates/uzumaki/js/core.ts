@@ -58,6 +58,12 @@ interface Core {
   readClipboardText(): string | null;
   writeClipboardText(text: string): boolean;
   decodeImageSource(source: string): Promise<Uint8Array>;
+  onAppEvent(
+    handler: (
+      event: any,
+      ctx: { preventDefault(): void; readonly defaultPrevented: boolean },
+    ) => void,
+  ): () => void;
 }
 
 export interface SelectionState {
