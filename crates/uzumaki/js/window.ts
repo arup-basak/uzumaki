@@ -1,10 +1,16 @@
-import core, { setNativeProp, type NativeWindow } from './core';
+import core, { type CoreWindow } from './core';
+import { UzTextNode } from './node';
+import { Element } from './elements/element';
+import { UzElement } from './elements/base';
+import { UzRootElement } from './elements/root';
+import { UzImageElement } from './elements/image';
 import {
   eventManager,
   EVENT_NAME_TO_TYPE,
   type EventName,
   type EventHandler,
 } from './events';
+import { clearWindowNodes } from './registry';
 
 const windowsByLabel = new Map<string, Window>();
 const windowsById = new Map<number, Window>();
@@ -18,7 +24,7 @@ export interface WindowAttributes {
 
 export class Window {
   private _id: number;
-  private _native: NativeWindow;
+  private _native: CoreWindow;
   private _label: string;
   private _title: string;
   private _width: number;
@@ -26,6 +32,7 @@ export class Window {
   private _remBase: number = 16;
   private _disposed: boolean = false;
   private _disposables: (() => void)[] = [];
+  private _root: UzRootElement | null = null;
 
   constructor(
     label: string,
@@ -48,9 +55,9 @@ export class Window {
     this._native = core.createWindow({ width, height, title });
     this._id = this._native.id;
     if (rootStyles) {
-      const root = core.getRootNodeId(this._id);
+      const root = this.root;
       for (const [key, value] of Object.entries(rootStyles)) {
-        if (value != null) setNativeProp(this._id, root, key, value);
+        if (value != null) root.setAttribute(key, value);
       }
     }
     windowsByLabel.set(label, this);
@@ -99,6 +106,24 @@ export class Window {
 
   get id(): number {
     return this._id;
+  }
+
+  get root(): UzRootElement {
+    if (!this._root) {
+      this._root = new UzRootElement(this);
+    }
+    return this._root;
+  }
+
+  createElement(type: string): Element {
+    if (type === 'image') {
+      return new UzImageElement(this);
+    }
+    return new UzElement(type, this);
+  }
+
+  createTextNode(text: string): UzTextNode {
+    return new UzTextNode(this, text);
   }
 
   get isDisposed(): boolean {
@@ -161,6 +186,8 @@ export function disposeWindow(_window: Window) {
     cb();
   }
   window._disposables = [];
+  clearWindowNodes(window.id);
+  eventManager.clearWindowHandlers(window.id);
   windowsByLabel.delete(window.label);
   windowsById.delete(window.id);
 }
