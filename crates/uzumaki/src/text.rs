@@ -259,7 +259,7 @@ impl TextRenderer {
     ) -> (f32, f32) {
         let layout = self.build_layout(text, style, max_width);
 
-        let measured_width = layout.width();
+        let measured_width = layout.full_width();
         let measured_height = layout.height();
         let fallback_height = (style.font_size * style.line_height).round();
 
