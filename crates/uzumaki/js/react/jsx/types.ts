@@ -37,6 +37,7 @@ interface ElementStyles {
   mr?: number | string;
   flex?: string | number | true;
   flexDir?: 'row' | 'col' | 'column';
+  flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse';
   flexGrow?: number | string;
   flexShrink?: number | string;
   items?: 'start' | 'end' | 'center' | 'stretch' | 'baseline';

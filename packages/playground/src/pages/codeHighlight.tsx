@@ -9,24 +9,28 @@ import { render } from "uzumaki-react"
 const window = new Window("main", { width: 800, height: 600 });
 render(window, <view><text>Uzumaki</text></view>)`.trim();
 
-interface Token {
+interface TokenRenderer {
   content: string;
   color?: string;
 }
 
-const TokenComponent = memo(function TokenComponent({
+const TokenRenderer = memo(function TokenComponent({
   token,
 }: {
-  token: Token;
+  token: TokenRenderer;
 }) {
-  return <text color={token.color}>{token.content}</text>;
+  return (
+    <text textWrap="anywhere" color={token.color}>
+      {token.content}
+    </text>
+  );
 });
 
-const LineComponent = memo(function LineComponent({
+const LineRenderer = memo(function LineComponent({
   tokens,
   lineNumber,
 }: {
-  tokens: Token[];
+  tokens: TokenRenderer[];
   lineNumber: number;
 }) {
   return (
@@ -34,9 +38,9 @@ const LineComponent = memo(function LineComponent({
       <text color={C.textMuted} fontSize={14} w={32}>
         {String(lineNumber)}
       </text>
-      <view display="flex" flexDir="row" flex={1}>
+      <view display="flex" flexDir="row" flexWrap="wrap" flex={1}>
         {tokens.map((token, j) => (
-          <TokenComponent key={j} token={token} />
+          <TokenRenderer key={j} token={token} />
         ))}
       </view>
     </view>
@@ -61,7 +65,7 @@ export function ShikiPage() {
       <Panel title="Preview">
         <view display="flex" flexDir="col" p={16} gap={2} flex={1} scrollable>
           {lineTokens.map((tokens, i) => (
-            <LineComponent key={i} tokens={tokens} lineNumber={i + 1} />
+            <LineRenderer key={i} tokens={tokens} lineNumber={i + 1} />
           ))}
         </view>
       </Panel>

@@ -362,6 +362,7 @@ fn set_style_str(
             }
         }
         StyleProp::FlexDir
+        | StyleProp::FlexWrap
         | StyleProp::Items
         | StyleProp::Justify
         | StyleProp::Display
@@ -444,6 +445,7 @@ fn set_variant_style_str(
             }
         }
         StyleProp::FlexDir
+        | StyleProp::FlexWrap
         | StyleProp::Items
         | StyleProp::Justify
         | StyleProp::Display
@@ -519,6 +521,7 @@ fn set_style_number(
         | StyleProp::Left => set_length_style_prop(&mut node.style, prop, Length::Px(value)),
         StyleProp::Gap => set_gap_style_prop(&mut node.style, DefiniteLength::Px(value)),
         StyleProp::FlexDir
+        | StyleProp::FlexWrap
         | StyleProp::Items
         | StyleProp::Justify
         | StyleProp::Display
@@ -661,6 +664,7 @@ fn set_variant_number(
         }
         StyleProp::Gap => return set_variant_gap(node, variant, DefiniteLength::Px(value)),
         StyleProp::FlexDir
+        | StyleProp::FlexWrap
         | StyleProp::Items
         | StyleProp::Justify
         | StyleProp::Display
@@ -808,6 +812,14 @@ fn set_variant_enum_from_str(
                 _ => return false,
             });
         }
+        StyleProp::FlexWrap => {
+            r.flex_wrap = Some(match value {
+                "nowrap" | "no-wrap" => FlexWrap::NoWrap,
+                "wrap" => FlexWrap::Wrap,
+                "wrap-reverse" => FlexWrap::WrapReverse,
+                _ => return false,
+            });
+        }
         StyleProp::Items => {
             r.align_items = Some(match value {
                 "flex-start" | "start" => AlignItems::FlexStart,
@@ -920,6 +932,7 @@ fn clear_variant_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) -
                 style.flex_grow = None;
             }
             StyleProp::FlexDir => style.flex_direction = None,
+            StyleProp::FlexWrap => style.flex_wrap = None,
             StyleProp::FlexGrow => style.flex_grow = None,
             StyleProp::FlexShrink => style.flex_shrink = None,
             StyleProp::Items => style.align_items = None,
@@ -1228,6 +1241,14 @@ fn set_enum_style_prop_from_str(style: &mut UzStyle, prop: StyleProp, value: &st
                 _ => return false,
             };
         }
+        StyleProp::FlexWrap => {
+            style.flex_wrap = match value {
+                "nowrap" | "no-wrap" => FlexWrap::NoWrap,
+                "wrap" => FlexWrap::Wrap,
+                "wrap-reverse" => FlexWrap::WrapReverse,
+                _ => return false,
+            };
+        }
         StyleProp::Items => {
             style.align_items = Some(match value {
                 "flex-start" | "start" => AlignItems::FlexStart,
@@ -1342,6 +1363,7 @@ fn clear_style_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) -> 
             node.style.flex_grow = default.flex_grow;
         }
         StyleProp::FlexDir => node.style.flex_direction = default.flex_direction,
+        StyleProp::FlexWrap => node.style.flex_wrap = default.flex_wrap,
         StyleProp::FlexGrow => node.style.flex_grow = default.flex_grow,
         StyleProp::FlexShrink => node.style.flex_shrink = default.flex_shrink,
         StyleProp::Items => node.style.align_items = default.align_items,
