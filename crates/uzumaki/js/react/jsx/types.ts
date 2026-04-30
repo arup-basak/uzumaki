@@ -85,7 +85,7 @@ interface ElementStyles {
     | 'all-scroll'
     | 'zoom-in'
     | 'zoom-out';
-  display?: 'flex' | 'none' | 'block' | 'inline';
+  display?: 'flex' | 'none' | 'block';
   position?: 'relative' | 'absolute';
   top?: number | string;
   right?: number | string;

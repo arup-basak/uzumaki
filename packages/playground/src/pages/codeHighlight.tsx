@@ -46,7 +46,7 @@ const LineComponent = memo(function LineComponent({
 export function ShikiPage() {
   const [code, setCode] = useState(INITIAL_CODE);
 
-  const lineTokens = useMemo(() => highlightTsx(code).tokens, [code]);
+  const lineTokens = useMemo(() => highlightTsx(code), [code]);
 
   return (
     <view

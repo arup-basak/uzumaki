@@ -218,7 +218,6 @@ pub enum Display {
     #[default]
     Flex,
     Block,
-    Inline,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -651,7 +650,7 @@ impl UzStyle {
                 ..Default::default()
             },
             "text" | "#text" => Self {
-                display: Display::Inline,
+                display: Display::Block,
                 text: TextStyle {
                     overflow_wrap: OverflowWrap::Normal,
                     word_break: WordBreak::Normal,
@@ -669,7 +668,6 @@ impl UzStyle {
                 Display::None => taffy::Display::None,
                 Display::Flex => taffy::Display::Flex,
                 Display::Block => taffy::Display::Block,
-                Display::Inline => taffy::Display::Flex,
             },
             position: match self.position {
                 Position::Relative => taffy::Position::Relative,
@@ -1077,14 +1075,11 @@ mod tests {
     use super::{Display, UzStyle};
 
     #[test]
-    fn text_elements_default_to_inline_display() {
-        assert_eq!(
-            UzStyle::default_for_element("text").display,
-            Display::Inline
-        );
+    fn text_elements_default_to_block_display() {
+        assert_eq!(UzStyle::default_for_element("text").display, Display::Block);
         assert_eq!(
             UzStyle::default_for_element("#text").display,
-            Display::Inline
+            Display::Block
         );
     }
 }

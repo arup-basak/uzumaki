@@ -834,7 +834,6 @@ fn set_variant_enum_from_str(
                 "none" => Display::None,
                 "flex" => Display::Flex,
                 "block" => Display::Block,
-                "inline" => Display::Inline,
                 _ => return false,
             });
         }
@@ -1255,7 +1254,6 @@ fn set_enum_style_prop_from_str(style: &mut UzStyle, prop: StyleProp, value: &st
                 "none" => Display::None,
                 "flex" => Display::Flex,
                 "block" => Display::Block,
-                "inline" => Display::Inline,
                 _ => return false,
             };
         }

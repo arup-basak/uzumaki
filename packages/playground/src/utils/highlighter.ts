@@ -6,7 +6,7 @@ const highlighter = await createHighlighter({
 });
 
 export function highlightTsx(code: string) {
-  const tokens = highlighter.codeToTokens(code, {
+  const tokens = highlighter.codeToTokensBase(code, {
     lang: 'tsx',
     theme: 'ayu-dark',
   });
