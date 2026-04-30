@@ -218,6 +218,7 @@ pub enum Display {
     #[default]
     Flex,
     Block,
+    Inline,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -609,12 +610,26 @@ impl UzStyle {
     }
 
     pub fn inherit_from(&mut self, parent: &Self) {
-        self.text = parent.text.clone();
+        // Per-field cascade. `overflow_wrap` and `word_break` are intentionally
+        // NOT inherited: `default_for_element` sets them per element type
+        // (e.g. text/button/input use Normal while views use BreakWord), and a
+        // wholesale `self.text = parent.text` would clobber those defaults
+        // before `refine(&base_style)` ever runs.
+        self.text.font_size = parent.text.font_size;
+        self.text.color = parent.text.color;
+        self.text.font_weight = parent.text.font_weight;
+        self.text.line_height = parent.text.line_height;
+        self.text.letter_spacing = parent.text.letter_spacing;
+        self.text.word_spacing = parent.text.word_spacing;
         self.text_selectable = parent.text_selectable;
     }
 
     pub fn default_for_element(element_type: &str) -> Self {
         match element_type {
+            "view" => Self {
+                display: Display::Block,
+                ..Default::default()
+            },
             "button" => Self {
                 flex_shrink: 0.0,
                 align_items: Some(AlignItems::Center),
@@ -635,7 +650,8 @@ impl UzStyle {
                 },
                 ..Default::default()
             },
-            "text" | "#text" | "p" => Self {
+            "text" | "#text" => Self {
+                display: Display::Inline,
                 text: TextStyle {
                     overflow_wrap: OverflowWrap::Normal,
                     word_break: WordBreak::Normal,
@@ -653,6 +669,7 @@ impl UzStyle {
                 Display::None => taffy::Display::None,
                 Display::Flex => taffy::Display::Flex,
                 Display::Block => taffy::Display::Block,
+                Display::Inline => taffy::Display::Flex,
             },
             position: match self.position {
                 Position::Relative => taffy::Position::Relative,
@@ -1052,5 +1069,22 @@ fn justify_content_to_taffy(j: JustifyContent) -> taffy::JustifyContent {
         JustifyContent::SpaceBetween => taffy::JustifyContent::SpaceBetween,
         JustifyContent::SpaceAround => taffy::JustifyContent::SpaceAround,
         JustifyContent::SpaceEvenly => taffy::JustifyContent::SpaceEvenly,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Display, UzStyle};
+
+    #[test]
+    fn text_elements_default_to_inline_display() {
+        assert_eq!(
+            UzStyle::default_for_element("text").display,
+            Display::Inline
+        );
+        assert_eq!(
+            UzStyle::default_for_element("#text").display,
+            Display::Inline
+        );
     }
 }
