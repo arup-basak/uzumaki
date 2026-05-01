@@ -218,7 +218,6 @@ impl ElementNode {
 
 #[derive(Default)]
 pub enum ElementData {
-    // this is text Element <text>
     TextInput(Box<InputState>),
     CheckboxInput(bool),
     Image(Box<ImageNode>),
