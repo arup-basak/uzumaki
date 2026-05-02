@@ -2,6 +2,7 @@ use crate::cursor::UzCursorIcon;
 use crate::input::InputState;
 use crate::interactivity::Interactivity;
 use crate::style::{Bounds, TextSelectable, TextStyle, UzStyle};
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use vello::peniko::Blob;
 
@@ -57,11 +58,11 @@ pub struct ScrollThumbRect {
 }
 
 #[derive(Clone, Debug)]
-pub struct TextNode {
+pub struct TextContent {
     pub content: String,
 }
 
-impl TextNode {
+impl TextContent {
     pub fn new(content: String) -> Self {
         Self { content }
     }
@@ -164,7 +165,7 @@ pub struct TextSelectRun {
 #[derive(Clone, Debug)]
 pub struct NodeContext {
     pub dom_id: UzNodeId,
-    pub text: Option<TextNode>,
+    pub text: Option<TextContent>,
     pub text_style: TextStyle,
     pub is_input: bool,
     pub image: Option<ImageMeasureInfo>,
@@ -181,6 +182,16 @@ impl ElementNode {
             is_focussable: false,
             data,
         }
+    }
+
+    /**
+     * Inline text element (for styling inline text) Hello <text> Something <text>
+     *  Hello                    <text>Something</text>
+     *   |                          |---------------|
+     *NodeData::TextNode()   NodeData::ElementNode(ElementData::Text())
+     */
+    pub fn new_text(text: TextContent) -> Self {
+        Self::new(ElementData::Text(text))
     }
 
     pub fn new_text_input(state: InputState) -> Self {
@@ -218,6 +229,8 @@ impl ElementNode {
 
 #[derive(Default)]
 pub enum ElementData {
+    // this is text Element <text>
+    Text(TextContent),
     TextInput(Box<InputState>),
     CheckboxInput(bool),
     Image(Box<ImageNode>),
@@ -245,6 +258,20 @@ impl ElementData {
 
     pub fn is_image(&self) -> bool {
         matches!(self, Self::Image(_))
+    }
+
+    pub fn get_text_content(&self) -> Option<&TextContent> {
+        match self {
+            Self::Text(text) => Some(text),
+            _ => None,
+        }
+    }
+
+    pub fn text_content_mut(&mut self) -> Option<&mut TextContent> {
+        match self {
+            Self::Text(text) => Some(text),
+            _ => None,
+        }
     }
 
     pub fn as_text_input(&self) -> Option<&InputState> {
@@ -290,18 +317,40 @@ impl ElementData {
     }
 }
 
-pub enum NodeData {
-    Root,
+pub struct TextNode(TextContent);
 
-    Text(TextNode),
-    // element node
-    Element(ElementNode),
+impl TextNode {
+    pub fn new(content: TextContent) -> Self {
+        Self(content)
+    }
+}
+
+impl Deref for TextNode {
+    type Target = TextContent;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TextNode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl From<TextNode> for NodeData {
     fn from(value: TextNode) -> Self {
         Self::Text(value)
     }
+}
+
+pub enum NodeData {
+    Root,
+    // normal text nodes (cant add event listners etc just plain text)
+    Text(TextNode),
+    // element node
+    Element(ElementNode),
 }
 
 impl From<ElementNode> for NodeData {
@@ -325,24 +374,18 @@ impl NodeData {
         Self::Root
     }
 
-    pub fn create_text(data: TextNode) -> Self {
-        Self::Text(data)
-    }
-
-    pub fn create_element(data: ElementNode) -> Self {
-        Self::Element(data)
-    }
-
-    pub fn as_text_node(&self) -> Option<&TextNode> {
+    pub fn get_text_content(&self) -> Option<&TextContent> {
         match self {
-            Self::Text(text) => Some(text),
+            Self::Text(text) => Some(&text.0),
+            Self::Element(element) => element.data.get_text_content(),
             _ => None,
         }
     }
 
-    pub fn as_text_node_mut(&mut self) -> Option<&mut TextNode> {
+    pub fn text_content_mut(&mut self) -> Option<&mut TextContent> {
         match self {
             Self::Text(text) => Some(text),
+            Self::Element(element) => element.data.text_content_mut(),
             _ => None,
         }
     }
@@ -532,12 +575,12 @@ impl Node {
         self.data.as_element_mut()
     }
 
-    pub fn as_text_node(&self) -> Option<&TextNode> {
-        self.data.as_text_node()
+    pub fn get_text_content(&self) -> Option<&TextContent> {
+        self.data.get_text_content()
     }
 
-    pub fn as_text_node_mut(&mut self) -> Option<&mut TextNode> {
-        self.data.as_text_node_mut()
+    pub fn text_content_mut(&mut self) -> Option<&mut TextContent> {
+        self.data.text_content_mut()
     }
 
     pub fn as_image(&self) -> Option<&ImageNode> {
