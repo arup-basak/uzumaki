@@ -36,7 +36,7 @@ export function IssuesPage() {
 
   const columns = [
     { key: 'number', header: '#', width: 50, align: 'end' as const },
-    { key: 'title', header: 'Title', flex: 1 },
+    { key: 'title', header: 'Title', width: 360 },
     {
       key: 'state',
       header: 'State',
@@ -138,12 +138,24 @@ export function IssuesPage() {
                 bg={C.accentDark}
               />
             </view>
-            <Table
-              columns={columns}
-              data={issues}
-              keyField="number"
-              rowHeight={48}
-            />
+            <view
+              h={420}
+              scrollX
+              scrollY
+              bg={C.surface}
+              rounded={8}
+              border={1}
+              borderColor={C.border}
+            >
+              <view minW={740}>
+                <Table
+                  columns={columns}
+                  data={issues}
+                  keyField="number"
+                  rowHeight={48}
+                />
+              </view>
+            </view>
           </view>
         )}
       </view>
