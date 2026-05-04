@@ -104,7 +104,7 @@ bun dev
 - [Development](DEVELOPMENT.md)
 - [X / Twitter](https://x.com/golok727)
 
-## Credits
+## Acknowledgements
 
 Uzumaki wouldn't be possible without the work of these projects:
 
