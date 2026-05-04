@@ -420,7 +420,6 @@ pub struct ScrollbarStyle {
     pub width: f32,
     pub color: Color,
     pub hover_color: Color,
-    pub track_color: Color,
     /// `None` = pill (radius = width / 2); `Some(v)` = explicit radius.
     pub radius: Option<f32>,
 }
@@ -431,7 +430,6 @@ impl Default for ScrollbarStyle {
             width: 4.0,
             color: Color::rgba(255, 255, 255, 90),
             hover_color: Color::rgba(255, 255, 255, 140),
-            track_color: Color::TRANSPARENT,
             radius: None,
         }
     }

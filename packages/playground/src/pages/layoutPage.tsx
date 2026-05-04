@@ -1105,9 +1105,7 @@ function ScrollDemo() {
             display="flex"
             flexDir="col"
             gap={10}
-            scrollbarWidth={8}
             scrollbarHoverColor={C.primary}
-            scrollbarTrackColor={C.surface3}
             scrollbarRadius={5}
           >
             {Array.from({ length: 14 }, (_, i) => (

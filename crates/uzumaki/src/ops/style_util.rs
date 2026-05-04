@@ -319,27 +319,20 @@ fn set_style_str(
         | StyleProp::Left => {
             if let Some(length) = parse_length(value, rem_base) {
                 set_length_style_prop(&mut node.style, prop, length)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::Gap => {
             if let Some(length) = parse_definite_length(value, rem_base) {
                 set_gap_style_prop(&mut node.style, length)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::Bg
         | StyleProp::Color
         | StyleProp::BorderColor
         | StyleProp::ScrollbarColor
-        | StyleProp::ScrollbarHoverColor
-        | StyleProp::ScrollbarTrackColor => {
+        | StyleProp::ScrollbarHoverColor => {
             if let Some(color) = parse_color(value) {
                 set_color_style_prop(node, prop, color)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::FlexDir
@@ -352,8 +345,6 @@ fn set_style_str(
         | StyleProp::Position => {
             if set_enum_style_prop_from_str(&mut node.style, prop, value) {
                 remember_inherited_enum(node, prop);
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::Cursor => {
@@ -420,12 +411,9 @@ fn set_variant_style_str(
         | StyleProp::Color
         | StyleProp::BorderColor
         | StyleProp::ScrollbarColor
-        | StyleProp::ScrollbarHoverColor
-        | StyleProp::ScrollbarTrackColor => {
+        | StyleProp::ScrollbarHoverColor => {
             if let Some(color) = parse_color(value) {
                 set_variant_color(node, prop, variant, color)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::FlexDir
@@ -542,7 +530,6 @@ fn set_variant_color(node: &mut Node, prop: StyleProp, variant: StyleVariant, co
         }
         StyleProp::ScrollbarColor => r.scrollbar.color = Some(color),
         StyleProp::ScrollbarHoverColor => r.scrollbar.hover_color = Some(color),
-        StyleProp::ScrollbarTrackColor => r.scrollbar.track_color = Some(color),
         _ => {}
     }
 }
@@ -927,7 +914,6 @@ fn clear_variant_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
             StyleProp::ScrollbarWidth => style.scrollbar.width = None,
             StyleProp::ScrollbarColor => style.scrollbar.color = None,
             StyleProp::ScrollbarHoverColor => style.scrollbar.hover_color = None,
-            StyleProp::ScrollbarTrackColor => style.scrollbar.track_color = None,
             StyleProp::ScrollbarRadius => style.scrollbar.radius = None,
             StyleProp::TextSelect => style.text_selectable = None,
             StyleProp::TextWrap => {
@@ -999,9 +985,6 @@ fn set_color_style_prop(node: &mut Node, prop: StyleProp, color: Color) {
         }
         StyleProp::ScrollbarHoverColor => {
             node.style.scrollbar.hover_color = color;
-        }
-        StyleProp::ScrollbarTrackColor => {
-            node.style.scrollbar.track_color = color;
         }
         _ => {
             // rest doesnt affect color
@@ -1432,9 +1415,6 @@ fn clear_style_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
         StyleProp::ScrollbarHoverColor => {
             node.style.scrollbar.hover_color = default.scrollbar.hover_color
         }
-        StyleProp::ScrollbarTrackColor => {
-            node.style.scrollbar.track_color = default.scrollbar.track_color
-        }
         StyleProp::ScrollbarRadius => node.style.scrollbar.radius = default.scrollbar.radius,
         StyleProp::TextSelect => {
             node.set_text_selectable(default.text_selectable);
@@ -1488,7 +1468,6 @@ fn get_style_prop(node: &Node, prop: StyleProp) -> Value {
         StyleProp::ScrollbarWidth => json!(style.scrollbar.width),
         StyleProp::ScrollbarColor => color_to_json(style.scrollbar.color),
         StyleProp::ScrollbarHoverColor => color_to_json(style.scrollbar.hover_color),
-        StyleProp::ScrollbarTrackColor => color_to_json(style.scrollbar.track_color),
         StyleProp::ScrollbarRadius => style
             .scrollbar
             .radius

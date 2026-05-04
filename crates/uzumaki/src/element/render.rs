@@ -378,8 +378,8 @@ impl<'a> Painter<'a> {
         let thumb_bounds = Bounds::new(
             view_x + geom.local_x,
             view_y + geom.local_y,
-            geom.width,
-            geom.height,
+            geom.thumb_width,
+            geom.thumb_height,
         );
         // Inputs always register the thumb hit rect, even when not visible —
         // matches the legacy behaviour and keeps wheel/drag responsive.
@@ -518,8 +518,8 @@ impl<'a> Painter<'a> {
         let thumb_bounds = Bounds::new(
             view_bounds.x + geom.local_x,
             view_bounds.y + geom.local_y,
-            geom.width,
-            geom.height,
+            geom.thumb_width,
+            geom.thumb_height,
         );
         self.dom.scroll_thumbs.push(ScrollThumbRect {
             node_id,

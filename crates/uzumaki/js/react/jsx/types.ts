@@ -106,7 +106,6 @@ interface ElementStyles {
   scrollbarWidth?: number | string;
   scrollbarColor?: string;
   scrollbarHoverColor?: string;
-  scrollbarTrackColor?: string;
   scrollbarRadius?: number | string;
   // if true text inside this view can be selected
   selectable?: boolean;

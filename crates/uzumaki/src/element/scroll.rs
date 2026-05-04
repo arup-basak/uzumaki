@@ -47,9 +47,10 @@ impl ScrollAxisInfo {
 pub struct ThumbGeometry {
     pub local_x: f64,
     pub local_y: f64,
-    pub width: f64,
-    pub height: f64,
+    pub thumb_width: f64,
+    pub thumb_height: f64,
     pub track_range: f64,
+    // unused for now
     pub track_x: f64,
     pub track_y: f64,
     pub track_width: f64,
@@ -79,8 +80,8 @@ pub fn thumb_geometry(
             ThumbGeometry {
                 local_x: track_x,
                 local_y: SCROLLBAR_END_MARGIN + scroll_ratio * track_range,
-                width: thickness,
-                height: length,
+                thumb_width: thickness,
+                thumb_height: length,
                 track_range,
                 track_x,
                 track_y: SCROLLBAR_END_MARGIN,
@@ -97,8 +98,8 @@ pub fn thumb_geometry(
             ThumbGeometry {
                 local_x: SCROLLBAR_END_MARGIN + scroll_ratio * track_range,
                 local_y: track_y,
-                width: length,
-                height: thickness,
+                thumb_width: length,
+                thumb_height: thickness,
                 track_range,
                 track_x: SCROLLBAR_END_MARGIN,
                 track_y,
@@ -116,24 +117,8 @@ pub fn paint_thumb(
     hovered: bool,
     style: &ScrollbarStyle,
 ) {
-    if geom.width <= 0.0 || geom.height <= 0.0 {
+    if geom.thumb_width <= 0.0 || geom.thumb_height <= 0.0 {
         return;
-    }
-
-    if !style.track_color.is_transparent() {
-        let track = Rect::new(
-            geom.track_x,
-            geom.track_y,
-            geom.track_x + geom.track_width,
-            geom.track_y + geom.track_height,
-        );
-        scene.fill(
-            Fill::NonZero,
-            transform,
-            style.track_color.to_vello(),
-            None,
-            &track,
-        );
     }
 
     let color = if hovered {
@@ -148,13 +133,13 @@ pub fn paint_thumb(
     let radius = style
         .radius
         .map(|r| r as f64)
-        .unwrap_or_else(|| geom.width.min(geom.height) / 2.0)
+        .unwrap_or_else(|| geom.thumb_width.min(geom.thumb_height) / 2.0)
         .max(0.0);
     let rect = Rect::new(
         geom.local_x,
         geom.local_y,
-        geom.local_x + geom.width,
-        geom.local_y + geom.height,
+        geom.local_x + geom.thumb_width,
+        geom.local_y + geom.thumb_height,
     );
     let rounded = RoundedRect::from_rect(rect, RoundedRectRadii::from_single_radius(radius));
     scene.fill(Fill::NonZero, transform, color.to_vello(), None, &rounded);
