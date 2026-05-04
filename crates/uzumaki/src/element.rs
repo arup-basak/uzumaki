@@ -1,7 +1,7 @@
 use crate::cursor::UzCursorIcon;
 use crate::input::InputState;
 use crate::interactivity::Interactivity;
-use crate::style::{Bounds, TextSelectable, TextStyle, UzStyle};
+use crate::style::{Bounds, TextSelectable, UzStyle};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use vello::peniko::Blob;
@@ -181,15 +181,6 @@ pub struct TextSelectRun {
     pub entries: Vec<TextRunEntry>,
     pub flat_text: String,
     pub total_graphemes: usize,
-}
-
-#[derive(Clone, Debug)]
-pub struct NodeContext {
-    pub dom_id: UzNodeId,
-    pub text: Option<TextContent>,
-    pub text_style: TextStyle,
-    pub is_input: bool,
-    pub image: Option<ImageMeasureInfo>,
 }
 
 pub struct ElementNode {
@@ -526,8 +517,6 @@ pub struct Node {
 
     pub prev_sibling: Option<UzNodeId>,
 
-    pub taffy_node: taffy::NodeId,
-
     pub data: NodeData,
 
     /// The base style for this element. Converted to taffy for layout.
@@ -541,14 +530,13 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(taffy_node: taffy::NodeId, style: UzStyle, data: impl Into<NodeData>) -> Self {
+    pub fn new(style: UzStyle, data: impl Into<NodeData>) -> Self {
         Self {
             parent: None,
             first_child: None,
             last_child: None,
             next_sibling: None,
             prev_sibling: None,
-            taffy_node,
             data: data.into(),
             style,
             interactivity: Interactivity::new(),

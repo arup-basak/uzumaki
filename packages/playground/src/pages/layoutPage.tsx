@@ -1023,6 +1023,7 @@ function ScrollDemo() {
                 p={10}
                 display="flex"
                 flexDir="col"
+                textWrap="nowrap"
                 justify="between"
               >
                 <text fontSize={12} fontWeight={700} color={C.text}>
