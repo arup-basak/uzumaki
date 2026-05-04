@@ -3,7 +3,14 @@ import { dispatchDomEvent } from './dispatcher';
 import { EventType } from './events';
 import { disposeWindow, Window } from './window';
 
-export { Window } from './window';
+export { getWindow, Window } from './window';
+export type {
+  WindowOptions,
+  WindowLevel,
+  WindowPosition,
+  WindowSize,
+  WindowTheme,
+} from './types';
 export { UzNode, UzTextNode } from './node';
 export { Element } from './elements/element';
 // todo cleanup imports

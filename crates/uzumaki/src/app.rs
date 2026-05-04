@@ -22,7 +22,7 @@ use deno_runtime::deno_web::{BlobStore, InMemoryBroadcastChannel};
 use deno_runtime::worker::{MainWorker, WorkerOptions, WorkerServiceOptions};
 use node_resolver::analyze::{CjsModuleExportAnalyzer, NodeCodeTranslator, NodeCodeTranslatorMode};
 use node_resolver::cache::NodeResolutionSys;
-use winit::window::WindowId;
+use winit::window::{WindowAttributes, WindowButtons, WindowId, WindowLevel};
 use winit::{application::ApplicationHandler, event::WindowEvent};
 
 use crate::clipboard;
@@ -40,6 +40,10 @@ pub struct WindowEntry {
     pub handle: Option<window::Window>,
     pub rem_base: f32,
     pub cursor_blink_generation: u64,
+    pub transparent: bool,
+    pub window_level: WindowLevel,
+    pub content_protected: bool,
+    pub enabled_buttons: WindowButtons,
 }
 
 impl WindowEntry {
@@ -60,6 +64,14 @@ impl WindowEntry {
         self.handle
             .as_ref()
             .map(|handle| handle.winit_window.scale_factor() as f32)
+    }
+
+    pub fn apply_cached_window_state(&self, attributes: WindowAttributes) -> WindowAttributes {
+        attributes
+            .with_transparent(self.transparent)
+            .with_window_level(self.window_level)
+            .with_content_protected(self.content_protected)
+            .with_enabled_buttons(self.enabled_buttons)
     }
 }
 
@@ -84,7 +96,7 @@ impl AppState {
         if let Some(window) = self.windows.get_mut(id)
             && let Some(handle) = &mut window.handle
         {
-            handle.paint_and_present(&self.gpu.device, &self.gpu.queue, &mut window.dom);
+            handle.paint_and_present(&mut window.dom);
         }
     }
 
@@ -92,7 +104,7 @@ impl AppState {
         if let Some(entry) = self.windows.get_mut(wid) {
             let WindowEntry { handle, dom, .. } = entry;
             if let Some(handle) = handle {
-                event_dispatch::handle_redraw(dom, handle, &self.gpu.device, &self.gpu.queue);
+                event_dispatch::handle_redraw(dom, handle);
                 // handle.winit_window.request_redraw();
             }
         }
@@ -100,7 +112,7 @@ impl AppState {
     pub fn on_resize(&mut self, id: &WindowEntryId, width: u32, height: u32) -> bool {
         if let Some(window) = self.windows.get_mut(id)
             && let Some(handle) = &mut window.handle
-            && handle.on_resize(&self.gpu.device, width, height)
+            && handle.on_resize(width, height)
         {
             handle.winit_window.request_redraw();
             return true;
@@ -127,9 +139,7 @@ pub(crate) fn with_state_ref<R>(state: &SharedAppState, f: impl FnOnce(&AppState
 pub(crate) enum UserEvent {
     CreateWindow {
         id: u32,
-        width: u32,
-        height: u32,
-        title: String,
+        options: crate::ops::window::WindowOptions,
     },
     CloseWindow {
         id: u32,
@@ -516,22 +526,17 @@ impl ApplicationHandler<UserEvent> for Application {
 
     fn user_event(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::CreateWindow {
-                id,
-                width,
-                height,
-                title,
-            } => {
-                let attributes = winit::window::WindowAttributes::default()
-                    .with_title(title)
-                    .with_inner_size(winit::dpi::Size::new(winit::dpi::LogicalSize::new(
-                        width, height,
-                    )))
-                    .with_min_inner_size(winit::dpi::Size::new(winit::dpi::LogicalSize::new(
-                        400, 300,
-                    )));
-
+            UserEvent::CreateWindow { id, options } => {
+                let Some(attributes) =
+                    self.app_state.borrow().windows.get(&id).map(|entry| {
+                        entry.apply_cached_window_state(options.to_window_attributes())
+                    })
+                else {
+                    eprintln!("Window entry '{id}' missing before creating handle");
+                    return;
+                };
                 let is_visible = attributes.visible;
+                let transparent = attributes.transparent;
 
                 let Ok(winit_window) = event_loop.create_window(attributes.with_visible(false))
                 else {
@@ -544,23 +549,21 @@ impl ApplicationHandler<UserEvent> for Application {
                 let winit_id = winit_window.id();
 
                 let mut state = self.app_state.borrow_mut();
-                assert!(
-                    state.windows.contains_key(&id),
-                    "Window entry '{}' must exist before creating handle",
-                    id
-                );
-                match window::Window::new(&state.gpu, winit_window) {
+                match window::Window::new(&state.gpu, winit_window, transparent) {
                     Ok(handle) => {
-                        state.winit_id_to_entry_id.insert(winit_id, id);
+                        let created = if let Some(window) = state.windows.get_mut(&id) {
+                            options.apply_post_create_state(&handle.winit_window);
+                            handle.winit_window.set_visible(is_visible);
+                            window.handle = Some(handle);
+                            true
+                        } else {
+                            eprintln!("Window entry '{id}' missing while creating handle");
+                            false
+                        };
 
-                        let window = state.windows.get_mut(&id).unwrap();
-                        handle.winit_window.set_visible(is_visible);
-                        window.handle = Some(handle);
-                        // handle.paint_and_present(
-                        //     &state.gpu.device,
-                        //     &state.gpu.queue,
-                        //     &mut window.dom,
-                        // );
+                        if created {
+                            state.winit_id_to_entry_id.insert(winit_id, id);
+                        }
                     }
                     Err(e) => eprintln!("Error creating window: {:#?}", e),
                 }

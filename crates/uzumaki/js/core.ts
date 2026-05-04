@@ -1,12 +1,51 @@
-import { NodeId } from './types';
+import type {
+  NodeId,
+  WindowOptions,
+  WindowLevel,
+  WindowPosition,
+  WindowSize,
+  WindowTheme,
+} from './types';
 
 export interface CoreWindow {
-  close(): void;
   readonly id: number;
+
+  close(): void;
+
   readonly innerWidth: number | null;
   readonly innerHeight: number | null;
-  readonly title: string | null;
+
+  title: string | null;
+  visible: boolean | null;
+  transparent: boolean | null;
+  resizable: boolean | null;
+  decorations: boolean | null;
+  maximized: boolean | null;
+  minimized: boolean | null;
+  fullscreen: boolean | null;
+  windowLevel: WindowLevel | null;
+
+  setMinSize(width: number, height: number): boolean;
+  setMaxSize(width: number, height: number): boolean;
+
+  readonly innerSize: WindowSize | null;
+  readonly outerSize: WindowSize | null;
+  readonly position: WindowPosition | null;
+
+  setPosition(x: number, y: number): boolean;
+
   readonly scaleFactor: number | null;
+
+  theme: WindowTheme | null;
+
+  readonly active: boolean | null;
+  focus(): boolean;
+
+  contentProtected: boolean | null;
+  closable: boolean | null;
+  minimizable: boolean | null;
+  maximizable: boolean | null;
+
   remBase: number;
 }
 
@@ -32,11 +71,7 @@ export interface CoreNode {
 }
 
 interface Core {
-  createWindow(options: {
-    width: number;
-    height: number;
-    title: string;
-  }): CoreWindow;
+  createWindow(options: WindowOptions): CoreWindow;
   requestQuit(): void;
   requestRedraw(windowId: number): void;
   getRootNode(windowId: number): CoreNode;

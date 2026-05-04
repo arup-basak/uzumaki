@@ -1,4 +1,11 @@
 import core, { type CoreWindow } from './core';
+import type {
+  WindowOptions,
+  WindowLevel,
+  WindowPosition,
+  WindowSize,
+  WindowTheme,
+} from './types';
 import { UzTextNode } from './node';
 import { Element } from './elements/element';
 import { UzElement } from './elements/base';
@@ -20,6 +27,11 @@ import { clearWindowNodes } from './registry';
 
 const windowsByLabel = new Map<string, Window>();
 const windowsById = new Map<number, Window>();
+const DEFAULT_WINDOW_WIDTH = 800;
+const DEFAULT_WINDOW_HEIGHT = 600;
+const DEFAULT_WINDOW_TITLE = 'uzumaki';
+const DEFAULT_WINDOW_LEVEL: WindowLevel = 'normal';
+const DEFAULT_WINDOW_THEME: WindowTheme | null = null;
 
 type ElementConstructor<T extends Element<any> = Element<any>> = new (
   window: Window,
@@ -50,9 +62,6 @@ export class Window {
   private _id: number;
   private _native: CoreWindow;
   private _label: string;
-  private _title: string;
-  private _width: number;
-  private _height: number;
   private _remBase: number = 16;
   private _disposed: boolean = false;
   private _disposables: (() => void)[] = [];
@@ -60,32 +69,25 @@ export class Window {
   /** @internal Used by the dispatcher and runtime glue. */
   readonly _emitter: UzEventTarget<WindowEventMap> = new UzEventTarget();
 
-  constructor(
-    label: string,
-    {
-      width = 800,
-      height = 600,
-      title = 'uzumaki',
-      rootStyles,
-    }: Partial<WindowAttributes> = {},
-  ) {
+  constructor(label: string, attributes: WindowOptions = {}) {
     const existing = windowsByLabel.get(label);
     if (existing) {
       throw new Error(`Window with label ${label} already exists`);
     }
 
-    this._width = width;
-    this._height = height;
+    const { rootStyles, ...createOptions } = attributes;
+
     this._label = label;
-    this._title = title;
-    this._native = core.createWindow({ width, height, title });
+    this._native = core.createWindow(createOptions);
     this._id = this._native.id;
+
     if (rootStyles) {
       const root = this.root;
       for (const [key, value] of Object.entries(rootStyles)) {
         if (value != null) root.setAttribute(key, value);
       }
     }
+
     windowsByLabel.set(label, this);
     windowsById.set(this._id, this);
   }
@@ -105,9 +107,76 @@ export class Window {
     return windowsById.get(id);
   }
 
-  setSize(width: number, height: number) {
-    this._width = width;
-    this._height = height;
+  set title(title: string) {
+    this._native.title = title;
+  }
+
+  set decorations(decorations: boolean) {
+    this._native.decorations = decorations;
+  }
+
+  set visible(visible: boolean) {
+    this._native.visible = visible;
+  }
+
+  set transparent(transparent: boolean) {
+    this._native.transparent = transparent;
+  }
+
+  set resizable(resizable: boolean) {
+    this._native.resizable = resizable;
+  }
+
+  set maximized(maximized: boolean) {
+    this._native.maximized = maximized;
+  }
+
+  set minimized(minimized: boolean) {
+    this._native.minimized = minimized;
+  }
+
+  set fullscreen(fullscreen: boolean) {
+    this._native.fullscreen = fullscreen;
+  }
+
+  set windowLevel(windowLevel: WindowLevel) {
+    this._native.windowLevel = windowLevel;
+  }
+
+  setMinSize(width: number, height: number): void {
+    this._native.setMinSize(width, height);
+  }
+
+  setMaxSize(width: number, height: number): void {
+    this._native.setMaxSize(width, height);
+  }
+
+  setPosition(x: number, y: number): void {
+    this._native.setPosition(x, y);
+  }
+
+  set theme(theme: WindowTheme) {
+    this._native.theme = theme;
+  }
+
+  focus(): void {
+    this._native.focus();
+  }
+
+  set contentProtected(contentProtected: boolean) {
+    this._native.contentProtected = contentProtected;
+  }
+
+  set closable(closable: boolean) {
+    this._native.closable = closable;
+  }
+
+  set minimizable(minimizable: boolean) {
+    this._native.minimizable = minimizable;
+  }
+
+  set maximizable(value: boolean) {
+    this._native.maximizable = value;
   }
 
   get scaleFactor(): number {
@@ -115,15 +184,91 @@ export class Window {
   }
 
   get innerWidth(): number {
-    return this._native.innerWidth ?? this._width;
+    return this._native.innerWidth ?? DEFAULT_WINDOW_WIDTH;
   }
 
   get innerHeight(): number {
-    return this._native.innerHeight ?? this._height;
+    return this._native.innerHeight ?? DEFAULT_WINDOW_HEIGHT;
   }
 
   get title(): string {
-    return this._native.title ?? this._title;
+    return this._native.title ?? DEFAULT_WINDOW_TITLE;
+  }
+
+  get visible(): boolean {
+    return this._native.visible ?? true;
+  }
+
+  get transparent(): boolean {
+    return this._native.transparent ?? false;
+  }
+
+  get resizable(): boolean {
+    return this._native.resizable ?? true;
+  }
+
+  get decorations(): boolean {
+    return this._native.decorations ?? true;
+  }
+
+  get maximized(): boolean {
+    return this._native.maximized ?? false;
+  }
+
+  get minimized(): boolean {
+    return this._native.minimized ?? false;
+  }
+
+  get fullscreen(): boolean {
+    return this._native.fullscreen ?? false;
+  }
+
+  get alwaysOnTop(): boolean {
+    return this.windowLevel === 'alwaysOnTop';
+  }
+
+  get alwaysOnBottom(): boolean {
+    return this.windowLevel === 'alwaysOnBottom';
+  }
+
+  get windowLevel(): WindowLevel {
+    return this._native.windowLevel ?? DEFAULT_WINDOW_LEVEL;
+  }
+
+  get innerSize(): WindowSize | null {
+    return this._native.innerSize;
+  }
+
+  get outerSize(): WindowSize | null {
+    return this._native.outerSize;
+  }
+
+  get position(): WindowPosition | null {
+    return this._native.position;
+  }
+
+  get theme(): WindowTheme | null {
+    return this._native.theme ?? DEFAULT_WINDOW_THEME;
+  }
+
+  get active(): boolean | null {
+    return this._native.active;
+  }
+
+  get contentProtected(): boolean {
+    return this._native.contentProtected ?? false;
+  }
+
+  get closable(): boolean {
+    return this._native.closable ?? true;
+  }
+
+  get minimizable(): boolean {
+    return this._native.minimizable ?? true;
+  }
+
+  get maximizable(): boolean {
+    return this._native.maximizable ?? true;
   }
 
   get label(): string {
@@ -193,6 +338,10 @@ export class Window {
     this._emitter.emit(name, event as any);
     return event.defaultPrevented;
   }
+}
+
+export function getWindow(label: string): Window | undefined {
+  return windowsByLabel.get(label);
 }
 
 /** @internal Called when the native window is destroyed. */
