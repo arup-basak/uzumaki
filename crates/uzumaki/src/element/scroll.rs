@@ -12,7 +12,8 @@ use vello::peniko::Fill;
 use crate::element::ScrollAxis;
 use crate::style::{Bounds, ScrollbarStyle};
 
-pub const THUMB_MARGIN: f64 = 4.0;
+pub const SCROLLBAR_SIDE_MARGIN: f64 = 4.0; // gap between thumb and container edge (perpendicular axis)
+pub const SCROLLBAR_END_MARGIN: f64 = 8.0; // gap at track start/end (along scroll axis)
 pub const THUMB_MIN_LENGTH: f64 = 24.0;
 
 /// A scrollable extent on one axis. Geometry-only — the owner of this info
@@ -70,36 +71,36 @@ pub fn thumb_geometry(
     };
     match axis {
         ScrollAxis::Y => {
-            let track = view.height;
+            let track = view.height - SCROLLBAR_END_MARGIN - thickness;
             let length =
                 (track * info.visible_size / info.content_size.max(1.0)).max(THUMB_MIN_LENGTH);
             let track_range = (track - length).max(0.0);
-            let track_x = view.width - thickness - THUMB_MARGIN;
+            let track_x = view.width - thickness - SCROLLBAR_SIDE_MARGIN;
             ThumbGeometry {
                 local_x: track_x,
-                local_y: scroll_ratio * track_range,
+                local_y: SCROLLBAR_END_MARGIN + scroll_ratio * track_range,
                 width: thickness,
                 height: length,
                 track_range,
                 track_x,
-                track_y: 0.0,
+                track_y: SCROLLBAR_END_MARGIN,
                 track_width: thickness,
                 track_height: track,
             }
         }
         ScrollAxis::X => {
-            let track = view.width;
+            let track = view.width - SCROLLBAR_END_MARGIN - thickness;
             let length =
                 (track * info.visible_size / info.content_size.max(1.0)).max(THUMB_MIN_LENGTH);
             let track_range = (track - length).max(0.0);
-            let track_y = view.height - thickness - THUMB_MARGIN;
+            let track_y = view.height - thickness - SCROLLBAR_SIDE_MARGIN;
             ThumbGeometry {
-                local_x: scroll_ratio * track_range,
+                local_x: SCROLLBAR_END_MARGIN + scroll_ratio * track_range,
                 local_y: track_y,
                 width: length,
                 height: thickness,
                 track_range,
-                track_x: 0.0,
+                track_x: SCROLLBAR_END_MARGIN,
                 track_y,
                 track_width: track,
                 track_height: thickness,

@@ -136,7 +136,7 @@ export function LayoutPage() {
       gap={0}
       h="full"
       scroll
-      scrollbarWidth={10}
+      scrollbarWidth={8}
       scrollbarRadius={5}
     >
       <view
@@ -1019,6 +1019,8 @@ function ScrollDemo() {
             p={12}
             display="flex"
             flexDir="row"
+            scrollbarColor={C.accentDim}
+            scrollbarHoverColor={C.warningDim}
             gap={10}
           >
             {Array.from({ length: 10 }, (_, i) => (
@@ -1026,6 +1028,7 @@ function ScrollDemo() {
                 key={i}
                 w={140}
                 h={80}
+                textWrap="nowrap"
                 bg={i % 2 === 0 ? C.primaryDim : C.accentDim}
                 rounded={8}
                 p={10}
@@ -1059,6 +1062,8 @@ function ScrollDemo() {
             display="flex"
             flexDir="col"
             gap={10}
+            scrollbarColor={C.accentDim}
+            scrollbarHoverColor={C.warningDim}
           >
             {Array.from({ length: 14 }, (_, i) => (
               <view
@@ -1099,8 +1104,7 @@ function ScrollDemo() {
             display="flex"
             flexDir="col"
             gap={10}
-            scrollbarWidth={10}
-            scrollbarColor={C.primaryDim}
+            scrollbarWidth={8}
             scrollbarHoverColor={C.primary}
             scrollbarTrackColor={C.surface3}
             scrollbarRadius={5}

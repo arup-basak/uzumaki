@@ -30,7 +30,7 @@ export function TimerPage() {
       gap={0}
       h="full"
       scroll
-      scrollbarWidth={10}
+      scrollbarWidth={8}
       scrollbarRadius={5}
     >
       <view
