@@ -103,6 +103,10 @@ interface ElementStyles {
   scroll?: boolean;
   scrollX?: boolean;
   scrollY?: boolean;
+  scrollbarWidth?: number | string;
+  scrollbarColor?: string;
+  scrollbarHoverColor?: string;
+  scrollbarRadius?: number | string;
   // if true text inside this view can be selected
   selectable?: boolean;
   visibility?: 'visible' | 'hidden';

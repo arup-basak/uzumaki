@@ -10,7 +10,7 @@ use crate::element::input::InputRenderInfo;
 use crate::element::scroll::{self, ScrollAxisInfo, ThumbGeometry};
 use crate::element::{ImageMeasureInfo, ScrollAxis, ScrollState, ScrollThumbRect, UzNodeId};
 use crate::layout::NodeContext;
-use crate::style::{Bounds, TextStyle, UzStyle, Visibility};
+use crate::style::{Bounds, ScrollbarStyle, TextStyle, UzStyle, Visibility};
 use crate::text::{
     TextRenderer, apply_text_style_to_editor, secure_cursor_geometry, secure_selection_geometry,
 };
@@ -373,13 +373,13 @@ impl<'a> Painter<'a> {
         }
 
         let view_local = Bounds::new(0.0, 0.0, w, h);
-        let geom = scroll::thumb_geometry(ScrollAxis::Y, view_local, axis_info);
+        let geom = scroll::thumb_geometry(ScrollAxis::Y, view_local, axis_info, &style.scrollbar);
         let view_bounds = Bounds::new(view_x, view_y, w, h);
         let thumb_bounds = Bounds::new(
             view_x + geom.local_x,
             view_y + geom.local_y,
-            geom.width,
-            geom.height,
+            geom.thumb_width,
+            geom.thumb_height,
         );
         // Inputs always register the thumb hit rect, even when not visible —
         // matches the legacy behaviour and keeps wheel/drag responsive.
@@ -413,6 +413,7 @@ impl<'a> Painter<'a> {
             transform,
             geom,
             hovered,
+            style: style.scrollbar,
         })
     }
 
@@ -467,6 +468,7 @@ impl<'a> Painter<'a> {
                 layout.size_h,
                 offset_y,
                 transform,
+                &style.scrollbar,
             ));
         }
         if scroll_x && layout.content_w > layout.size_w {
@@ -478,6 +480,7 @@ impl<'a> Painter<'a> {
                 layout.size_w,
                 offset_x,
                 transform,
+                &style.scrollbar,
             ));
         }
 
@@ -499,6 +502,7 @@ impl<'a> Painter<'a> {
         visible: f64,
         offset: f64,
         transform: Affine,
+        scrollbar: &ScrollbarStyle,
     ) -> ScrollbarPaint {
         let view_local = Bounds::new(0.0, 0.0, view_bounds.width, view_bounds.height);
         let geom = scroll::thumb_geometry(
@@ -509,12 +513,13 @@ impl<'a> Painter<'a> {
                 visible_size: visible,
                 offset,
             },
+            scrollbar,
         );
         let thumb_bounds = Bounds::new(
             view_bounds.x + geom.local_x,
             view_bounds.y + geom.local_y,
-            geom.width,
-            geom.height,
+            geom.thumb_width,
+            geom.thumb_height,
         );
         self.dom.scroll_thumbs.push(ScrollThumbRect {
             node_id,
@@ -536,6 +541,7 @@ impl<'a> Painter<'a> {
             transform,
             geom,
             hovered,
+            style: *scrollbar,
         }
     }
 
@@ -619,7 +625,7 @@ impl PaintList {
                 }
                 PaintItem::PopClip => scene.pop_layer(),
                 PaintItem::Scrollbar(s) => {
-                    scroll::paint_thumb(scene, s.transform, &s.geom, s.hovered)
+                    scroll::paint_thumb(scene, s.transform, &s.geom, s.hovered, &s.style)
                 }
             }
         }
@@ -793,6 +799,7 @@ struct ScrollbarPaint {
     transform: Affine,
     geom: ThumbGeometry,
     hovered: bool,
+    style: ScrollbarStyle,
 }
 
 enum PaintItem {

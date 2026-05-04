@@ -50,7 +50,15 @@ export function StressPage() {
   }, [tileCount, colors12]);
 
   return (
-    <view display="flex" flexDir="col" gap={0} h="full" scroll>
+    <view
+      display="flex"
+      flexDir="col"
+      gap={0}
+      h="full"
+      scroll
+      scrollbarWidth={8}
+      scrollbarRadius={5}
+    >
       <view
         display="flex"
         flexDir="col"

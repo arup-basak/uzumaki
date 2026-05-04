@@ -411,6 +411,30 @@ pub struct TransformStyle {
     pub scale_y: f32,
 }
 
+/// Styling for the scrollbar painted on scrollable views and multiline inputs.
+/// Defaults match the legacy hardcoded look (4px overlay thumb, white@90/140
+/// alpha, transparent track, pill-shaped via auto-radius).
+#[derive(Clone, Copy, Debug, PartialEq, Refineable)]
+#[refineable(Debug)]
+pub struct ScrollbarStyle {
+    pub width: f32,
+    pub color: Color,
+    pub hover_color: Color,
+    /// `None` = pill (radius = width / 2); `Some(v)` = explicit radius.
+    pub radius: Option<f32>,
+}
+
+impl Default for ScrollbarStyle {
+    fn default() -> Self {
+        Self {
+            width: 4.0,
+            color: Color::rgba(255, 255, 255, 90),
+            hover_color: Color::rgba(255, 255, 255, 140),
+            radius: None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TextSelectable {
     #[default]
@@ -565,6 +589,9 @@ pub struct UzStyle {
     #[refineable]
     pub transform: TransformStyle,
 
+    #[refineable]
+    pub scrollbar: ScrollbarStyle,
+
     /// Whether text within this element is selectable.
     /// None = inherit from parent (default). Some(true) = selectable, Some(false) = not.
     /// toro move to style
@@ -611,6 +638,7 @@ impl Default for UzStyle {
 
             text: TextStyle::default(),
             transform: TransformStyle::default(),
+            scrollbar: ScrollbarStyle::default(),
             text_selectable: TextSelectable::Inherit,
         }
     }

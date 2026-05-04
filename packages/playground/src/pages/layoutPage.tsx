@@ -130,7 +130,15 @@ export function LayoutPage() {
   const [padding, setPadding] = useState(12);
 
   return (
-    <view display="flex" flexDir="col" gap={0} h="full" scroll>
+    <view
+      display="flex"
+      flexDir="col"
+      gap={0}
+      h="full"
+      scroll
+      scrollbarWidth={8}
+      scrollbarRadius={5}
+    >
       <view
         display="flex"
         flexDir="col"
@@ -1011,6 +1019,8 @@ function ScrollDemo() {
             p={12}
             display="flex"
             flexDir="row"
+            scrollbarColor={C.accentDim}
+            scrollbarHoverColor={C.warningDim}
             gap={10}
           >
             {Array.from({ length: 10 }, (_, i) => (
@@ -1018,6 +1028,7 @@ function ScrollDemo() {
                 key={i}
                 w={140}
                 h={80}
+                textWrap="nowrap"
                 bg={i % 2 === 0 ? C.primaryDim : C.accentDim}
                 rounded={8}
                 p={10}
@@ -1052,6 +1063,8 @@ function ScrollDemo() {
             display="flex"
             flexDir="col"
             gap={10}
+            scrollbarColor={C.accentDim}
+            scrollbarHoverColor={C.warningDim}
           >
             {Array.from({ length: 14 }, (_, i) => (
               <view
@@ -1068,6 +1081,48 @@ function ScrollDemo() {
                 </text>
                 <text fontSize={10} color={C.textMuted}>
                   Vertical overflow only
+                </text>
+              </view>
+            ))}
+          </view>
+        </view>
+
+        <view display="flex" flexDir="col" gap={8}>
+          <text fontSize={12} fontWeight={600} color={C.textMuted}>
+            scrollbar styling
+          </text>
+          <text fontSize={11} color={C.textMuted}>
+            scrollbarWidth / Color / HoverColor / TrackColor / Radius
+          </text>
+          <view
+            h={220}
+            scrollY
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+            p={12}
+            display="flex"
+            flexDir="col"
+            gap={10}
+            scrollbarHoverColor={C.primary}
+            scrollbarRadius={5}
+          >
+            {Array.from({ length: 14 }, (_, i) => (
+              <view
+                key={i}
+                p={12}
+                bg={i % 2 === 0 ? C.surface3 : C.surface4}
+                rounded={8}
+                display="flex"
+                flexDir="col"
+                gap={4}
+              >
+                <text fontSize={12} fontWeight={700} color={C.text}>
+                  Item #{i + 1}
+                </text>
+                <text fontSize={10} color={C.textMuted}>
+                  Hover the thumb to see the hover color
                 </text>
               </view>
             ))}

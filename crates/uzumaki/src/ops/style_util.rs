@@ -319,22 +319,20 @@ fn set_style_str(
         | StyleProp::Left => {
             if let Some(length) = parse_length(value, rem_base) {
                 set_length_style_prop(&mut node.style, prop, length)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::Gap => {
             if let Some(length) = parse_definite_length(value, rem_base) {
                 set_gap_style_prop(&mut node.style, length)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
-        StyleProp::Bg | StyleProp::Color | StyleProp::BorderColor => {
+        StyleProp::Bg
+        | StyleProp::Color
+        | StyleProp::BorderColor
+        | StyleProp::ScrollbarColor
+        | StyleProp::ScrollbarHoverColor => {
             if let Some(color) = parse_color(value) {
                 set_color_style_prop(node, prop, color)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::FlexDir
@@ -347,8 +345,6 @@ fn set_style_str(
         | StyleProp::Position => {
             if set_enum_style_prop_from_str(&mut node.style, prop, value) {
                 remember_inherited_enum(node, prop);
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::Cursor => {
@@ -411,11 +407,13 @@ fn set_variant_style_str(
                 clear_style_prop(node, prop, variant)
             }
         }
-        StyleProp::Bg | StyleProp::Color | StyleProp::BorderColor => {
+        StyleProp::Bg
+        | StyleProp::Color
+        | StyleProp::BorderColor
+        | StyleProp::ScrollbarColor
+        | StyleProp::ScrollbarHoverColor => {
             if let Some(color) = parse_color(value) {
                 set_variant_color(node, prop, variant, color)
-            } else {
-                clear_style_prop(node, prop, variant)
             }
         }
         StyleProp::FlexDir
@@ -530,9 +528,9 @@ fn set_variant_color(node: &mut Node, prop: StyleProp, variant: StyleVariant, co
             let outline = r.outline.get_or_insert(Outline::FOCUS_RING);
             outline.color = color;
         }
-        _ => {
-            // rest doesnt affect color
-        }
+        StyleProp::ScrollbarColor => r.scrollbar.color = Some(color),
+        StyleProp::ScrollbarHoverColor => r.scrollbar.hover_color = Some(color),
+        _ => {}
     }
 }
 
@@ -725,6 +723,8 @@ fn set_variant_number(node: &mut Node, prop: StyleProp, variant: StyleVariant, v
             outline.offset = value;
         }
         StyleProp::Opacity => r.opacity = Some(value),
+        StyleProp::ScrollbarWidth => r.scrollbar.width = Some(value),
+        StyleProp::ScrollbarRadius => r.scrollbar.radius = Some(value),
         StyleProp::Visibility => {
             r.visibility = Some(if value > 0.5 {
                 Visibility::Visible
@@ -911,6 +911,10 @@ fn clear_variant_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
             }
             StyleProp::ScrollX => style.overflow_x = None,
             StyleProp::ScrollY => style.overflow_y = None,
+            StyleProp::ScrollbarWidth => style.scrollbar.width = None,
+            StyleProp::ScrollbarColor => style.scrollbar.color = None,
+            StyleProp::ScrollbarHoverColor => style.scrollbar.hover_color = None,
+            StyleProp::ScrollbarRadius => style.scrollbar.radius = None,
             StyleProp::TextSelect => style.text_selectable = None,
             StyleProp::TextWrap => {
                 style.text.overflow_wrap = None;
@@ -976,7 +980,15 @@ fn set_color_style_prop(node: &mut Node, prop: StyleProp, color: Color) {
             let outline = node.style.outline.get_or_insert(Outline::FOCUS_RING);
             outline.color = color;
         }
-        _ => {}
+        StyleProp::ScrollbarColor => {
+            node.style.scrollbar.color = color;
+        }
+        StyleProp::ScrollbarHoverColor => {
+            node.style.scrollbar.hover_color = color;
+        }
+        _ => {
+            // rest doesnt affect color
+        }
     }
 }
 
@@ -1181,6 +1193,12 @@ fn set_f32_style_prop(node: &mut Node, prop: StyleProp, v: f32) {
             outline.offset = v;
         }
         StyleProp::Opacity => style.opacity = v,
+        StyleProp::ScrollbarWidth => {
+            style.scrollbar.width = v;
+        }
+        StyleProp::ScrollbarRadius => {
+            style.scrollbar.radius = Some(v);
+        }
         StyleProp::Visibility => {
             style.visibility = if v > 0.5 {
                 Visibility::Visible
@@ -1392,6 +1410,12 @@ fn clear_style_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
                 node.scroll_state = None;
             }
         }
+        StyleProp::ScrollbarWidth => node.style.scrollbar.width = default.scrollbar.width,
+        StyleProp::ScrollbarColor => node.style.scrollbar.color = default.scrollbar.color,
+        StyleProp::ScrollbarHoverColor => {
+            node.style.scrollbar.hover_color = default.scrollbar.hover_color
+        }
+        StyleProp::ScrollbarRadius => node.style.scrollbar.radius = default.scrollbar.radius,
         StyleProp::TextSelect => {
             node.set_text_selectable(default.text_selectable);
             node.interactivity.base_style.text_selectable = None;
@@ -1441,6 +1465,14 @@ fn get_style_prop(node: &Node, prop: StyleProp) -> Value {
         ),
         StyleProp::ScrollX => json!(matches!(style.overflow_x, Overflow::Auto)),
         StyleProp::ScrollY => json!(matches!(style.overflow_y, Overflow::Auto)),
+        StyleProp::ScrollbarWidth => json!(style.scrollbar.width),
+        StyleProp::ScrollbarColor => color_to_json(style.scrollbar.color),
+        StyleProp::ScrollbarHoverColor => color_to_json(style.scrollbar.hover_color),
+        StyleProp::ScrollbarRadius => style
+            .scrollbar
+            .radius
+            .map(|r| json!(r))
+            .unwrap_or(Value::Null),
         StyleProp::TextSelect => json!(node.is_text_selectable()),
         StyleProp::Top => length_to_json(style.inset.top),
         StyleProp::Right => length_to_json(style.inset.right),
