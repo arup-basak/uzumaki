@@ -130,7 +130,15 @@ export function LayoutPage() {
   const [padding, setPadding] = useState(12);
 
   return (
-    <view display="flex" flexDir="col" gap={0} h="full" scroll>
+    <view
+      display="flex"
+      flexDir="col"
+      gap={0}
+      h="full"
+      scroll
+      scrollbarWidth={10}
+      scrollbarRadius={5}
+    >
       <view
         display="flex"
         flexDir="col"
@@ -1067,6 +1075,51 @@ function ScrollDemo() {
                 </text>
                 <text fontSize={10} color={C.textMuted}>
                   Vertical overflow only
+                </text>
+              </view>
+            ))}
+          </view>
+        </view>
+
+        <view display="flex" flexDir="col" gap={8}>
+          <text fontSize={12} fontWeight={600} color={C.textMuted}>
+            scrollbar styling
+          </text>
+          <text fontSize={11} color={C.textMuted}>
+            scrollbarWidth / Color / HoverColor / TrackColor / Radius
+          </text>
+          <view
+            h={220}
+            scrollY
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+            p={12}
+            display="flex"
+            flexDir="col"
+            gap={10}
+            scrollbarWidth={10}
+            scrollbarColor={C.primaryDim}
+            scrollbarHoverColor={C.primary}
+            scrollbarTrackColor={C.surface3}
+            scrollbarRadius={5}
+          >
+            {Array.from({ length: 14 }, (_, i) => (
+              <view
+                key={i}
+                p={12}
+                bg={i % 2 === 0 ? C.surface3 : C.surface4}
+                rounded={8}
+                display="flex"
+                flexDir="col"
+                gap={4}
+              >
+                <text fontSize={12} fontWeight={700} color={C.text}>
+                  Item #{i + 1}
+                </text>
+                <text fontSize={10} color={C.textMuted}>
+                  Hover the thumb to see the hover color
                 </text>
               </view>
             ))}

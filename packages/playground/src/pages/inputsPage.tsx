@@ -22,7 +22,15 @@ export function InputsPage() {
   const pwMismatch = confirm.length > 0 && password !== confirm;
 
   return (
-    <view display="flex" flexDir="col" gap={0} h="full" scroll>
+    <view
+      display="flex"
+      flexDir="col"
+      gap={0}
+      h="full"
+      scroll
+      scrollbarWidth={10}
+      scrollbarRadius={5}
+    >
       <view
         display="flex"
         flexDir="col"

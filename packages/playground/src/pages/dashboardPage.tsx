@@ -49,7 +49,15 @@ export function DashboardPage() {
   const fps = 60;
 
   return (
-    <view display="flex" flexDir="col" gap={0} h="full" scroll>
+    <view
+      display="flex"
+      flexDir="col"
+      gap={0}
+      h="full"
+      scroll
+      scrollbarWidth={10}
+      scrollbarRadius={5}
+    >
       <view
         display="flex"
         flexDir="row"
