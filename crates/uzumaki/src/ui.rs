@@ -307,22 +307,6 @@ impl UIState {
         true
     }
 
-    fn collect_subtree(&self, root_id: UzNodeId) -> Vec<UzNodeId> {
-        let mut to_remove = Vec::new();
-        let mut stack = vec![root_id];
-
-        while let Some(nid) = stack.pop() {
-            to_remove.push(nid);
-            if let Some(node) = self.nodes.get(nid) {
-                for &cid in node.children.iter().rev() {
-                    stack.push(cid);
-                }
-            }
-        }
-
-        to_remove
-    }
-
     fn detach_from_parent(&mut self, child_id: UzNodeId) {
         let Some(parent_id) = self.nodes[child_id].parent else {
             return;
@@ -397,17 +381,38 @@ impl UIState {
             return;
         }
         self.nodes[child_id].parent = None;
+        // The node lives on in the slab until its JS wrapper is collected, but
+        // every long-lived NodeId field (selection, focus, hit-state, scroll
+        // locks…) refers to nodes by their place in the tree. Once detached
+        // those references are stale, so scrub them now — same contract as
+        // before the GC refactor.
+        self.on_detached_subtree(child_id);
+    }
 
-        // FIXME: (URGENT) dont remove only detach ( clean up on gc )
-        //
-        // Collect the entire subtree rooted at child_id (BFS)
-        let to_remove = self.collect_subtree(child_id);
-
-        // Remove slab nodes and scrub stale NodeId references first.
-        for nid in to_remove {
-            self.on_node_removed(nid);
-            self.nodes.remove(nid);
+    pub fn destroy_node(&mut self, node_id: UzNodeId) {
+        if !self.nodes.contains(node_id) || self.root == Some(node_id) {
+            return;
         }
+
+        // eprintln!("[uzumaki] removing native node {node_id}",);
+
+        if let Some(parent_id) = self.nodes[node_id].parent
+            && self.nodes.contains(parent_id)
+        {
+            self.remove_child_ref(parent_id, node_id);
+        }
+
+        let children = std::mem::take(&mut self.nodes[node_id].children);
+        for child_id in children {
+            if let Some(child) = self.nodes.get_mut(child_id)
+                && child.parent == Some(node_id)
+            {
+                child.parent = None;
+            }
+        }
+
+        self.on_node_removed(node_id);
+        self.nodes.remove(node_id);
     }
 
     /// Update a text node's content.
@@ -438,24 +443,29 @@ impl UIState {
         image_node.clear();
     }
 
-    /// Remove all children (and their descendants) from `parent_id`, clearing
-    /// the retained node entries. The parent node itself is kept.
+    /// Detach all children from `parent_id`. Nodes themselves stay alive in
+    /// the slab;
     pub fn clear_children(&mut self, parent_id: UzNodeId) {
-        // Collect every descendant via BFS
-        let children = self.nodes[parent_id].children.clone();
-        let mut to_remove = Vec::new();
+        let children = std::mem::take(&mut self.nodes[parent_id].children);
         for child_id in children {
-            to_remove.extend(self.collect_subtree(child_id));
+            self.nodes[child_id].parent = None;
+            self.on_detached_subtree(child_id);
         }
+    }
 
-        // Remove descendants from slab; scrub stale NodeId references first.
-        for nid in to_remove {
-            self.on_node_removed(nid);
-            self.nodes.remove(nid);
+    /// Walk the subtree rooted at `id` (still wired via `children` since we
+    /// only detach the root from its parent) and run `on_node_removed` on
+    /// every entry. The slab nodes themselves stay alive.
+    fn on_detached_subtree(&mut self, id: UzNodeId) {
+        let children: Vec<UzNodeId> = self
+            .nodes
+            .get(id)
+            .map(|node| node.children.clone())
+            .unwrap_or_default();
+        for child in children {
+            self.on_detached_subtree(child);
         }
-
-        // Reset parent pointers
-        self.nodes[parent_id].children.clear();
+        self.on_node_removed(id);
     }
 
     pub fn compute_layout(&mut self, width: f32, height: f32, text_renderer: &mut TextRenderer) {
@@ -768,6 +778,27 @@ mod tests {
 
         assert!(dom.nodes[text].children.is_empty());
         assert_eq!(dom.nodes[child].parent, Some(parent));
+    }
+
+    #[test]
+    fn remove_node_detaches_links_and_clears_long_lived_refs() {
+        let mut dom = UIState::new();
+        let parent = dom.create_view(Default::default());
+        let child = dom.create_view(Default::default());
+        let grandchild = dom.create_view(Default::default());
+
+        dom.append_child(parent, child);
+        dom.append_child(child, grandchild);
+        dom.focused_node = Some(child);
+        dom.hit_state.top_node = Some(child);
+
+        dom.destroy_node(child);
+
+        assert!(!dom.nodes.contains(child));
+        assert!(dom.nodes[parent].children.is_empty());
+        assert_eq!(dom.nodes[grandchild].parent, None);
+        assert_eq!(dom.focused_node, None);
+        assert_eq!(dom.hit_state.top_node, None);
     }
 
     #[test]
