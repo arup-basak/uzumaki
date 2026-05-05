@@ -130,6 +130,10 @@ impl UIState {
             return UzCursorIcon::Text;
         }
 
+        // Walk ancestors. An explicit `cursor` style wins, but if any ancestor
+        // is a text-selectable scope (`selectable` view) we should also show
+        // the text cursor — otherwise an inner non-selectable `<text>` inside
+        // a selectable view never gets the I-beam.
         let mut cur = node.parent;
         while let Some(id) = cur {
             let n = &self.nodes[id];
@@ -141,6 +145,9 @@ impl UIState {
             );
             if let Some(c) = style.cursor {
                 return c;
+            }
+            if n.is_text_selectable() {
+                return UzCursorIcon::Text;
             }
             cur = n.parent;
         }
@@ -234,17 +241,8 @@ impl UIState {
 
         self.detach_from_parent(child_id);
 
-        let old_last = self.nodes[parent_id].last_child;
         self.nodes[child_id].parent = Some(parent_id);
-        self.nodes[child_id].prev_sibling = old_last;
-        self.nodes[child_id].next_sibling = None;
-
-        if let Some(old_last_id) = old_last {
-            self.nodes[old_last_id].next_sibling = Some(child_id);
-        } else {
-            self.nodes[parent_id].first_child = Some(child_id);
-        }
-        self.nodes[parent_id].last_child = Some(child_id);
+        self.nodes[parent_id].children.push(child_id);
     }
 
     pub fn insert_before(&mut self, parent_id: UzNodeId, child_id: UzNodeId, before_id: UzNodeId) {
@@ -255,18 +253,74 @@ impl UIState {
             return;
         }
         self.detach_from_parent(child_id);
-
-        let prev = self.nodes[before_id].prev_sibling;
         self.nodes[child_id].parent = Some(parent_id);
-        self.nodes[child_id].next_sibling = Some(before_id);
-        self.nodes[child_id].prev_sibling = prev;
-        self.nodes[before_id].prev_sibling = Some(child_id);
+        let Some(index) = self.nodes[parent_id]
+            .children
+            .iter()
+            .position(|&id| id == before_id)
+        else {
+            self.nodes[child_id].parent = None;
+            return;
+        };
+        self.nodes[parent_id].children.insert(index, child_id);
+    }
 
-        if let Some(prev_id) = prev {
-            self.nodes[prev_id].next_sibling = Some(child_id);
-        } else {
-            self.nodes[parent_id].first_child = Some(child_id);
+    pub fn first_child(&self, node_id: UzNodeId) -> Option<UzNodeId> {
+        self.nodes
+            .get(node_id)
+            .and_then(|node| node.children.first().copied())
+    }
+
+    pub fn last_child(&self, node_id: UzNodeId) -> Option<UzNodeId> {
+        self.nodes
+            .get(node_id)
+            .and_then(|node| node.children.last().copied())
+    }
+
+    pub fn next_sibling(&self, node_id: UzNodeId) -> Option<UzNodeId> {
+        let node = self.nodes.get(node_id)?;
+        let parent_id = node.parent?;
+        let siblings = &self.nodes.get(parent_id)?.children;
+        let index = siblings.iter().position(|&id| id == node_id)?;
+        siblings.get(index + 1).copied()
+    }
+
+    pub fn prev_sibling(&self, node_id: UzNodeId) -> Option<UzNodeId> {
+        let node = self.nodes.get(node_id)?;
+        let parent_id = node.parent?;
+        let siblings = &self.nodes.get(parent_id)?.children;
+        let index = siblings.iter().position(|&id| id == node_id)?;
+        index
+            .checked_sub(1)
+            .and_then(|idx| siblings.get(idx).copied())
+    }
+
+    fn remove_child_ref(&mut self, parent_id: UzNodeId, child_id: UzNodeId) -> bool {
+        let Some(index) = self.nodes[parent_id]
+            .children
+            .iter()
+            .position(|&id| id == child_id)
+        else {
+            return false;
+        };
+        self.nodes[parent_id].children.remove(index);
+        true
+    }
+
+    fn collect_subtree(&self, root_id: UzNodeId) -> Vec<UzNodeId> {
+        let mut to_remove = Vec::new();
+        let mut stack = vec![root_id];
+
+        while let Some(nid) = stack.pop() {
+            to_remove.push(nid);
+            if let Some(node) = self.nodes.get(nid) {
+                for &cid in node.children.iter().rev() {
+                    stack.push(cid);
+                }
+            }
         }
+
+        to_remove
     }
 
     fn detach_from_parent(&mut self, child_id: UzNodeId) {
@@ -274,24 +328,8 @@ impl UIState {
             return;
         };
 
-        let prev = self.nodes[child_id].prev_sibling;
-        let next = self.nodes[child_id].next_sibling;
-
-        if let Some(prev_id) = prev {
-            self.nodes[prev_id].next_sibling = next;
-        } else {
-            self.nodes[parent_id].first_child = next;
-        }
-
-        if let Some(next_id) = next {
-            self.nodes[next_id].prev_sibling = prev;
-        } else {
-            self.nodes[parent_id].last_child = prev;
-        }
-
+        self.remove_child_ref(parent_id, child_id);
         self.nodes[child_id].parent = None;
-        self.nodes[child_id].prev_sibling = None;
-        self.nodes[child_id].next_sibling = None;
     }
 
     /// Single source of truth for clearing stale NodeId references when a node
@@ -355,34 +393,15 @@ impl UIState {
     }
 
     pub fn remove_child(&mut self, parent_id: UzNodeId, child_id: UzNodeId) {
-        let prev = self.nodes[child_id].prev_sibling;
-        let next = self.nodes[child_id].next_sibling;
-
-        if let Some(prev_id) = prev {
-            self.nodes[prev_id].next_sibling = next;
-        } else {
-            self.nodes[parent_id].first_child = next;
+        if !self.remove_child_ref(parent_id, child_id) {
+            return;
         }
-
-        if let Some(next_id) = next {
-            self.nodes[next_id].prev_sibling = prev;
-        } else {
-            self.nodes[parent_id].last_child = prev;
-        }
+        self.nodes[child_id].parent = None;
 
         // FIXME: (URGENT) dont remove only detach ( clean up on gc )
         //
         // Collect the entire subtree rooted at child_id (BFS)
-        let mut to_remove = Vec::new();
-        let mut stack = vec![child_id];
-        while let Some(nid) = stack.pop() {
-            to_remove.push(nid);
-            let mut c = self.nodes[nid].first_child;
-            while let Some(cid) = c {
-                stack.push(cid);
-                c = self.nodes[cid].next_sibling;
-            }
-        }
+        let to_remove = self.collect_subtree(child_id);
 
         // Remove slab nodes and scrub stale NodeId references first.
         for nid in to_remove {
@@ -423,21 +442,10 @@ impl UIState {
     /// the retained node entries. The parent node itself is kept.
     pub fn clear_children(&mut self, parent_id: UzNodeId) {
         // Collect every descendant via BFS
+        let children = self.nodes[parent_id].children.clone();
         let mut to_remove = Vec::new();
-        let mut stack = Vec::new();
-
-        let mut child = self.nodes[parent_id].first_child;
-        while let Some(cid) = child {
-            stack.push(cid);
-            child = self.nodes[cid].next_sibling;
-        }
-        while let Some(nid) = stack.pop() {
-            to_remove.push(nid);
-            let mut child = self.nodes[nid].first_child;
-            while let Some(cid) = child {
-                stack.push(cid);
-                child = self.nodes[cid].next_sibling;
-            }
+        for child_id in children {
+            to_remove.extend(self.collect_subtree(child_id));
         }
 
         // Remove descendants from slab; scrub stale NodeId references first.
@@ -447,8 +455,7 @@ impl UIState {
         }
 
         // Reset parent pointers
-        self.nodes[parent_id].first_child = None;
-        self.nodes[parent_id].last_child = None;
+        self.nodes[parent_id].children.clear();
     }
 
     pub fn compute_layout(&mut self, width: f32, height: f32, text_renderer: &mut TextRenderer) {
@@ -461,6 +468,60 @@ impl UIState {
             height,
             text_renderer,
         );
+        self.copy_final_layouts();
+        self.refresh_text_layouts(text_renderer);
+    }
+
+    /// Copy taffy's layout result onto each node so the paint pass can read
+    /// `node.final_layout` directly without going through the layout engine's
+    /// id → taffy_id → slab indirection.
+    fn copy_final_layouts(&mut self) {
+        for (node_id, node) in self.nodes.iter_mut() {
+            node.final_layout = self
+                .layout_engine
+                .layout(node_id)
+                .copied()
+                .unwrap_or_else(taffy::Layout::new);
+        }
+    }
+
+    /// Rebuild cached parley layouts for every text-bearing node at its final
+    /// taffy width. Runs once per frame after layout. Paint / selection /
+    /// hit-test then reuse `node.text_layout` instead of rebuilding.
+    fn refresh_text_layouts(&mut self, text_renderer: &mut TextRenderer) {
+        let Some(root) = self.root else { return };
+        self.refresh_text_layouts_at(root, None, text_renderer);
+    }
+
+    fn refresh_text_layouts_at(
+        &mut self,
+        node_id: UzNodeId,
+        parent_style: Option<&UzStyle>,
+        text_renderer: &mut TextRenderer,
+    ) {
+        let computed = self.computed_style(node_id, parent_style);
+        let children = self.nodes[node_id].children.clone();
+
+        let is_input = self.nodes[node_id].is_text_input();
+        let text = (!is_input)
+            .then(|| {
+                self.nodes[node_id]
+                    .get_text_content()
+                    .map(|t| t.content.clone())
+            })
+            .flatten();
+
+        if let Some(text) = text {
+            let width = Some(self.nodes[node_id].final_layout.size.width);
+            let layout = text_renderer.build_layout(&text, &computed.text, width);
+            self.nodes[node_id].text_layout = Some(layout);
+        } else {
+            self.nodes[node_id].text_layout = None;
+        }
+
+        for cid in children {
+            self.refresh_text_layouts_at(cid, Some(&computed), text_renderer);
+        }
     }
 
     pub(crate) fn computed_style(&self, node_id: UzNodeId, parent: Option<&UzStyle>) -> UzStyle {
@@ -601,6 +662,24 @@ impl UIState {
             .iter()
             .any(|run| run.entries.iter().any(|e| e.node_id == node_id))
     }
+
+    /// Walk up from `node_id` and return the root of the enclosing
+    /// text-selectable run, if any. This lets a click anywhere inside a
+    /// `selectable` container ,  not just on a text node , start selection
+    pub fn containing_text_run_root(&self, node_id: UzNodeId) -> Option<UzNodeId> {
+        let mut cur = Some(node_id);
+        while let Some(id) = cur {
+            if self
+                .selectable_text_runs
+                .iter()
+                .any(|run| run.root_id == id)
+            {
+                return Some(id);
+            }
+            cur = self.nodes.get(id).and_then(|n| n.parent);
+        }
+        None
+    }
 }
 
 #[cfg(test)]
@@ -672,8 +751,7 @@ mod tests {
         dom.append_child(parent, child);
         dom.append_child(text, child);
 
-        assert_eq!(dom.nodes[text].first_child, None);
-        assert_eq!(dom.nodes[text].last_child, None);
+        assert!(dom.nodes[text].children.is_empty());
         assert_eq!(dom.nodes[child].parent, Some(parent));
     }
 
@@ -688,8 +766,7 @@ mod tests {
         dom.append_child(parent, child);
         dom.insert_before(text, child, before);
 
-        assert_eq!(dom.nodes[text].first_child, None);
-        assert_eq!(dom.nodes[text].last_child, None);
+        assert!(dom.nodes[text].children.is_empty());
         assert_eq!(dom.nodes[child].parent, Some(parent));
     }
 
@@ -719,8 +796,8 @@ mod tests {
         dom.append_child(parent, second);
         dom.compute_layout(100.0, 100.0, &mut renderer);
 
-        let first_layout = dom.layout_engine.layout(first).unwrap();
-        let second_layout = dom.layout_engine.layout(second).unwrap();
+        let first_layout = &dom.nodes[first].final_layout;
+        let second_layout = &dom.nodes[second].final_layout;
 
         assert_eq!(first_layout.location.y, 0.0);
         assert_eq!(second_layout.location.y, first_layout.size.height);

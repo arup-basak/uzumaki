@@ -2,6 +2,8 @@ use crate::cursor::UzCursorIcon;
 use crate::input::InputState;
 use crate::interactivity::Interactivity;
 use crate::style::{Bounds, TextSelectable, UzStyle};
+use crate::text::TextBrush;
+use parley::Layout as ParleyLayout;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use vello::peniko::Blob;
@@ -13,7 +15,6 @@ pub mod render;
 pub mod scroll;
 pub mod selection;
 pub mod svg;
-pub mod text;
 pub mod view;
 
 use vello::kurbo::Affine;
@@ -509,13 +510,7 @@ impl NodeData {
 pub struct Node {
     pub parent: Option<UzNodeId>,
 
-    pub first_child: Option<UzNodeId>,
-
-    pub last_child: Option<UzNodeId>,
-
-    pub next_sibling: Option<UzNodeId>,
-
-    pub prev_sibling: Option<UzNodeId>,
+    pub children: Vec<UzNodeId>,
 
     pub data: NodeData,
 
@@ -527,21 +522,29 @@ pub struct Node {
     pub scroll_state: Option<ScrollState>,
     // not used now todo use this :3
     pub transform: Option<Affine>,
+    /// Cached parley layout for text-bearing nodes (text node or `<text>`
+    /// element). Refreshed once per frame after taffy compute, then reused by
+    /// paint, selection geometry and hit-testing instead of rebuilding parley
+    /// layouts on every read.
+    pub text_layout: Option<ParleyLayout<TextBrush>>,
+    /// Cached taffy layout for this node, copied here after `compute_layout`
+    /// runs. Reading `node.final_layout` avoids the
+    /// `layout_engine.layout(node_id)` two-level lookup on the paint hot path.
+    pub final_layout: taffy::Layout,
 }
 
 impl Node {
     pub fn new(style: UzStyle, data: impl Into<NodeData>) -> Self {
         Self {
             parent: None,
-            first_child: None,
-            last_child: None,
-            next_sibling: None,
-            prev_sibling: None,
+            children: Vec::new(),
             data: data.into(),
             style,
             interactivity: Interactivity::new(),
             scroll_state: None,
             transform: None,
+            text_layout: None,
+            final_layout: taffy::Layout::new(),
         }
     }
 }

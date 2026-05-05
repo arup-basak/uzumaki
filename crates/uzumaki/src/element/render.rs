@@ -39,61 +39,42 @@ impl<'a> Painter<'a> {
         }
         self.dom.build_text_select_runs();
 
-        // Computed once up-front; depends only on dom.text_selection which is
-        // settled before we enter the paint walk.
         let text_selections = self.compute_text_selections_map();
 
         let Some(root) = self.dom.root else {
             return;
         };
 
-        let mut stack: Vec<PaintCommand> = vec![PaintCommand::Visit(VisitFrame {
-            node_id: root,
-            parent_x: 0.0,
-            parent_y: 0.0,
-            parent_paint_transform: Affine::scale(self.scale),
-            parent_hit_transform: Affine::IDENTITY,
-            parent_style: None,
-        })];
-
-        while let Some(frame) = stack.pop() {
-            match frame {
-                PaintCommand::Visit(v) => self.visit(v, &mut stack, scene, &text_selections),
-                PaintCommand::PushClip { rect, transform } => {
-                    scene.push_clip_layer(Fill::NonZero, transform, &rect);
-                }
-                PaintCommand::PopClip => scene.pop_layer(),
-                PaintCommand::Scrollbar(s) => {
-                    scroll::paint_thumb(scene, s.transform, &s.geom, s.hovered, &s.style);
-                }
-            }
-        }
+        self.render_node(
+            root,
+            0.0,
+            0.0,
+            Affine::scale(self.scale),
+            Affine::IDENTITY,
+            None,
+            scene,
+            &text_selections,
+        );
     }
 
-    fn visit(
+    #[allow(clippy::too_many_arguments)]
+    fn render_node(
         &mut self,
-        frame: VisitFrame,
-        stack: &mut Vec<PaintCommand>,
+        node_id: UzNodeId,
+        parent_x: f64,
+        parent_y: f64,
+        parent_paint_transform: Affine,
+        parent_hit_transform: Affine,
+        parent_style: Option<&UzStyle>,
         scene: &mut Scene,
         text_selections: &HashMap<UzNodeId, (usize, usize)>,
     ) {
-        let VisitFrame {
-            node_id,
-            parent_x,
-            parent_y,
-            parent_paint_transform,
-            parent_hit_transform,
-            parent_style,
-        } = frame;
-
-        // Copy layout out first so we don't hold a borrow into dom while we
-        // mutate hitboxes / scroll state below.
-        let layout = match self.dom.layout_engine.layout(node_id) {
-            Some(l) => LayoutSnapshot::from(l),
-            None => return,
+        let Some(node_ref) = self.dom.nodes.get(node_id) else {
+            return;
         };
+        let layout = LayoutSnapshot::from(&node_ref.final_layout);
 
-        let computed_style = self.dom.computed_style(node_id, parent_style.as_deref());
+        let computed_style = self.dom.computed_style(node_id, parent_style);
 
         if computed_style.visibility == Visibility::Hidden
             || computed_style.display == crate::style::Display::None
@@ -111,7 +92,6 @@ impl<'a> Painter<'a> {
         let transform = parent_paint_transform * local_translate * local_style_transform;
         let hit_transform = parent_hit_transform * local_translate * local_style_transform;
 
-        // Register hitbox for this node.
         let hitbox_id = self.dom.hitbox_store.insert_transformed(
             node_id,
             Bounds::new(0.0, 0.0, w, h),
@@ -119,7 +99,6 @@ impl<'a> Painter<'a> {
         );
         self.dom.nodes[node_id].interactivity.hitbox_id = Some(hitbox_id);
 
-        // Paint this node directly into the scene.
         self.paint_node(
             node_id,
             &layout,
@@ -131,7 +110,6 @@ impl<'a> Painter<'a> {
             text_selections,
         );
 
-        // Set up view scrolling (clamps offsets, registers scroll thumbs).
         let view_scroll = self.prepare_view_scroll(
             node_id,
             &computed_style,
@@ -140,15 +118,6 @@ impl<'a> Painter<'a> {
             transform,
         );
 
-        // collect children
-        let mut children: Vec<UzNodeId> = Vec::new();
-        let mut next = self.dom.nodes[node_id].first_child;
-        while let Some(child_id) = next {
-            children.push(child_id);
-            next = self.dom.nodes[child_id].next_sibling;
-        }
-
-        // push in reverse execution order.
         let needs_clip = view_scroll.is_some()
             || computed_style.overflow_x.clips()
             || computed_style.overflow_y.clips();
@@ -158,15 +127,6 @@ impl<'a> Painter<'a> {
             None => (0.0, 0.0, false, Vec::new()),
         };
 
-        if mouse_in_view {
-            for thumb in view_thumbs.into_iter().rev() {
-                stack.push(PaintCommand::Scrollbar(thumb));
-            }
-        }
-        if needs_clip {
-            stack.push(PaintCommand::PopClip);
-        }
-
         let scroll_translate = if offset_x != 0.0 || offset_y != 0.0 {
             Affine::translate((-offset_x, -offset_y))
         } else {
@@ -175,23 +135,38 @@ impl<'a> Painter<'a> {
         let child_paint_transform = transform * scroll_translate;
         let child_hit_transform = hit_transform * scroll_translate;
 
-        for &child_id in children.iter().rev() {
-            stack.push(PaintCommand::Visit(VisitFrame {
-                node_id: child_id,
-                parent_x: x - offset_x,
-                parent_y: y - offset_y,
-                parent_paint_transform: child_paint_transform,
-                parent_hit_transform: child_hit_transform,
-                // Box only when we actually have children to propagate style to.
-                parent_style: Some(Box::new(computed_style.clone())),
-            }));
+        if needs_clip {
+            scene.push_clip_layer(Fill::NonZero, transform, &Rect::new(0.0, 0.0, w, h));
+        }
+
+        let children = self.dom.nodes[node_id].children.clone();
+        for child_id in children {
+            self.render_node(
+                child_id,
+                x - offset_x,
+                y - offset_y,
+                child_paint_transform,
+                child_hit_transform,
+                Some(&computed_style),
+                scene,
+                text_selections,
+            );
         }
 
         if needs_clip {
-            stack.push(PaintCommand::PushClip {
-                rect: Rect::new(0.0, 0.0, w, h),
-                transform,
-            });
+            scene.pop_layer();
+        }
+
+        if mouse_in_view {
+            for thumb in view_thumbs {
+                scroll::paint_thumb(
+                    scene,
+                    thumb.transform,
+                    &thumb.geom,
+                    thumb.hovered,
+                    &thumb.style,
+                );
+            }
         }
     }
 
@@ -208,6 +183,7 @@ impl<'a> Painter<'a> {
         text_selections: &HashMap<UzNodeId, (usize, usize)>,
     ) {
         if self.dom.nodes[node_id].is_text_input() {
+            // TODO: dont snapshot
             let info = self.build_input_render_info(node_id, style, layout);
             crate::element::input::paint_input(
                 scene,
@@ -254,39 +230,32 @@ impl<'a> Painter<'a> {
             crate::element::image::paint_image(scene, bounds, style, &info, transform);
         } else if let Some(tc) = node.get_text_content() {
             let sel = text_selections.get(&node_id).copied();
-            Self::paint_text_node(
-                self.text_renderer,
-                scene,
-                bounds,
-                style,
-                &tc.content,
-                transform,
-                sel,
-            );
+            let text_len = tc.content.len();
+            // Cached parley layout (built once per frame in refresh_text_layouts).
+            // If absent (shouldn't happen for nodes with text content), skip.
+            if let Some(layout) = node.text_layout.as_ref() {
+                Self::paint_text_node(scene, bounds, style, layout, text_len, transform, sel);
+            }
         } else {
             crate::element::view::paint_view(scene, bounds, style, transform, |_| {});
         }
     }
 
-    /// Draw a text node, optionally with a selection highlight.
+    /// Draw a text node from its cached parley layout, optionally with a
+    /// selection highlight.
     fn paint_text_node(
-        text_renderer: &mut TextRenderer,
         scene: &mut Scene,
         bounds: Bounds,
         style: &UzStyle,
-        text: &str,
+        layout: &parley::Layout<crate::text::TextBrush>,
+        text_len: usize,
         transform: Affine,
         selection: Option<(usize, usize)>,
     ) {
-        if let Some((sel_start, sel_end)) = selection {
-            style.paint(bounds, scene, transform, |scene| {
-                let rects = text_renderer.selection_rects(
-                    text,
-                    &style.text,
-                    Some(bounds.width as f32),
-                    sel_start,
-                    sel_end,
-                );
+        style.paint(bounds, scene, transform, |scene| {
+            if let Some((sel_start, sel_end)) = selection {
+                let rects =
+                    crate::text::selection_rects_from_layout(layout, text_len, sel_start, sel_end);
                 let sel_color = VelloColor::from_rgba8(56, 121, 185, 128);
                 for rect in rects {
                     scene.fill(
@@ -297,29 +266,15 @@ impl<'a> Painter<'a> {
                         &Rect::new(rect.x0, rect.y0, rect.x1, rect.y1),
                     );
                 }
-                text_renderer.draw_text(
-                    scene,
-                    text,
-                    &style.text,
-                    bounds.width as f32,
-                    bounds.height as f32,
-                    (0.0, 0.0),
-                    style.text.color.to_vello(),
-                    transform,
-                );
-            });
-        } else {
-            crate::element::text::paint_text(
+            }
+            crate::text::draw_layout(
                 scene,
-                text_renderer,
-                bounds,
-                style,
-                text,
-                &style.text,
-                style.text.color,
+                layout,
+                (0.0, 0.0),
+                style.text.color.to_vello(),
                 transform,
             );
-        }
+        });
     }
 
     fn build_input_render_info(
@@ -699,22 +654,6 @@ struct ScrollbarPaint {
     geom: ThumbGeometry,
     hovered: bool,
     style: ScrollbarStyle,
-}
-
-struct VisitFrame {
-    node_id: UzNodeId,
-    parent_x: f64,
-    parent_y: f64,
-    parent_paint_transform: Affine,
-    parent_hit_transform: Affine,
-    parent_style: Option<Box<UzStyle>>,
-}
-
-enum PaintCommand {
-    Visit(VisitFrame),
-    PushClip { rect: Rect, transform: Affine },
-    PopClip,
-    Scrollbar(ScrollbarPaint),
 }
 
 pub(crate) fn measure(
