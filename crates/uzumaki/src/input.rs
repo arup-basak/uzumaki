@@ -1,6 +1,8 @@
-use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+mod history;
+
+use history::{Change, ChangeItem, EditHistory, SelectionSnapshot};
 use parley::PlainEditor;
 use winit::keyboard::{Key, NamedKey};
 
@@ -79,101 +81,11 @@ pub struct PreeditState {
     pub cursor: Option<(usize, usize)>,
 }
 
-#[derive(Clone, Debug, Default)]
-struct SelectionSnapshot {
-    anchor_byte: usize,
-    focus_byte: usize,
-}
-
-#[derive(Clone, Debug)]
-struct ChangeItem {
-    start_byte: usize,
-    end_byte: usize,
-    text: String,
-    insert: bool,
-}
-
-#[derive(Clone, Debug, Default)]
-struct Change {
-    items: Vec<ChangeItem>,
-    before_selection: SelectionSnapshot,
-    after_selection: SelectionSnapshot,
-}
-
-/// Maximum number of undo entries to keep per input.
-const MAX_HISTORY: usize = 100;
-
-/// Consecutive edits within this window are merged into one undo batch.
-const BATCH_TIMEOUT_MS: u128 = 500;
-
-struct EditHistory {
-    undo_stack: VecDeque<Change>,
-    redo_stack: Vec<Change>,
-    /// Timestamp of the last edit (for time-based batch breaking).
-    last_edit_time: Option<Instant>,
-}
-
-impl EditHistory {
-    fn new() -> Self {
-        Self {
-            undo_stack: VecDeque::new(),
-            redo_stack: Vec::new(),
-            last_edit_time: None,
-        }
-    }
-
-    /// Determine whether the incoming edit should start a new undo batch.
-    fn should_start_new_batch(&self, kind: EditKind, inserted: Option<&str>) -> bool {
-        // Non-batchable edits (paste, cut, word-delete, history) always start a new batch.
-        if !kind.is_batchable() {
-            return true;
-        }
-
-        // No previous edit means this is the first batch.
-        let Some(last_edit_insert) = self
-            .undo_stack
-            .back()
-            .and_then(|change| change.items.last())
-            .map(|item| item.insert)
-        else {
-            return true;
-        };
-
-        let Some(last_time) = self.last_edit_time else {
-            return true;
-        };
-
-        // Time gap exceeds threshold.
-        if last_time.elapsed().as_millis() > BATCH_TIMEOUT_MS {
-            return true;
-        }
-
-        // Switching between insert and delete batches.
-        if last_edit_insert != kind.is_insert_batch() {
-            return true;
-        }
-
-        // Newline insertion always starts a new batch.
-        if kind == EditKind::Insert && inserted.is_some_and(|s| s.contains('\n')) {
-            return true;
-        }
-
-        false
-    }
-
-    fn break_batch(&mut self) {
-        self.last_edit_time = None;
-    }
-
-    fn reset_batching(&mut self) {
-        self.last_edit_time = None;
-    }
-
-    fn clear(&mut self) {
-        self.undo_stack.clear();
-        self.redo_stack.clear();
-        self.reset_batching();
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WordCharClass {
+    Whitespace,
+    Word,
+    Other,
 }
 
 impl Default for InputState {
@@ -320,17 +232,7 @@ impl InputState {
             return;
         }
 
-        if self.history.should_start_new_batch(kind, inserted) {
-            self.history.undo_stack.push_back(change);
-            if self.history.undo_stack.len() > MAX_HISTORY {
-                self.history.undo_stack.pop_front();
-            }
-        } else if let Some(last) = self.history.undo_stack.back_mut() {
-            last.items.extend(change.items);
-            last.after_selection = change.after_selection;
-        } else {
-            self.history.undo_stack.push_back(change);
-        }
+        self.history.push_with_inserted(change, kind, inserted);
         self.history.redo_stack.clear();
         if kind.is_batchable() {
             self.history.last_edit_time = Some(Instant::now());
@@ -559,6 +461,125 @@ impl InputState {
         }
     }
 
+    fn delete_explicit_range(
+        &mut self,
+        start: usize,
+        end: usize,
+        kind: EditKind,
+        renderer: &mut TextRenderer,
+    ) -> Option<EditEvent> {
+        if start >= end {
+            return None;
+        }
+
+        let old_text = self.editor.raw_text().to_string();
+        if start > old_text.len()
+            || end > old_text.len()
+            || !old_text.is_char_boundary(start)
+            || !old_text.is_char_boundary(end)
+        {
+            return None;
+        }
+
+        let before_selection = self.selection_snapshot();
+        let mut new_text = old_text.clone();
+        new_text.replace_range(start..end, "");
+        self.editor.set_text(&new_text);
+        let collapsed = SelectionSnapshot {
+            anchor_byte: start,
+            focus_byte: start,
+        };
+        self.restore_selection(&collapsed, renderer);
+
+        let after_selection = self.selection_snapshot();
+        if let Some(change) =
+            Self::build_change(&old_text, &new_text, before_selection, after_selection)
+        {
+            self.push_history(change, kind, None);
+        }
+        self.reset_blink();
+        Some(EditEvent {
+            kind,
+            inserted: None,
+        })
+    }
+
+    fn classify_word_char(ch: char) -> WordCharClass {
+        if ch.is_whitespace() {
+            WordCharClass::Whitespace
+        } else if ch.is_alphanumeric() || ch == '_' {
+            WordCharClass::Word
+        } else {
+            WordCharClass::Other
+        }
+    }
+
+    fn previous_word_boundary(text: &str, cursor: usize) -> usize {
+        if cursor == 0 {
+            return 0;
+        }
+
+        let mut start = cursor;
+
+        while let Some((idx, ch)) = text[..start].char_indices().next_back() {
+            if !ch.is_whitespace() {
+                break;
+            }
+            start = idx;
+        }
+
+        let Some((idx, ch)) = text[..start].char_indices().next_back() else {
+            return 0;
+        };
+        let class = Self::classify_word_char(ch);
+        start = idx;
+
+        while let Some((idx, ch)) = text[..start].char_indices().next_back() {
+            if Self::classify_word_char(ch) != class {
+                break;
+            }
+            start = idx;
+        }
+
+        start
+    }
+
+    fn next_word_boundary(text: &str, cursor: usize) -> usize {
+        if cursor >= text.len() {
+            return text.len();
+        }
+
+        let mut end = cursor;
+        let mut chars = text[end..].char_indices();
+        let Some((_, first)) = chars.next() else {
+            return text.len();
+        };
+
+        let mut class = Self::classify_word_char(first);
+        if class == WordCharClass::Whitespace {
+            for (idx, ch) in text[end..].char_indices() {
+                if !ch.is_whitespace() {
+                    end += idx;
+                    class = Self::classify_word_char(ch);
+                    break;
+                }
+                end = cursor + idx + ch.len_utf8();
+            }
+
+            if end >= text.len() {
+                return text.len();
+            }
+        }
+
+        for (idx, ch) in text[end..].char_indices() {
+            if Self::classify_word_char(ch) != class {
+                return end + idx;
+            }
+        }
+
+        text.len()
+    }
+
     pub fn delete_backward(&mut self, renderer: &mut TextRenderer) -> Option<EditEvent> {
         self.do_delete(EditKind::DeleteBackward, renderer, |d| d.backdelete())
     }
@@ -568,13 +589,27 @@ impl InputState {
     }
 
     pub fn delete_word_backward(&mut self, renderer: &mut TextRenderer) -> Option<EditEvent> {
-        self.do_delete(EditKind::DeleteWordBackward, renderer, |d| {
-            d.backdelete_word()
-        })
+        if self.has_selection() {
+            return self.do_delete(EditKind::DeleteWordBackward, renderer, |d| {
+                d.delete_selection()
+            });
+        }
+
+        let end = self.editor.raw_selection().focus().index();
+        let start = Self::previous_word_boundary(self.editor.raw_text(), end);
+        self.delete_explicit_range(start, end, EditKind::DeleteWordBackward, renderer)
     }
 
     pub fn delete_word_forward(&mut self, renderer: &mut TextRenderer) -> Option<EditEvent> {
-        self.do_delete(EditKind::DeleteWordForward, renderer, |d| d.delete_word())
+        if self.has_selection() {
+            return self.do_delete(EditKind::DeleteWordForward, renderer, |d| {
+                d.delete_selection()
+            });
+        }
+
+        let start = self.editor.raw_selection().focus().index();
+        let end = Self::next_word_boundary(self.editor.raw_text(), start);
+        self.delete_explicit_range(start, end, EditKind::DeleteWordForward, renderer)
     }
 
     pub fn move_left(&mut self, extend: bool, renderer: &mut TextRenderer) {
@@ -1135,6 +1170,56 @@ mod tests {
         assert!(result.is_some());
         assert_eq!(result.unwrap().kind, EditKind::HistoryUndo);
         assert_eq!(is.text(), "");
+    }
+
+    #[test]
+    fn delete_word_backward_removes_only_previous_word() {
+        let mut is = InputState::new_single_line();
+        let mut r = make_renderer();
+        is.insert_text("one two three", &mut r);
+
+        let result = is.delete_word_backward(&mut r);
+
+        assert!(result.is_some());
+        assert_eq!(is.text(), "one two ");
+    }
+
+    #[test]
+    fn delete_word_forward_removes_only_next_word() {
+        let mut is = InputState::new_single_line();
+        let mut r = make_renderer();
+        is.insert_text("one two three", &mut r);
+        is.restore_selection(
+            &SelectionSnapshot {
+                anchor_byte: 4,
+                focus_byte: 4,
+            },
+            &mut r,
+        );
+
+        let result = is.delete_word_forward(&mut r);
+
+        assert!(result.is_some());
+        assert_eq!(is.text(), "one  three");
+    }
+
+    #[test]
+    fn delete_word_backward_consumes_preceding_whitespace_once() {
+        let mut is = InputState::new_single_line();
+        let mut r = make_renderer();
+        is.insert_text("one   two", &mut r);
+        is.restore_selection(
+            &SelectionSnapshot {
+                anchor_byte: 6,
+                focus_byte: 6,
+            },
+            &mut r,
+        );
+
+        let result = is.delete_word_backward(&mut r);
+
+        assert!(result.is_some());
+        assert_eq!(is.text(), "two");
     }
 
     #[test]
