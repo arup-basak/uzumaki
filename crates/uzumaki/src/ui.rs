@@ -3,8 +3,9 @@ use slab::Slab;
 use crate::{
     cursor::UzCursorIcon,
     element::{
-        ElementData, ElementNode, ImageData, ImageNode, Node, ScrollDragState, ScrollThumbRect,
-        TextContent, TextNode, TextRunEntry, TextSelectRun, UzNodeId,
+        ElementData, ElementNode, ImageData, ImageNode, Node, ScrollAxis, ScrollDragState,
+        ScrollState, ScrollThumbRect, TextContent, TextNode, TextRunEntry, TextSelectRun, UzNodeId,
+        scroll::{self, ScrollAlign, ScrollIntoViewOptions},
     },
     input::InputState,
     interactivity::{HitTestState, HitboxStore},
@@ -25,6 +26,7 @@ pub struct UIState {
     pub hit_state: HitTestState,
     /// Currently focuswsed ndoe
     pub focused_node: Option<UzNodeId>,
+    pending_scroll_node_into_view: Option<(UzNodeId, ScrollIntoViewOptions)>,
     /// Input node being dragged for selection.
     pub dragging_input: Option<UzNodeId>,
     /// Last click time (for multi-click detection).
@@ -70,6 +72,7 @@ impl UIState {
             hitbox_store: HitboxStore::default(),
             hit_state: HitTestState::default(),
             focused_node: None,
+            pending_scroll_node_into_view: None,
             dragging_input: None,
             last_click_time: None,
             last_click_node: None,
@@ -291,6 +294,168 @@ impl UIState {
             .and_then(|idx| siblings.get(idx).copied())
     }
 
+    pub fn request_scroll_node_into_view(
+        &mut self,
+        node_id: UzNodeId,
+        opts: ScrollIntoViewOptions,
+    ) {
+        self.pending_scroll_node_into_view = Some((node_id, opts));
+    }
+
+    /// Focus-flavored variant: text inputs scroll their parent (the wrapping
+    /// view) instead of themselves, and we always use default options.
+    pub fn request_scroll_focus_into_view(&mut self, node_id: UzNodeId) {
+        let target = if self.nodes.get(node_id).is_some_and(|n| n.is_text_input()) {
+            self.nodes
+                .get(node_id)
+                .and_then(|n| n.parent)
+                .unwrap_or(node_id)
+        } else {
+            node_id
+        };
+        self.request_scroll_node_into_view(target, ScrollIntoViewOptions::default());
+    }
+
+    pub fn scroll_node_into_view(&mut self, node_id: UzNodeId, opts: ScrollIntoViewOptions) {
+        if !self.nodes.contains(node_id) {
+            return;
+        }
+        self.scroll_axis_into_view(node_id, ScrollAxis::Y, opts.block, opts.margin);
+        self.scroll_axis_into_view(node_id, ScrollAxis::X, opts.inline, opts.margin);
+    }
+
+    fn scroll_axis_into_view(
+        &mut self,
+        target_id: UzNodeId,
+        axis: ScrollAxis,
+        align: ScrollAlign,
+        margin: f32,
+    ) {
+        let Some(scroller_id) = Self::nearest_overflow_scroller(&self.nodes, target_id, axis)
+        else {
+            return;
+        };
+        let Some((rel, scroller_abs)) =
+            Self::accumulate_axis(&self.nodes, target_id, scroller_id, axis)
+        else {
+            return;
+        };
+
+        let Some(target_node) = self.nodes.get(target_id) else {
+            return;
+        };
+        let Some(scroller_ref) = self.nodes.get(scroller_id) else {
+            return;
+        };
+
+        let target_extent = axis_size(target_node.final_layout.size, axis);
+        let content_extent = axis_size(scroller_ref.final_layout.content_size, axis);
+
+        // Clamp viewport by the root rect so a scroller overflowing the window
+        // doesn't think it has more visible space than the user can actually see.
+        let root_extent = self
+            .root
+            .and_then(|r| self.nodes.get(r))
+            .map(|n| axis_size(n.final_layout.size, axis))
+            .unwrap_or(f32::MAX);
+        let scroller_extent = axis_size(scroller_ref.final_layout.size, axis);
+        let clipped_end = (scroller_abs + scroller_extent).min(root_extent);
+        let true_viewport = (clipped_end - scroller_abs).max(0.0);
+
+        // Match render: a horizontal scrollbar steals from the Y viewport, but
+        // a vertical scrollbar does not steal from the X viewport.
+        let viewport_extent = match axis {
+            ScrollAxis::Y => scroll::vertical_scroll_visible_height(
+                true_viewport,
+                scroller_ref.final_layout.content_size.width,
+                scroller_ref.final_layout.size.width,
+                scroller_ref.style.overflow_x.is_scrollable(),
+                scroller_ref.style.scrollbar.width,
+            ),
+            ScrollAxis::X => true_viewport,
+        };
+
+        let cur_offset = scroller_ref
+            .scroll_state
+            .as_ref()
+            .map(|s| s.offset(axis))
+            .unwrap_or(0.0);
+
+        let Some(next_offset) = scroll::compute_scroll_offset(
+            rel,
+            target_extent,
+            viewport_extent,
+            content_extent,
+            cur_offset,
+            align,
+            margin,
+        ) else {
+            return;
+        };
+
+        let ss = self.nodes[scroller_id]
+            .scroll_state
+            .get_or_insert(ScrollState::new());
+        ss.set_offset(axis, next_offset);
+    }
+
+    fn nearest_overflow_scroller(
+        nodes: &Slab<Node>,
+        target_id: UzNodeId,
+        axis: ScrollAxis,
+    ) -> Option<UzNodeId> {
+        let mut ancestor = nodes.get(target_id).and_then(|n| n.parent)?;
+        loop {
+            let node = nodes.get(ancestor)?;
+            let scrollable = match axis {
+                ScrollAxis::Y => node.style.overflow_y.is_scrollable(),
+                ScrollAxis::X => node.style.overflow_x.is_scrollable(),
+            };
+            if scrollable {
+                return Some(ancestor);
+            }
+            ancestor = node.parent?;
+        }
+    }
+
+    /// Walks target -> root once, returning (rel of target inside scroller,
+    /// layout-absolute position of scroller) along the given axis.
+    fn accumulate_axis(
+        nodes: &Slab<Node>,
+        target_id: UzNodeId,
+        scroller_id: UzNodeId,
+        axis: ScrollAxis,
+    ) -> Option<(f32, f32)> {
+        let mut cur = target_id;
+        let mut rel = 0.0f32;
+        let mut scroller_abs = 0.0f32;
+        let mut past_scroller = false;
+        loop {
+            let node = nodes.get(cur)?;
+            let loc = axis_loc(node.final_layout.location, axis);
+            if past_scroller {
+                scroller_abs += loc;
+            } else {
+                rel += loc;
+            }
+            match node.parent {
+                Some(pid) if !past_scroller && pid == scroller_id => {
+                    past_scroller = true;
+                    cur = pid;
+                }
+                Some(pid) => cur = pid,
+                None => {
+                    if past_scroller {
+                        break;
+                    } else {
+                        return None;
+                    }
+                }
+            }
+        }
+        Some((rel, scroller_abs))
+    }
+
     fn remove_child_ref(&mut self, parent_id: UzNodeId, child_id: UzNodeId) -> bool {
         let Some(index) = self.nodes[parent_id]
             .children
@@ -321,6 +486,9 @@ impl UIState {
     fn on_node_removed(&mut self, id: UzNodeId) {
         if self.focused_node == Some(id) {
             self.focused_node = None;
+        }
+        if matches!(self.pending_scroll_node_into_view, Some((nid, _)) if nid == id) {
+            self.pending_scroll_node_into_view = None;
         }
         if self.dragging_input == Some(id) {
             self.dragging_input = None;
@@ -476,6 +644,9 @@ impl UIState {
         );
         self.copy_final_layouts();
         self.refresh_text_layouts(text_renderer);
+        if let Some((nid, opts)) = self.pending_scroll_node_into_view.take() {
+            self.scroll_node_into_view(nid, opts);
+        }
     }
 
     /// Copy taffy's layout result onto each node so the paint pass can read
@@ -635,6 +806,22 @@ impl UIState {
     }
 }
 
+#[inline]
+fn axis_size(size: taffy::Size<f32>, axis: ScrollAxis) -> f32 {
+    match axis {
+        ScrollAxis::X => size.width,
+        ScrollAxis::Y => size.height,
+    }
+}
+
+#[inline]
+fn axis_loc(point: taffy::Point<f32>, axis: ScrollAxis) -> f32 {
+    match axis {
+        ScrollAxis::X => point.x,
+        ScrollAxis::Y => point.y,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::UIState;
@@ -643,6 +830,7 @@ mod tests {
         style::{Bounds, Length, Size, UzStyle},
         text::TextRenderer,
     };
+
     #[test]
     fn refresh_hit_test_retargets_stationary_pointer_after_hitboxes_change() {
         let mut dom = UIState::new();
