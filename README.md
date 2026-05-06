@@ -92,8 +92,8 @@ Then create a project:
 ```sh
 uzumaki init my-app
 cd my-app
-bun install
-bun dev
+pnpm install
+pnpm dev
 ```
 
 ## Links

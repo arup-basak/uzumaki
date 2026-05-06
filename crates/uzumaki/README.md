@@ -92,8 +92,8 @@ Then create a project:
 ```sh
 uzumaki init my-app
 cd my-app
-bun install
-bun dev
+pnpm install
+pnpm dev
 ```
 
 ## Links
@@ -103,6 +103,19 @@ bun dev
 - [Contributing](CONTRIBUTING.md)
 - [Development](DEVELOPMENT.md)
 - [X / Twitter](https://x.com/golok727)
+
+## Acknowledgements
+
+Uzumaki wouldn't be possible without the work of these projects:
+
+- [Deno](https://github.com/denoland/deno) — JavaScript runtime powering the embedded engine
+- [wgpu](https://github.com/gfx-rs/wgpu) — Cross-platform GPU abstraction layer
+- [Vello](https://github.com/linebender/vello) — GPU-accelerated 2D vector renderer
+- [Parley](https://github.com/linebender/parley) — Text layout
+- [Blitz](https://github.com/DioxusLabs/blitz) — Architectural inspiration and reference for working with the Linebender stack
+- [Zed](https://github.com/zed-industries/zed) — Some utility code borrowed from their codebase
+
+...and many more 🙏
 
 ## License
 
