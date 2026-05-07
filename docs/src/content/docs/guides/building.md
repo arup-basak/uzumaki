@@ -28,24 +28,44 @@ The build is configured through `uzumaki.config.json`:
   "pack": {
     "dist": "./dist",
     "entry": "index.js",
-    "output": "./my-app",
+    "output": "./target/my-app",
     "name": "my-app"
+  },
+  "bundle": {
+    "resources": ["assets/**/*"]
   }
 }
 ```
 
 ### Fields
 
-| Field           | Description                                 |
-| --------------- | ------------------------------------------- |
-| `productName`   | Display name for your app                   |
-| `version`       | App version string                          |
-| `identifier`    | Bundle identifier (e.g. `com.yourname.app`) |
-| `build.command` | Shell command to bundle your JS/TS          |
-| `pack.dist`     | Directory containing bundled output         |
-| `pack.entry`    | Entry point file within dist                |
-| `pack.output`   | Path for the final executable               |
-| `pack.name`     | Name for the output binary                  |
+| Field              | Description                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `productName`      | Display name for your app                                                          |
+| `version`          | App version string                                                                 |
+| `identifier`       | Bundle identifier (e.g. `com.yourname.app`)                                        |
+| `build.command`    | Shell command to bundle your JS/TS                                                 |
+| `pack.dist`        | Directory containing bundled output                                                |
+| `pack.entry`       | Entry point file within dist                                                       |
+| `pack.output`      | Path for the final executable                                                      |
+| `pack.name`        | Name for the output binary                                                         |
+| `bundle.resources` | Paths or globs (relative to the config) to copy next to the packed exe (see below) |
+
+## Bundling resources
+
+Files listed in `bundle.resources` ship with your app. Look them up at runtime with [`Uz.path.resource(...)`](/reference/paths/):
+
+```ts
+const logo = Uz.path.resource('assets/logo.svg');
+```
+
+The same code works while developing (`uzumaki run`) and in your packed app.
+
+See [Paths & Resources](/reference/paths/) for the full API.
+
+:::note
+Proper installer bundling for Windows (`.msi` / `.exe` installer) and Linux (`.deb` / `.rpm` / AppImage) is planned. Contributions welcome! :D
+:::
 
 ## Skip the build step
 
