@@ -2,16 +2,31 @@ import { useRef, useState } from 'react';
 import { UzInputElement } from 'uzumaki-ui';
 import { C } from '../theme';
 import { Divider, Badge } from '../components';
-import { Icon } from '../icon';
 
 export function InputsPage() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [bio, setBio] = useState('');
-  const [search, setSearch] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [
+    { username, email, password, confirm, bio, search, submitted },
+    setFormState,
+  ] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirm: '',
+    bio: '',
+    search: '',
+    submitted: false,
+  });
+
+  const reset = () =>
+    setFormState({
+      username: '',
+      email: '',
+      password: '',
+      confirm: '',
+      bio: '',
+      search: '',
+      submitted: false,
+    });
 
   const otpRefs = [
     useRef<UzInputElement | null>(null),
@@ -66,7 +81,9 @@ export function InputsPage() {
           </text>
           <input
             value={search}
-            onValueChange={setSearch}
+            onValueChange={(v) =>
+              setFormState((prev) => ({ ...prev, search: v }))
+            }
             placeholder="Search anything... (try IME input)"
             fontSize={15}
             color={C.text}
@@ -102,7 +119,9 @@ export function InputsPage() {
             </text>
             <input
               value={username}
-              onValueChange={setUsername}
+              onValueChange={(v) =>
+                setFormState((prev) => ({ ...prev, username: v }))
+              }
               placeholder="johndoe"
               fontSize={14}
               color={C.text}
@@ -120,7 +139,9 @@ export function InputsPage() {
             </text>
             <input
               value={email}
-              onValueChange={setEmail}
+              onValueChange={(v) =>
+                setFormState((prev) => ({ ...prev, email: v }))
+              }
               placeholder="john@example.com"
               fontSize={14}
               color={C.text}
@@ -142,7 +163,9 @@ export function InputsPage() {
             <input
               secure
               value={password}
-              onValueChange={setPassword}
+              onValueChange={(v) =>
+                setFormState((prev) => ({ ...prev, password: v }))
+              }
               placeholder="Enter password"
               fontSize={14}
               color={C.text}
@@ -161,7 +184,9 @@ export function InputsPage() {
             <input
               secure
               value={confirm}
-              onValueChange={setConfirm}
+              onValueChange={(v) =>
+                setFormState((prev) => ({ ...prev, confirm: v }))
+              }
               placeholder="Repeat password"
               fontSize={14}
               color={C.text}
@@ -185,7 +210,6 @@ export function InputsPage() {
                   <text fontSize={11} color={C.success}>
                     Passwords match
                   </text>
-                  <Icon name="check" color={C.success} size={12} />
                 </view>
               </>
             )}
@@ -207,7 +231,7 @@ export function InputsPage() {
           <input
             multiline
             value={bio}
-            onValueChange={setBio}
+            onValueChange={(v) => setFormState((prev) => ({ ...prev, bio: v }))}
             placeholder="Tell us about yourself... (multiline input, try pasting long text)"
             fontSize={16}
             color={C.text}
@@ -226,7 +250,9 @@ export function InputsPage() {
             display="flex"
             flexDir="col"
             justify="center"
-            onClick={() => setSubmitted(true)}
+            onClick={() =>
+              setFormState((prev) => ({ ...prev, submitted: true }))
+            }
             px={24}
             h={36}
             bg={C.accent}
@@ -244,13 +270,7 @@ export function InputsPage() {
             flexDir="col"
             justify="center"
             onClick={() => {
-              setUsername('');
-              setEmail('');
-              setPassword('');
-              setConfirm('');
-              setBio('');
-              setSearch('');
-              setSubmitted(false);
+              reset();
             }}
             px={24}
             h={36}
@@ -283,7 +303,6 @@ export function InputsPage() {
               <text fontSize={14} fontWeight={700} color={C.successHi}>
                 Form submitted
               </text>
-              <Icon name="check" color={C.success} size={12} />
             </view>
 
             <text fontSize={12} color={C.success}>
@@ -400,7 +419,6 @@ export function InputsPage() {
               </button>
               {otpComplete && (
                 <view display="flex" flexDir="row" items="center" gap={6}>
-                  <Icon name="check" color={C.success} size={12} />
                   <text fontSize={12} color={C.success}>
                     Code: {otp.join('')}
                   </text>

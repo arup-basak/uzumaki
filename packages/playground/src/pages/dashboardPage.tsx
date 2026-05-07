@@ -3,12 +3,15 @@ import { C } from '../theme';
 import { Divider, Badge, ProgressBar, StatCard } from '../components';
 
 export function DashboardPage() {
-  const [tick, setTick] = useState(0);
-  const [cpu, setCpu] = useState(42);
-  const [mem, setMem] = useState(67);
-  const [net, setNet] = useState(31);
-  const [gpu, setGpu] = useState(78);
-  const [disk, setDisk] = useState(54);
+  const [{ tick, cpu, mem, net, gpu, disk }, setCpuStatStat] = useState({
+    tick: 0,
+    cpu: 42,
+    mem: 67,
+    net: 31,
+    gpu: 78,
+    disk: 54,
+  });
+
   const [log, setLog] = useState<string[]>([
     'Renderer initialized',
     'wgpu device acquired',
@@ -18,12 +21,16 @@ export function DashboardPage() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setTick((t) => t + 1);
-      setCpu((v) => Math.max(4, Math.min(97, v + (Math.random() - 0.48) * 8)));
-      setMem((v) => Math.max(20, Math.min(93, v + (Math.random() - 0.5) * 3)));
-      setNet((v) => Math.max(0, Math.min(100, v + (Math.random() - 0.5) * 18)));
-      setGpu((v) => Math.max(30, Math.min(99, v + (Math.random() - 0.5) * 6)));
-      setDisk((v) => Math.max(10, Math.min(80, v + (Math.random() - 0.5) * 2)));
+      setCpuStatStat((prev) => ({
+        ...prev,
+        tick: prev.tick + 1,
+        cpu: Math.max(4, Math.min(97, prev.cpu + (Math.random() - 0.48) * 8)),
+        mem: Math.max(20, Math.min(93, prev.mem + (Math.random() - 0.5) * 3)),
+        net: Math.max(0, Math.min(100, prev.net + (Math.random() - 0.5) * 18)),
+        gpu: Math.max(30, Math.min(99, prev.gpu + (Math.random() - 0.5) * 6)),
+        disk: Math.max(10, Math.min(80, prev.disk + (Math.random() - 0.5) * 2)),
+      }));
+
       setLog((prev) => {
         const events = [
           'Render pass started',
