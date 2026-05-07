@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { UzInputElement } from 'uzumaki-ui';
 import { C } from '../theme';
 import { Divider, Badge } from '../components';
 import { Icon } from '../icon';
@@ -11,6 +12,14 @@ export function InputsPage() {
   const [bio, setBio] = useState('');
   const [search, setSearch] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  const firstRef = useRef<UzInputElement | null>(null);
+  const secondRef = useRef<UzInputElement | null>(null);
+  const chainRefs = [
+    useRef<UzInputElement | null>(null),
+    useRef<UzInputElement | null>(null),
+    useRef<UzInputElement | null>(null),
+  ];
 
   const [noRounding, setNoRounding] = useState(false);
   const [rounded, setRounded] = useState(true);
@@ -364,6 +373,160 @@ export function InputsPage() {
               leaps over the sleeping lazy hound dog! Try selecting this text
               with your mouse.
             </text>
+          </view>
+        </view>
+
+        <Divider />
+
+        <view display="flex" flexDir="col" gap={12}>
+          <text fontSize={14} fontWeight={700} color={C.text}>
+            Programmatic focus (useRef)
+          </text>
+          <view
+            display="flex"
+            flexDir="col"
+            gap={10}
+            p={16}
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+          >
+            <input
+              ref={firstRef}
+              placeholder="First input"
+              onFocus={() => {}}
+              fontSize={14}
+              color={C.text}
+              bg={C.surface3}
+              p={inputPadding}
+              rounded={6}
+              border={1}
+              borderColor={C.border}
+              focus:borderColor={C.accentHi}
+              w="full"
+            />
+            <input
+              ref={secondRef}
+              placeholder="Second input"
+              fontSize={14}
+              color={C.text}
+              bg={C.surface3}
+              p={inputPadding}
+              rounded={6}
+              border={1}
+              borderColor={C.border}
+              focus:borderColor={C.accentHi}
+              w="full"
+            />
+            <view display="flex" flexDir="row" gap={8}>
+              <button
+                onClick={() => firstRef.current?.focus()}
+                display="flex"
+                flexDir="col"
+                justify="center"
+                px={16}
+                h={34}
+                bg={C.accentDark}
+                hover:bg={C.accentDim}
+                active:bg={C.accent}
+                rounded={6}
+                border={1}
+                borderColor={C.accentDim}
+                cursor="pointer"
+              >
+                <text fontSize={13} fontWeight={600} color={C.accentHi}>
+                  Focus First
+                </text>
+              </button>
+              <button
+                onClick={() => secondRef.current?.focus()}
+                display="flex"
+                flexDir="col"
+                justify="center"
+                px={16}
+                h={34}
+                bg={C.accentDark}
+                hover:bg={C.accentDim}
+                active:bg={C.accent}
+                rounded={6}
+                border={1}
+                borderColor={C.accentDim}
+                cursor="pointer"
+              >
+                <text fontSize={13} fontWeight={600} color={C.accentHi}>
+                  Focus Second
+                </text>
+              </button>
+            </view>
+          </view>
+        </view>
+
+        <view display="flex" flexDir="col" gap={12}>
+          <text fontSize={14} fontWeight={700} color={C.text}>
+            Focus chain
+          </text>
+          <view
+            display="flex"
+            flexDir="col"
+            gap={10}
+            p={16}
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+          >
+            <text fontSize={12} color={C.textMuted}>
+              Next → advances focus to the following field.
+            </text>
+            {(['First name', 'Last name', 'Email'] as const).map((label, i) => (
+              <view
+                key={label}
+                display="flex"
+                flexDir="row"
+                items="center"
+                gap={8}
+              >
+                <view w={80} minW={80}>
+                  <text fontSize={13} color={C.textSub}>
+                    {label}
+                  </text>
+                </view>
+                <input
+                  ref={chainRefs[i]}
+                  placeholder={label}
+                  fontSize={14}
+                  color={C.text}
+                  bg={C.surface3}
+                  p={inputPadding}
+                  rounded={6}
+                  border={1}
+                  borderColor={C.border}
+                  focus:borderColor={C.accentHi}
+                  flex={1}
+                />
+                {i < 2 && (
+                  <button
+                    onClick={() => chainRefs[i + 1]?.current?.focus()}
+                    display="flex"
+                    flexDir="col"
+                    justify="center"
+                    px={12}
+                    h={34}
+                    bg={C.surface4}
+                    hover:bg={C.surface3}
+                    rounded={6}
+                    border={1}
+                    borderColor={C.border}
+                    cursor="pointer"
+                  >
+                    <text fontSize={12} color={C.textMuted}>
+                      Next →
+                    </text>
+                  </button>
+                )}
+              </view>
+            ))}
           </view>
         </view>
       </view>
