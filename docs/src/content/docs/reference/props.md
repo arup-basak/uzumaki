@@ -130,13 +130,11 @@ Overlay scrollbars appear when the mouse is inside a scrollable view. They have 
 
 | Prop                   | Type            | Description                                             |
 | ---------------------- | --------------- | ------------------------------------------------------- |
-| `scrollbarWidth`       | number / string | Thumb thickness in pixels (default `4`)                 |
+| `scrollbarWidth`       | number / string | Thumb thickness in pixels (default `8`)                 |
 | `scrollbarColor`       | color           | Thumb color in the default state (default `#ffffff5a`)  |
 | `scrollbarHoverColor`  | color           | Thumb color when the pointer is over the thumb          |
 | `scrollbarActiveColor` | color           | Thumb color while the thumb is being dragged            |
 | `scrollbarRadius`      | number / string | Corner radius; omit for a pill shape (radius = width/2) |
-
-State styles are scoped per axis — hovering or dragging the vertical thumb does not affect the horizontal thumb and vice versa.
 
 ```tsx
 <view
