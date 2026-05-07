@@ -13,13 +13,19 @@ export function InputsPage() {
   const [search, setSearch] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const firstRef = useRef<UzInputElement | null>(null);
-  const secondRef = useRef<UzInputElement | null>(null);
-  const chainRefs = [
+  const otpRefs = [
+    useRef<UzInputElement | null>(null),
+    useRef<UzInputElement | null>(null),
+    useRef<UzInputElement | null>(null),
     useRef<UzInputElement | null>(null),
     useRef<UzInputElement | null>(null),
     useRef<UzInputElement | null>(null),
   ];
+  const otpLength = otpRefs.length;
+  const [otp, setOtp] = useState<string[]>(() =>
+    Array.from({ length: otpLength }, () => ''),
+  );
+  const otpComplete = otp.every((d) => d.length === 1);
 
   const [noRounding, setNoRounding] = useState(false);
   const [rounded, setRounded] = useState(true);
@@ -291,6 +297,123 @@ export function InputsPage() {
 
         <view display="flex" flexDir="col" gap={12}>
           <text fontSize={14} fontWeight={700} color={C.text}>
+            Enter Otp
+          </text>
+          <view
+            display="flex"
+            flexDir="col"
+            gap={12}
+            p={16}
+            bg={C.surface2}
+            rounded={8}
+            border={1}
+            borderColor={C.border}
+          >
+            <view display="flex" flexDir="row" gap={8}>
+              {otp.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={otpRefs[i]}
+                  value={digit}
+                  maxLength={1}
+                  onValueChange={(v) => {
+                    const next = v.slice(-1);
+                    setOtp((prev) => {
+                      const out = [...prev];
+                      out[i] = next;
+                      return out;
+                    });
+                    if (next && i < otpLength - 1) {
+                      otpRefs[i + 1]?.current?.focus();
+                    }
+                  }}
+                  onKeyDown={(ev) => {
+                    if (ev.key === 'Backspace' && !otp[i] && i > 0) {
+                      ev.preventDefault();
+                      setOtp((prev) => {
+                        const out = [...prev];
+                        out[i - 1] = '';
+                        return out;
+                      });
+                      otpRefs[i - 1]?.current?.focus();
+                    } else if (ev.key === 'ArrowLeft' && i > 0) {
+                      ev.preventDefault();
+                      otpRefs[i - 1]?.current?.focus();
+                    } else if (ev.key === 'ArrowRight' && i < otpLength - 1) {
+                      ev.preventDefault();
+                      otpRefs[i + 1]?.current?.focus();
+                    } else if (
+                      ev.key.length === 1 &&
+                      !ev.ctrlKey &&
+                      !ev.metaKey &&
+                      !ev.altKey &&
+                      otp[i]
+                    ) {
+                      ev.preventDefault();
+                      setOtp((prev) => {
+                        const out = [...prev];
+                        out[i] = ev.key;
+                        return out;
+                      });
+                      if (i < otpLength - 1) {
+                        otpRefs[i + 1]?.current?.focus();
+                      }
+                    }
+                  }}
+                  fontSize={20}
+                  fontWeight={700}
+                  color={C.text}
+                  bg={C.surface3}
+                  pl={15}
+                  pr={0}
+                  py={0}
+                  w={44}
+                  h={52}
+                  rounded={8}
+                  border={1}
+                  borderColor={digit ? C.accent : C.border}
+                  focus:borderColor={C.accentHi}
+                />
+              ))}
+            </view>
+            <view display="flex" flexDir="row" items="center" gap={10}>
+              <button
+                onClick={() => {
+                  setOtp(Array.from({ length: otpLength }, () => ''));
+                  otpRefs[0]?.current?.focus();
+                }}
+                display="flex"
+                flexDir="col"
+                justify="center"
+                px={14}
+                h={32}
+                bg={C.surface3}
+                hover:bg={C.surface4}
+                rounded={6}
+                border={1}
+                borderColor={C.border}
+                cursor="pointer"
+              >
+                <text fontSize={12} color={C.textMuted}>
+                  Clear & focus
+                </text>
+              </button>
+              {otpComplete && (
+                <view display="flex" flexDir="row" items="center" gap={6}>
+                  <Icon name="check" color={C.success} size={12} />
+                  <text fontSize={12} color={C.success}>
+                    Code: {otp.join('')}
+                  </text>
+                </view>
+              )}
+            </view>
+          </view>
+        </view>
+
+        <Divider />
+
+        <view display="flex" flexDir="col" gap={12}>
+          <text fontSize={14} fontWeight={700} color={C.text}>
             Checkboxes
           </text>
           <view
@@ -350,6 +473,7 @@ export function InputsPage() {
             </view>
           </view>
         </view>
+
         <Divider />
 
         <view display="flex" flexDir="col" gap={8}>
@@ -373,160 +497,6 @@ export function InputsPage() {
               leaps over the sleeping lazy hound dog! Try selecting this text
               with your mouse.
             </text>
-          </view>
-        </view>
-
-        <Divider />
-
-        <view display="flex" flexDir="col" gap={12}>
-          <text fontSize={14} fontWeight={700} color={C.text}>
-            Programmatic focus (useRef)
-          </text>
-          <view
-            display="flex"
-            flexDir="col"
-            gap={10}
-            p={16}
-            bg={C.surface2}
-            rounded={8}
-            border={1}
-            borderColor={C.border}
-          >
-            <input
-              ref={firstRef}
-              placeholder="First input"
-              onFocus={() => {}}
-              fontSize={14}
-              color={C.text}
-              bg={C.surface3}
-              p={inputPadding}
-              rounded={6}
-              border={1}
-              borderColor={C.border}
-              focus:borderColor={C.accentHi}
-              w="full"
-            />
-            <input
-              ref={secondRef}
-              placeholder="Second input"
-              fontSize={14}
-              color={C.text}
-              bg={C.surface3}
-              p={inputPadding}
-              rounded={6}
-              border={1}
-              borderColor={C.border}
-              focus:borderColor={C.accentHi}
-              w="full"
-            />
-            <view display="flex" flexDir="row" gap={8}>
-              <button
-                onClick={() => firstRef.current?.focus()}
-                display="flex"
-                flexDir="col"
-                justify="center"
-                px={16}
-                h={34}
-                bg={C.accentDark}
-                hover:bg={C.accentDim}
-                active:bg={C.accent}
-                rounded={6}
-                border={1}
-                borderColor={C.accentDim}
-                cursor="pointer"
-              >
-                <text fontSize={13} fontWeight={600} color={C.accentHi}>
-                  Focus First
-                </text>
-              </button>
-              <button
-                onClick={() => secondRef.current?.focus()}
-                display="flex"
-                flexDir="col"
-                justify="center"
-                px={16}
-                h={34}
-                bg={C.accentDark}
-                hover:bg={C.accentDim}
-                active:bg={C.accent}
-                rounded={6}
-                border={1}
-                borderColor={C.accentDim}
-                cursor="pointer"
-              >
-                <text fontSize={13} fontWeight={600} color={C.accentHi}>
-                  Focus Second
-                </text>
-              </button>
-            </view>
-          </view>
-        </view>
-
-        <view display="flex" flexDir="col" gap={12}>
-          <text fontSize={14} fontWeight={700} color={C.text}>
-            Focus chain
-          </text>
-          <view
-            display="flex"
-            flexDir="col"
-            gap={10}
-            p={16}
-            bg={C.surface2}
-            rounded={8}
-            border={1}
-            borderColor={C.border}
-          >
-            <text fontSize={12} color={C.textMuted}>
-              Next → advances focus to the following field.
-            </text>
-            {(['First name', 'Last name', 'Email'] as const).map((label, i) => (
-              <view
-                key={label}
-                display="flex"
-                flexDir="row"
-                items="center"
-                gap={8}
-              >
-                <view w={80} minW={80}>
-                  <text fontSize={13} color={C.textSub}>
-                    {label}
-                  </text>
-                </view>
-                <input
-                  ref={chainRefs[i]}
-                  placeholder={label}
-                  fontSize={14}
-                  color={C.text}
-                  bg={C.surface3}
-                  p={inputPadding}
-                  rounded={6}
-                  border={1}
-                  borderColor={C.border}
-                  focus:borderColor={C.accentHi}
-                  flex={1}
-                />
-                {i < 2 && (
-                  <button
-                    onClick={() => chainRefs[i + 1]?.current?.focus()}
-                    display="flex"
-                    flexDir="col"
-                    justify="center"
-                    px={12}
-                    h={34}
-                    bg={C.surface4}
-                    hover:bg={C.surface3}
-                    rounded={6}
-                    border={1}
-                    borderColor={C.border}
-                    cursor="pointer"
-                  >
-                    <text fontSize={12} color={C.textMuted}>
-                      Next →
-                    </text>
-                  </button>
-                )}
-              </view>
-            ))}
           </view>
         </view>
       </view>
