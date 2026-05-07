@@ -617,6 +617,9 @@ pub fn op_focus_element(
         };
         entry.dom.focus_element(nid);
         entry.dom.request_scroll_focus_into_view(nid);
+        if let Some(handle) = entry.handle.as_ref() {
+            handle.winit_window.request_redraw();
+        }
         Ok(())
     })
 }

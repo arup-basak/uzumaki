@@ -73,6 +73,60 @@ function App() {
 render(window, <App />);
 ```
 
+## Refs
+
+Use `useRef` to get imperative access to an element instance — useful for programmatic focus, reading attributes, or calling methods directly.
+
+```tsx
+import { useRef } from 'react';
+import { UzInputElement } from 'uzumaki-ui';
+
+function SearchBar() {
+  const inputRef = useRef<UzInputElement | null>(null);
+
+  return (
+    <view display="flex" flexDir="row" gap={8}>
+      <input
+        ref={inputRef}
+        placeholder="Search..."
+        fontSize={14}
+        color="#e4e4e7"
+        bg="#1a1a1f"
+        p={8}
+        rounded={6}
+        flex={1}
+      />
+      <view
+        onClick={() => inputRef.current?.focus()}
+        px={16}
+        py={8}
+        bg="#3d2a0c"
+        rounded={6}
+        cursor="pointer"
+      >
+        <text fontSize={14} color="#f0c04a">
+          Focus
+        </text>
+      </view>
+    </view>
+  );
+}
+```
+
+Both object refs (`useRef`) and callback refs are supported:
+
+```tsx
+// object ref
+const ref = useRef<UzButtonElement | null>(null);
+<button ref={ref} ... />
+
+// callback ref
+<button ref={(el) => console.log('mounted', el)} ... />
+```
+
+All element types expose a `ref` prop typed to their specific class:
+`UzViewElement`, `UzTextElement`, `UzButtonElement`, `UzInputElement`, `UzCheckboxElement`, `UzImageElement`.
+
 ## Install
 
 **macOS / Linux**
