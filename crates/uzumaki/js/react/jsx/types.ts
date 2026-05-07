@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 
 import type {
   UzMouseEvent,
@@ -154,6 +154,7 @@ export namespace JSX {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzViewElement>;
         onFocus?: (ev: UzFocusEvent<UzViewElement>) => void;
         onBlur?: (ev: UzFocusEvent<UzViewElement>) => void;
       };
@@ -162,12 +163,14 @@ export namespace JSX {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzTextElement>;
       };
     button: ElementAttributes &
       EventProps<UzButtonElement> & {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzButtonElement>;
         onFocus?: (ev: UzFocusEvent<UzButtonElement>) => void;
         onBlur?: (ev: UzFocusEvent<UzButtonElement>) => void;
       };
@@ -192,6 +195,7 @@ export namespace JSX {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzInputElement>;
       };
     checkbox: ElementAttributes &
       EventProps<UzCheckboxElement> & {
@@ -204,6 +208,7 @@ export namespace JSX {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzCheckboxElement>;
       };
     image: ElementAttributes &
       EventProps<UzImageElement> & {
@@ -215,6 +220,7 @@ export namespace JSX {
         children?: any;
         key?: string | number;
         id?: string;
+        ref?: Ref<UzImageElement>;
       };
   }
 }
