@@ -428,7 +428,7 @@ pub struct ScrollbarStyle {
 impl Default for ScrollbarStyle {
     fn default() -> Self {
         Self {
-            width: 4.0,
+            width: 8.0,
             color: Color::rgba(255, 255, 255, 90),
             hover_color: Color::rgba(255, 255, 255, 140),
             active_color: Color::rgba(255, 255, 255, 180),

@@ -56,7 +56,6 @@ export function StressPage() {
       gap={0}
       h="full"
       scroll
-      scrollbarWidth={8}
       scrollbarRadius={5}
     >
       <view
