@@ -124,6 +124,34 @@ Style props that apply on hover or active (press) states:
 </view>
 ```
 
+## Scrollbar
+
+Overlay scrollbars appear when the mouse is inside a scrollable view. They have three visual states: default, hover (pointer is over the thumb), and active (thumb is being dragged).
+
+| Prop                   | Type            | Description                                             |
+| ---------------------- | --------------- | ------------------------------------------------------- |
+| `scrollbarWidth`       | number / string | Thumb thickness in pixels (default `4`)                 |
+| `scrollbarColor`       | color           | Thumb color in the default state (default `#ffffff5a`)  |
+| `scrollbarHoverColor`  | color           | Thumb color when the pointer is over the thumb          |
+| `scrollbarActiveColor` | color           | Thumb color while the thumb is being dragged            |
+| `scrollbarRadius`      | number / string | Corner radius; omit for a pill shape (radius = width/2) |
+
+State styles are scoped per axis — hovering or dragging the vertical thumb does not affect the horizontal thumb and vice versa.
+
+```tsx
+<view
+  scroll
+  h={300}
+  scrollbarWidth={6}
+  scrollbarColor="#ffffff40"
+  scrollbarHoverColor="#ffffff90"
+  scrollbarActiveColor="#ffffffc0"
+  scrollbarRadius={3}
+>
+  {items}
+</view>
+```
+
 ## Events
 
 | Prop          | Type         | Description         |

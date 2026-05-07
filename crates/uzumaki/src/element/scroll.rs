@@ -202,13 +202,16 @@ pub fn paint_thumb(
     transform: Affine,
     geom: &ThumbGeometry,
     hovered: bool,
+    active: bool,
     style: &ScrollbarStyle,
 ) {
     if geom.thumb_width <= 0.0 || geom.thumb_height <= 0.0 {
         return;
     }
 
-    let color = if hovered {
+    let color = if active {
+        style.active_color
+    } else if hovered {
         style.hover_color
     } else {
         style.color

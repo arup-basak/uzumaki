@@ -164,6 +164,7 @@ impl<'a> Painter<'a> {
                     thumb.transform,
                     &thumb.geom,
                     thumb.hovered,
+                    thumb.active,
                     &thumb.style,
                 );
             }
@@ -209,6 +210,7 @@ impl<'a> Painter<'a> {
                     thumb.transform,
                     &thumb.geom,
                     thumb.hovered,
+                    thumb.active,
                     &thumb.style,
                 );
             }
@@ -424,8 +426,9 @@ impl<'a> Painter<'a> {
             return None;
         }
 
-        let hovered = self.is_active_drag(node_id)
-            || self
+        let active = self.is_active_drag_axis(node_id, ScrollAxis::Y);
+        let hovered = !active
+            && self
                 .dom
                 .hit_state
                 .mouse_position
@@ -435,6 +438,7 @@ impl<'a> Painter<'a> {
             transform,
             geom,
             hovered,
+            active,
             style: style.scrollbar,
         })
     }
@@ -556,8 +560,9 @@ impl<'a> Painter<'a> {
             visible_size: visible as f32,
         });
 
-        let hovered = self.is_active_drag(node_id)
-            || self
+        let active = self.is_active_drag_axis(node_id, axis);
+        let hovered = !active
+            && self
                 .dom
                 .hit_state
                 .mouse_position
@@ -567,6 +572,7 @@ impl<'a> Painter<'a> {
             transform,
             geom,
             hovered,
+            active,
             style: *scrollbar,
         }
     }
@@ -576,6 +582,13 @@ impl<'a> Painter<'a> {
             .drag_mode
             .as_scrollbar_thumb()
             .is_some_and(|d| d.node_id == node_id)
+    }
+
+    fn is_active_drag_axis(&self, node_id: UzNodeId, axis: ScrollAxis) -> bool {
+        self.dom
+            .drag_mode
+            .as_scrollbar_thumb()
+            .is_some_and(|d| d.node_id == node_id && d.axis == axis)
     }
 
     fn compute_text_selections_map(&self) -> HashMap<UzNodeId, (usize, usize)> {
@@ -661,6 +674,7 @@ struct ScrollbarPaint {
     transform: Affine,
     geom: ThumbGeometry,
     hovered: bool,
+    active: bool,
     style: ScrollbarStyle,
 }
 
