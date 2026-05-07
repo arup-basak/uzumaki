@@ -137,7 +137,6 @@ export function LayoutPage() {
       gap={0}
       h="full"
       scroll
-      scrollbarWidth={8}
       scrollbarRadius={5}
     >
       <view
@@ -1020,6 +1019,7 @@ function ScrollDemo() {
             p={12}
             display="flex"
             flexDir="row"
+            scrollbarWidth={4}
             scrollbarColor={C.accentDim}
             scrollbarHoverColor={C.warningDim}
             gap={10}
