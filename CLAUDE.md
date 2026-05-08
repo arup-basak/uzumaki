@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a mixed Rust and TypeScript workspace for the Uzumaki UI runtime.
+This repository is a mixed Rust and TypeScript workspace for the Uzumaki runtime and React renderer.
 
 - `crates/uzumaki/`: main runtime, renderer, event system, TypeScript bridge, and React JSX runtime
 - `crates/refineable/`: shared Rust support crate plus `derive_refineable/` proc-macro code
@@ -13,17 +13,19 @@ Build artifacts land in `target/`. Top-level config lives in `Cargo.toml`, `pack
 
 ## Framework Notes
 
-For the playground TypeScript app, use the current `uzumaki-ui` crate and do not assume any built-in module has landed yet.
+For the playground TypeScript app, use the current built-in `uzumaki` runtime module and the `uzumaki-react` renderer.
 
-- Import `Window` and runtime APIs from `uzumaki-ui`
-- Import `render` from `uzumaki-ui/react`
-- Follow the JSX setup already used by the repo: `jsx: react-jsx` with `jsxImportSource: uzumaki-ui/react`
+- Import `Window` and runtime APIs from `uzumaki`
+- Import `render` from `uzumaki-react`
+- Follow the JSX setup already used by the repo: `jsx: react-jsx` with `jsxImportSource: uzumaki-react`
+- Use `uzumaki-types` in TypeScript configs where runtime module types are needed
 - Use the Uzumaki intrinsic elements and prop names that already exist in the repo instead of inventing DOM-style props
 
 Check the docs and in-tree types before writing playground code:
 
 - `crates/uzumaki/README.md`
-- `crates/uzumaki/js/react/jsx/types.ts`
+- `packages/uzumaki-react/src/jsx/types.ts`
+- `packages/uzumaki-types/uzumaki.d.ts`
 - existing examples in `packages/playground/src/`
 
 Keep this file focused on repo-specific syntax and behavior. For broader framework usage, read the docs instead of guessing.
