@@ -5,8 +5,8 @@ import type {
   UzKeyboardEvent,
   UzInputEvent,
   UzFocusEvent,
-} from '../../events';
-import { UzNode } from '../../node';
+} from 'uzumaki';
+import { UzNode } from 'uzumaki';
 import {
   UzButtonElement,
   UzCheckboxElement,
@@ -14,7 +14,7 @@ import {
   UzInputElement,
   UzTextElement,
   UzViewElement,
-} from '../../elements';
+} from 'uzumaki';
 
 interface ElementStyles {
   h?: number | string;
@@ -139,6 +139,7 @@ interface EventProps<T extends UzNode> {
   onKeyUpCapture?: (ev: UzKeyboardEvent<T>) => void;
 }
 
+// @oxlint-ignore
 export namespace JSX {
   export type Element = ReactNode;
 

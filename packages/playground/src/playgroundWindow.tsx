@@ -1,5 +1,5 @@
-import { getWindow, Window } from 'uzumaki-ui';
-import { render } from 'uzumaki-ui/react';
+import { getWindow, Window } from 'uzumaki';
+import { render } from 'uzumaki-react';
 
 function WindowPreview({
   title,
