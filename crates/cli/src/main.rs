@@ -2,7 +2,7 @@ pub mod cli;
 pub mod init;
 pub mod standalone;
 
-use uzumaki_runtime::{AppConfig, Application, HeadlessApp};
+use uzumaki_runtime::{AppConfig, Application};
 
 use crate::standalone::LaunchMode;
 
@@ -56,9 +56,8 @@ fn main() {
 }
 
 fn run_headless(config: AppConfig) {
-    let mut app = HeadlessApp::new(UZUMAKI_SNAPSHOT, config).expect("error creating headless app");
-
-    app.run().expect("error running headless app");
+    // todo prety print
+    uzumaki_runtime::headless::run_headless(UZUMAKI_SNAPSHOT, config).expect("Error: ");
 }
 
 fn run_app(config: AppConfig) {

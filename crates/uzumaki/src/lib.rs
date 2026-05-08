@@ -25,7 +25,6 @@ use deno_core::*;
 
 pub use crate::app::AppConfig;
 pub use crate::app::Application;
-pub use crate::headless::HeadlessApp;
 
 pub(crate) mod parse;
 pub(crate) mod prop_keys;
