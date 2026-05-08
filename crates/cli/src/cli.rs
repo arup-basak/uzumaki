@@ -17,6 +17,8 @@ pub struct UzumakiConfig {
     pub product_name: String,
     pub version: String,
     pub identifier: String,
+    #[serde(default, rename = "jsxImportSource")]
+    pub jsx_import_source: Option<String>,
     #[serde(default)]
     pub build: BuildConfig,
     #[serde(default)]
@@ -84,8 +86,15 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Run a JS/TS file in the uzumaki runtime
-    Run {
+    Dev {
         /// Entry point file
+        entry: String,
+        /// Extra arguments passed to the runtime
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    // Run as JS/TS file in headless mode
+    Run {
         entry: String,
         /// Extra arguments passed to the runtime
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -130,7 +139,7 @@ fn clap_styles() -> clap::builder::Styles {
 }
 
 /// Known subcommand names so we can distinguish `uzumaki build` from `uzumaki app.tsx`.
-const KNOWN_SUBCOMMANDS: &[&str] = &["run", "build", "init", "upgrade", "help"];
+const KNOWN_SUBCOMMANDS: &[&str] = &["run", "dev", "build", "init", "upgrade", "help"];
 
 pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     let raw_args: Vec<String> = std::env::args().collect();
@@ -145,7 +154,7 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     // treat it as `uzumaki run <file> ...`
     let cli = if !KNOWN_SUBCOMMANDS.contains(&raw_args[1].as_str()) && !raw_args[1].starts_with('-')
     {
-        let mut patched = vec![raw_args[0].clone(), "run".to_string()];
+        let mut patched = vec![raw_args[0].clone(), "dev".to_string()];
         patched.extend_from_slice(&raw_args[1..]);
         Cli::parse_from(patched)
     } else {
@@ -153,7 +162,8 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     };
 
     match cli.command {
-        Commands::Run { entry, args } => Ok(Some(resolve_run(&entry, args)?)),
+        Commands::Dev { entry, args } => Ok(Some(resolve_run(&entry, args, false)?)),
+        Commands::Run { entry, args } => Ok(Some(resolve_run(&entry, args, true)?)),
         Commands::Build { config, no_build } => {
             cmd_build(config.as_deref(), no_build)?;
             Ok(None)
@@ -169,7 +179,7 @@ pub fn run_cli() -> Result<Option<standalone::LaunchMode>> {
     }
 }
 
-fn resolve_run(entry: &str, args: Vec<String>) -> Result<standalone::LaunchMode> {
+fn resolve_run(entry: &str, args: Vec<String>, headless: bool) -> Result<standalone::LaunchMode> {
     let cwd = std::env::current_dir()?;
     let entry_path = strip_unc_prefix(
         fs::canonicalize(cwd.join(entry))
@@ -183,28 +193,34 @@ fn resolve_run(entry: &str, args: Vec<String>) -> Result<standalone::LaunchMode>
     // Locate the config to derive identifier and the resource root for dev
     // mode. In dev, resources are read straight from the project tree, so the
     // resource root is the config file's directory (or app_root as a fallback).
-    let (identifier, resource_root) = match find_config(&app_root) {
+    let (identifier, resource_root, jsx_import_source) = match find_config(&app_root) {
         Some(config_path) => {
             let config_dir = config_path
                 .parent()
                 .map(|p| p.to_path_buf())
                 .unwrap_or_else(|| app_root.clone());
-            let identifier = load_config(&config_path)
-                .map(|c| c.identifier)
-                .unwrap_or_else(|_| "com.uzumaki.app".to_string());
-            (identifier, config_dir)
+            let (identifier, jsx_import_source) = load_config(&config_path)
+                .map(|c| (c.identifier, c.jsx_import_source))
+                .unwrap_or_else(|_| ("com.uzumaki.app".to_string(), None));
+            (identifier, config_dir, jsx_import_source)
         }
-        None => ("com.uzumaki.app".to_string(), app_root.clone()),
+        None => ("com.uzumaki.app".to_string(), app_root.clone(), None),
     };
 
-    Ok(standalone::LaunchMode::Dev {
-        config: AppConfig {
-            entry: entry_path,
-            app_root,
-            args,
-            identifier,
-            resource_root,
-        },
+    let config = AppConfig {
+        entry: entry_path,
+        app_root,
+        args,
+        identifier,
+        resource_root,
+        headless,
+        jsx_import_source,
+    };
+
+    Ok(if headless {
+        standalone::LaunchMode::Headless { config }
+    } else {
+        standalone::LaunchMode::Dev { config }
     })
 }
 
