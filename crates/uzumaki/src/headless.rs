@@ -15,7 +15,7 @@ pub fn run_headless(startup_snapshot: Option<&'static [u8]>, app_config: AppConf
         let _guard = tokio_runtime.enter();
         create_worker(WorkerBuildOptions {
             entry: main_file,
-            app_root: app_root,
+            app_root,
             args: config.args.clone(),
             headless: true,
             jsx_import_source: config.jsx_import_source.clone(),
