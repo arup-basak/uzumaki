@@ -342,6 +342,7 @@ fn set_style_str(
         | StyleProp::Display
         | StyleProp::TextWrap
         | StyleProp::WordBreak
+        | StyleProp::TextAlign
         | StyleProp::Position => {
             if set_enum_style_prop_from_str(&mut node.style, prop, value) {
                 remember_inherited_enum(node, prop);
@@ -423,6 +424,7 @@ fn set_variant_style_str(
         | StyleProp::Display
         | StyleProp::TextWrap
         | StyleProp::WordBreak
+        | StyleProp::TextAlign
         | StyleProp::Position => {
             set_variant_enum_from_str(node, prop, variant, value);
         }
@@ -806,6 +808,17 @@ fn set_variant_enum_from_str(
                 _ => return false,
             });
         }
+        StyleProp::TextAlign => {
+            r.text.text_align = Some(match value {
+                "start" => TextAlign::Start,
+                "end" => TextAlign::End,
+                "left" => TextAlign::Left,
+                "center" => TextAlign::Center,
+                "right" => TextAlign::Right,
+                "justify" => TextAlign::Justify,
+                _ => return false,
+            });
+        }
         StyleProp::Position => {
             r.position = Some(match value {
                 "relative" => Position::Relative,
@@ -922,6 +935,7 @@ fn clear_variant_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
                 style.text.word_break = None;
             }
             StyleProp::WordBreak => style.text.word_break = None,
+            StyleProp::TextAlign => style.text.text_align = None,
             StyleProp::Position => style.position = None,
             StyleProp::Top => style.inset.top = None,
             StyleProp::Right => style.inset.right = None,
@@ -1278,6 +1292,17 @@ fn set_enum_style_prop_from_str(style: &mut UzStyle, prop: StyleProp, value: &st
                 _ => return false,
             };
         }
+        StyleProp::TextAlign => {
+            style.text.text_align = match value {
+                "start" => TextAlign::Start,
+                "end" => TextAlign::End,
+                "left" => TextAlign::Left,
+                "center" => TextAlign::Center,
+                "right" => TextAlign::Right,
+                "justify" => TextAlign::Justify,
+                _ => return false,
+            };
+        }
         StyleProp::Position => {
             style.position = match value {
                 "relative" => Position::Relative,
@@ -1298,6 +1323,9 @@ fn remember_inherited_enum(node: &mut Node, prop: StyleProp) {
         }
         StyleProp::WordBreak => {
             node.style_variants.base_style.text.word_break = Some(node.style.text.word_break);
+        }
+        StyleProp::TextAlign => {
+            node.style_variants.base_style.text.text_align = Some(node.style.text.text_align);
         }
         _ => {}
     }
@@ -1432,6 +1460,10 @@ fn clear_style_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
         StyleProp::WordBreak => {
             node.style.text.word_break = default.text.word_break;
             node.style_variants.base_style.text.word_break = None;
+        }
+        StyleProp::TextAlign => {
+            node.style.text.text_align = default.text.text_align;
+            node.style_variants.base_style.text.text_align = None;
         }
         StyleProp::Position => node.style.position = default.position,
         StyleProp::Top => node.style.inset.top = default.inset.top,
