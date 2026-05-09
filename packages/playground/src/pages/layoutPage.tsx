@@ -18,6 +18,8 @@ const SAMPLE_TEXT =
 
 function TextAlignDemo() {
   const [align, setAlign] = useState<TextAlignValue>('start');
+  const [singleLine, setSingleLine] = useState('');
+  const [multiLine, setMultiLine] = useState('');
 
   return (
     <view display="flex" flexDir="col" gap={12}>
@@ -26,7 +28,7 @@ function TextAlignDemo() {
           textAlign
         </text>
         <text fontSize={12} color={C.textMuted}>
-          Click a value to change alignment — active value shown in accent
+          Click a value to change alignment
         </text>
       </view>
 
@@ -63,44 +65,42 @@ function TextAlignDemo() {
         border={1}
         borderColor={C.border}
       >
-        <text fontSize={14} color={C.text} textAlign={align}>
+        <text selectable fontSize={14} color={C.text} textAlign={align}>
           {SAMPLE_TEXT}
         </text>
       </view>
 
       <view display="flex" flexDir="col" gap={8}>
-        <text fontSize={11} fontWeight={600} color={C.textMuted}>
-          All alignments side-by-side
-        </text>
-        {ALIGN_VALUES.map((v) => (
-          <view
-            key={v}
-            display="flex"
-            flexDir="row"
-            items="center"
-            gap={12}
-            p={10}
-            bg={align === v ? C.accentDim : C.surface2}
-            rounded={6}
-            border={1}
-            borderColor={align === v ? C.accent : C.border}
-          >
-            <view w={52} flexShrink={0}>
-              <text
-                fontSize={11}
-                fontWeight={600}
-                color={align === v ? C.accentHi : C.textMuted}
-              >
-                {v}
-              </text>
-            </view>
-            <view flex={1} minW={0}>
-              <text fontSize={13} color={C.text} textAlign={v}>
-                The quick brown fox jumps over the lazy dog.
-              </text>
-            </view>
-          </view>
-        ))}
+        <input
+          value={singleLine}
+          onValueChange={setSingleLine}
+          textAlign={align}
+          placeholder="single-line input"
+          fontSize={14}
+          color={C.text}
+          bg={C.surface2}
+          p={8}
+          rounded={8}
+          border={1}
+          borderColor={C.border}
+          w="full"
+        />
+        <input
+          multiline
+          value={multiLine}
+          onValueChange={setMultiLine}
+          textAlign={align}
+          placeholder="multiline input"
+          fontSize={14}
+          color={C.text}
+          bg={C.surface2}
+          p={8}
+          rounded={8}
+          border={1}
+          borderColor={C.border}
+          w="full"
+          h={90}
+        />
       </view>
     </view>
   );
