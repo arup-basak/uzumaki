@@ -76,8 +76,6 @@ render(window, <App />);
 - `uzumaki-react` provides the React renderer
 - `uzumaki-types` provides TypeScript declarations for the built-in runtime
 
-
-
 ## Install
 
 **macOS / Linux**
