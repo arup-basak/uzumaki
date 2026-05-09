@@ -3,12 +3,7 @@
   "version": "0.1.0",
   "identifier": "com.uzumaki.playground",
   "jsxImportSource": "uzumaki-react",
-  "pack": {
-    "jsDist": "./dist",
-    "entry": "index.js",
-    "outputDir": "./target",
-    "binName": "playground"
-  },
+  "beforeBuildCommand": "uzumaki run build.ts",
   "bundle": {
     "resources": ["assets/**/*"],
     "js": {

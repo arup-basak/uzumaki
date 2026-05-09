@@ -1,4 +1,5 @@
 {
+  "version": "0.0.0",
   "name": "playground",
   "type": "module",
   "private": true,
@@ -9,14 +10,15 @@
   },
   "scripts": {
     "dev": "cargo r -p uzumaki --release -- src/index.tsx",
-    "build": "cargo r -p uzumaki --release -- build",
-    "build:js": "bun build src/index.tsx --target node --outdir dist --minify",
+    "build": "pnpm build:js && cargo r -p uzumaki --release -- build",
+    "build:js": "cargo r -p uzumaki --release -- run build.ts",
     "preview": "cargo r -p uzumaki --release -- dist/index.js",
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit --pretty false"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
-    "uzumaki-types": "workspace:*",
-    "typescript": "^5"
+    "rolldown": "^1.0.0",
+    "typescript": "^5",
+    "uzumaki-types": "workspace:*"
   }
 }

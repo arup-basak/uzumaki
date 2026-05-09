@@ -405,8 +405,7 @@ impl Application {
         .context("failed to resolve main module path")?;
 
         let rt = &self.tokio_runtime;
-        rt.block_on(async { self.worker.execute_main_module(&specifier).await })
-            .with_context(|| format!("failed to execute main module {specifier}"))?;
+        rt.block_on(async { self.worker.execute_main_module(&specifier).await })?;
         self.pump_js()?;
         Ok(())
     }

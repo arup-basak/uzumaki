@@ -72,6 +72,9 @@ importers:
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
+      rolldown:
+        specifier: ^1.0.0
+        version: 1.0.0
       typescript:
         specifier: ^5
         version: 5.9.3

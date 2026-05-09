@@ -39,17 +39,19 @@ pub fn run_headless(startup_snapshot: Option<&'static [u8]>, app_config: AppConf
         op_state.borrow_mut().put(config);
     }
 
-    tokio_runtime.block_on(async {
-        worker
-            .execute_main_module(&main_module)
-            .await
-            .with_context(|| format!("failed to execute main module {main_module}"))?;
-        worker
-            .run_event_loop(false)
-            .await
-            .context("error while running the JS event loop")?;
+    let res = tokio_runtime.block_on(async {
+        worker.execute_main_module(&main_module).await?;
+        worker.run_event_loop(false).await?;
         Ok::<_, anyhow::Error>(())
-    })?;
+    });
+
+    if let Err(err) = res {
+        print_runtime_error(&err);
+    }
 
     Ok(())
+}
+
+fn print_runtime_error(err: &anyhow::Error) {
+    eprintln!("{} {:#}", crate::terminal_colors::red_bold("Error"), err);
 }

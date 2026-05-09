@@ -49,12 +49,11 @@ fn run() -> Result<()> {
 
 fn run_headless(config: AppConfig) -> Result<()> {
     uzumaki_runtime::headless::run_headless(UZUMAKI_SNAPSHOT, config)
-        .context("headless runtime failed")
 }
 
 fn run_app(config: AppConfig) -> Result<()> {
     let mut app = Application::new_with_root(UZUMAKI_SNAPSHOT, config)
         .context("failed to create application")?;
 
-    app.run().context("application runtime failed")
+    app.run()
 }
