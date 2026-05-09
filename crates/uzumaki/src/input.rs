@@ -6,7 +6,23 @@ use history::{Change, ChangeItem, EditHistory, SelectionSnapshot};
 use parley::PlainEditor;
 use winit::keyboard::{Key, NamedKey};
 
+use crate::style::TextAlign;
 use crate::text::{TextBrush, TextRenderer};
+
+/// Single-line horizontal alignment offset, browser-style: when the text fits
+/// the content box, align it; once it overflows the offset collapses to 0 and
+/// horizontal scroll takes over so the cursor stays visible.
+pub fn input_align_offset(content_w: f32, natural_w: f32, align: TextAlign) -> f32 {
+    if natural_w >= content_w {
+        return 0.0;
+    }
+    let slack = content_w - natural_w;
+    match align {
+        TextAlign::Start | TextAlign::Left | TextAlign::Justify => 0.0,
+        TextAlign::End | TextAlign::Right => slack,
+        TextAlign::Center => slack * 0.5,
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditKind {
@@ -811,10 +827,14 @@ impl InputState {
         if visible_width <= 0.0 {
             return;
         }
+        // Keep a small margin at the right so the 1.5px caret and any glyph
+        // overshoot (italics, kerning, antialiasing) aren't clipped against
+        // the content edge.
+        const RIGHT_PAD: f32 = 4.0;
         if cursor_x - self.scroll_offset < 0.0 {
             self.scroll_offset = cursor_x;
-        } else if cursor_x - self.scroll_offset > visible_width {
-            self.scroll_offset = cursor_x - visible_width;
+        } else if cursor_x - self.scroll_offset > visible_width - RIGHT_PAD {
+            self.scroll_offset = (cursor_x - visible_width + RIGHT_PAD).max(0.0);
         }
         if self.scroll_offset < 0.0 {
             self.scroll_offset = 0.0;
@@ -1090,7 +1110,7 @@ mod tests {
         let mut is = InputState::new();
         is.scroll_offset = 0.0;
         is.update_scroll(250.0, 200.0);
-        assert_eq!(is.scroll_offset, 50.0);
+        assert_eq!(is.scroll_offset, 54.0);
     }
 
     #[test]

@@ -3,7 +3,7 @@ use winit::keyboard::{Key, NamedKey};
 
 use crate::clipboard::SystemClipboard;
 use crate::element::{DragMode, ScrollAxis, ScrollDragState, ScrollWheelTarget, UzNodeId};
-use crate::input::KeyResult;
+use crate::input::{KeyResult, input_align_offset};
 use crate::selection::{Affinity, SelectionEndpoint, TextSelection};
 use crate::style::TextStyle;
 use crate::text::{apply_text_style_to_editor, secure_cursor_geometry};
@@ -204,6 +204,37 @@ pub fn update_ime_cursor_area(dom: &mut UIState, handle: &mut Window) {
     set_ime_cursor_area(handle, &meta, &ime_area, scroll_offset_x, scroll_offset_y);
 }
 
+/// Browser-style horizontal alignment shift for a single-line input. Returns
+/// 0 for multiline (the editor handles alignment internally) or when the text
+/// is wider than the content box (scroll takes over). Refreshes the editor's
+/// layout as a side effect so callers see consistent natural-coord geometry.
+fn single_line_align_offset(dom: &mut UIState, handle: &mut Window, nid: UzNodeId) -> f32 {
+    let Some(meta) = input_layout_meta(dom, nid) else {
+        return 0.0;
+    };
+    if meta.multiline {
+        return 0.0;
+    }
+    let Some(node) = dom.nodes.get_mut(nid) else {
+        return 0.0;
+    };
+    let Some(is) = node.as_text_input_mut() else {
+        return 0.0;
+    };
+    apply_text_style_to_editor(&mut is.editor, &meta.text_style);
+    is.editor.set_width(None);
+    is.editor.refresh_layout(
+        &mut handle.text_renderer.font_ctx,
+        &mut handle.text_renderer.layout_ctx,
+    );
+    let natural_w = is
+        .editor
+        .try_layout()
+        .map(|l| l.full_width())
+        .unwrap_or(0.0);
+    input_align_offset(meta.input_width, natural_w, meta.text_style.text_align)
+}
+
 /// Scroll the focused input so the cursor stays visible.
 /// Call this after any action that moves the cursor (key press, click, drag).
 pub fn scroll_input_to_cursor(dom: &mut UIState, handle: &mut Window) {
@@ -330,14 +361,8 @@ pub fn handle_cursor_moved(
                 hb,
             )) = hit_info
             {
-                let relative_x = if is_multiline {
-                    (logical_x - hb.x - input_padding) as f32
-                } else {
-                    (logical_x - hb.x - input_padding) as f32 + scroll_offset
-                };
-                let relative_y = (logical_y - hb.y) as f32 + scroll_offset_y - top_pad;
-
-                // Apply styles/width so the driver's layout accounts for wrapping
+                // Apply styles/width so the driver's layout accounts for
+                // wrapping; also gives us a fresh natural width for align_offset.
                 if let Some(meta) = input_layout_meta(dom, drag_nid)
                     && let Some(node) = dom.nodes.get_mut(drag_nid)
                     && let Some(is) = node.as_text_input_mut()
@@ -349,6 +374,18 @@ pub fn handle_cursor_moved(
                         None
                     });
                 }
+
+                let align_offset = if is_multiline {
+                    0.0
+                } else {
+                    single_line_align_offset(dom, handle, drag_nid)
+                };
+                let relative_x = if is_multiline {
+                    (logical_x - hb.x - input_padding) as f32
+                } else {
+                    (logical_x - hb.x - input_padding) as f32 + scroll_offset - align_offset
+                };
+                let relative_y = (logical_y - hb.y) as f32 + scroll_offset_y - top_pad;
 
                 if let Some(node) = dom.nodes.get_mut(drag_nid)
                     && let Some(is) = node.as_text_input_mut()
@@ -698,13 +735,6 @@ pub fn handle_mouse_input(
                     ) = click_info;
 
                     if let Some(hb) = hitbox_bounds {
-                        let relative_x = if is_multiline {
-                            (mx - hb.x - input_padding) as f32
-                        } else {
-                            (mx - hb.x - input_padding) as f32 + scroll_offset
-                        };
-                        let relative_y = (my - hb.y) as f32 + scroll_offset_y - top_pad;
-
                         dom.focus_element(nid);
 
                         // Apply styles/width so hit-testing accounts for wrapping
@@ -719,6 +749,18 @@ pub fn handle_mouse_input(
                                 None
                             });
                         }
+
+                        let align_offset = if is_multiline {
+                            0.0
+                        } else {
+                            single_line_align_offset(dom, handle, nid)
+                        };
+                        let relative_x = if is_multiline {
+                            (mx - hb.x - input_padding) as f32
+                        } else {
+                            (mx - hb.x - input_padding) as f32 + scroll_offset - align_offset
+                        };
+                        let relative_y = (my - hb.y) as f32 + scroll_offset_y - top_pad;
 
                         if let Some(node) = dom.nodes.get_mut(nid)
                             && let Some(is) = node.as_text_input_mut()

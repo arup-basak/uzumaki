@@ -67,7 +67,10 @@ impl TextRenderer {
         let mut layout = builder.build(text);
         layout.break_all_lines(max_width);
         let alignment = style.text_align.to_parley();
-        if alignment != ParleyAlignment::Start {
+        // Only apply alignment when a frame is provided. Without one, callers
+        // (cursor x-positions, hit testing, single-line input drawing) want
+        // natural unaligned coordinates and apply alignment themselves.
+        if alignment != ParleyAlignment::Start && max_width.is_some() {
             layout.align(max_width, alignment, AlignmentOptions::default());
         }
         layout
@@ -92,14 +95,12 @@ impl TextRenderer {
         scene: &mut Scene,
         text: &str,
         style: &TextStyle,
-        width: f32,
-        height: f32,
+        width: Option<f32>,
         position: (f32, f32),
         color: Color,
         transform: Affine,
     ) {
-        let _ = height;
-        let layout = self.build_layout(text, style, Some(width));
+        let layout = self.build_layout(text, style, width);
         draw_layout(scene, &layout, position, color, transform);
     }
 
