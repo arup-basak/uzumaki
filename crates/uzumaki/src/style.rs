@@ -1,4 +1,4 @@
-use parley::{FontFamily, LineHeight, StyleProperty};
+use parley::{Alignment as ParleyAlignment, FontFamily, LineHeight, StyleProperty};
 use refineable::Refineable;
 use vello::Scene;
 use vello::kurbo::{Affine, Rect, RoundedRect, RoundedRectRadii, Stroke};
@@ -387,6 +387,30 @@ impl WordBreak {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TextAlign {
+    #[default]
+    Start,
+    End,
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+impl TextAlign {
+    pub fn to_parley(self) -> ParleyAlignment {
+        match self {
+            Self::Start => ParleyAlignment::Start,
+            Self::End => ParleyAlignment::End,
+            Self::Left => ParleyAlignment::Left,
+            Self::Center => ParleyAlignment::Center,
+            Self::Right => ParleyAlignment::Right,
+            Self::Justify => ParleyAlignment::Justify,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Refineable)]
 #[refineable(Debug)]
 pub struct TextStyle {
@@ -399,6 +423,7 @@ pub struct TextStyle {
     pub word_spacing: f32,
     pub overflow_wrap: OverflowWrap,
     pub word_break: WordBreak,
+    pub text_align: TextAlign,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Refineable)]
@@ -473,6 +498,7 @@ impl Default for TextStyle {
             word_spacing: 0.0,
             overflow_wrap: OverflowWrap::default(),
             word_break: WordBreak::default(),
+            text_align: TextAlign::default(),
         }
     }
 }

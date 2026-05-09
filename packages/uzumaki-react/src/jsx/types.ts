@@ -48,6 +48,7 @@ interface ElementStyles {
   fontSize?: number | string;
   fontWeight?: string | number;
   fontFamily?: string;
+  textAlign?: 'left' | 'center' | 'right' | 'start' | 'end' | 'justify';
   textWrap?: 'wrap' | 'nowrap' | 'anywhere' | 'break-word';
   wordBreak?: 'normal' | 'break-all' | 'keep-all';
   rounded?: number | string;

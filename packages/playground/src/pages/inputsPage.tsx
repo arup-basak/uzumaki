@@ -383,11 +383,11 @@ export function InputsPage() {
                   fontWeight={700}
                   color={C.text}
                   bg={C.surface3}
-                  pl={15}
                   pr={0}
                   py={0}
+                  textAlign="center"
                   w={44}
-                  h={52}
+                  h={44}
                   rounded={8}
                   border={1}
                   borderColor={digit ? C.accent : C.border}

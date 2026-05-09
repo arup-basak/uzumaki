@@ -23,6 +23,7 @@ Numbers are logical pixels. Strings can be `"50%"`, `"2rem"`, `"auto"`, `"full"`
 
 - `bg`, `color`, `opacity`, `visibility`
 - `fontSize`, `fontWeight`, `fontFamily`
+- `textAlign` — `left` | `center` | `right` | `start` | `end` | `justify`
 - `textWrap`, `wordBreak`
 
 ## Borders & corners

@@ -1,6 +1,6 @@
 use parley::{
-    Affinity as ParleyAffinity, BoundingBox, Cluster, Cursor, FontContext, Layout, LayoutContext,
-    Selection,
+    Affinity as ParleyAffinity, Alignment as ParleyAlignment, AlignmentOptions, BoundingBox,
+    Cluster, Cursor, FontContext, Layout, LayoutContext, Selection,
 };
 use vello::Scene;
 use vello::kurbo::Affine;
@@ -66,6 +66,13 @@ impl TextRenderer {
         }
         let mut layout = builder.build(text);
         layout.break_all_lines(max_width);
+        let alignment = style.text_align.to_parley();
+        // Only apply alignment when a frame is provided. Without one, callers
+        // (cursor x-positions, hit testing, single-line input drawing) want
+        // natural unaligned coordinates and apply alignment themselves.
+        if alignment != ParleyAlignment::Start && max_width.is_some() {
+            layout.align(max_width, alignment, AlignmentOptions::default());
+        }
         layout
     }
 
@@ -88,14 +95,12 @@ impl TextRenderer {
         scene: &mut Scene,
         text: &str,
         style: &TextStyle,
-        width: f32,
-        height: f32,
+        width: Option<f32>,
         position: (f32, f32),
         color: Color,
         transform: Affine,
     ) {
-        let _ = height;
-        let layout = self.build_layout(text, style, Some(width));
+        let layout = self.build_layout(text, style, width);
         draw_layout(scene, &layout, position, color, transform);
     }
 
@@ -472,6 +477,7 @@ pub fn apply_text_style_to_editor(editor: &mut parley::PlainEditor<TextBrush>, s
     for prop in style.to_parley_styles() {
         styles.insert(prop);
     }
+    editor.set_alignment(style.text_align.to_parley());
 }
 
 pub fn secure_cursor_geometry(

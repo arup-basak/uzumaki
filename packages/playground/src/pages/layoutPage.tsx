@@ -2,6 +2,110 @@ import { useState } from 'react';
 import { C } from '../theme';
 import { Divider } from '../components';
 
+type TextAlignValue = 'left' | 'center' | 'right' | 'start' | 'end' | 'justify';
+
+const ALIGN_VALUES: TextAlignValue[] = [
+  'left',
+  'center',
+  'right',
+  'start',
+  'end',
+  'justify',
+];
+
+const SAMPLE_TEXT =
+  'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.';
+
+function TextAlignDemo() {
+  const [align, setAlign] = useState<TextAlignValue>('start');
+  const [singleLine, setSingleLine] = useState('');
+  const [multiLine, setMultiLine] = useState('');
+
+  return (
+    <view display="flex" flexDir="col" gap={12}>
+      <view display="flex" flexDir="col" gap={4}>
+        <text fontSize={14} fontWeight={700} color={C.text}>
+          textAlign
+        </text>
+        <text fontSize={12} color={C.textMuted}>
+          Click a value to change alignment
+        </text>
+      </view>
+
+      <view display="flex" flexDir="row" gap={6} flexWrap="wrap">
+        {ALIGN_VALUES.map((v) => (
+          <button
+            key={v}
+            onClick={() => setAlign(v)}
+            px={12}
+            py={6}
+            bg={align === v ? C.accentDim : C.surface3}
+            hover:bg={align === v ? C.accent : C.surface4}
+            active:bg={C.accentDim}
+            rounded={6}
+            border={1}
+            borderColor={align === v ? C.accent : C.border}
+            cursor="pointer"
+          >
+            <text
+              fontSize={12}
+              fontWeight={align === v ? 700 : 400}
+              color={align === v ? C.accentHi : C.textMuted}
+            >
+              {v}
+            </text>
+          </button>
+        ))}
+      </view>
+
+      <view
+        p={16}
+        bg={C.surface2}
+        rounded={8}
+        border={1}
+        borderColor={C.border}
+      >
+        <text selectable fontSize={14} color={C.text} textAlign={align}>
+          {SAMPLE_TEXT}
+        </text>
+      </view>
+
+      <view display="flex" flexDir="col" gap={8}>
+        <input
+          value={singleLine}
+          onValueChange={setSingleLine}
+          textAlign={align}
+          placeholder="single-line input"
+          fontSize={14}
+          color={C.text}
+          bg={C.surface2}
+          p={8}
+          rounded={8}
+          border={1}
+          borderColor={C.border}
+          w="full"
+        />
+        <input
+          multiline
+          value={multiLine}
+          onValueChange={setMultiLine}
+          textAlign={align}
+          placeholder="multiline input"
+          fontSize={14}
+          color={C.text}
+          bg={C.surface2}
+          p={8}
+          rounded={8}
+          border={1}
+          borderColor={C.border}
+          w="full"
+          h={90}
+        />
+      </view>
+    </view>
+  );
+}
+
 function AbsClickCounter({ color }: { color: string }) {
   const [count, setCount] = useState(0);
   return (
@@ -935,6 +1039,10 @@ export function LayoutPage() {
             </text>
           </view>
         </view>
+
+        <Divider />
+
+        <TextAlignDemo />
 
         <Divider />
 

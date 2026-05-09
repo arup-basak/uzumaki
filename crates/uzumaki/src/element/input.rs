@@ -3,6 +3,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, Rect};
 use vello::peniko::{Color as VelloColor, Fill};
 
+use crate::input::input_align_offset;
 use crate::style::{Bounds, Color, Corners, Edges, TextStyle, UzStyle};
 use crate::text::TextRenderer;
 
@@ -74,6 +75,19 @@ pub fn paint_input(
     let line_height = (input.text_style.font_size * input.text_style.line_height).round();
     let scroll_y = input.scroll_offset_y as f64;
 
+    // Browser-style horizontal alignment for single-line inputs: when the text
+    // fits the content box, shift it by `align_offset`; once it overflows the
+    // offset is 0 and `scroll_offset` keeps the cursor in view. Multiline
+    // alignment is baked into the editor's layout, so the offset is 0 there.
+    let align_offset = if input.multiline || is_empty {
+        0.0
+    } else {
+        let (natural_w, _) =
+            text_renderer.measure_text(&input.display_text, &input.text_style, None, None);
+        input_align_offset(content_w as f32, natural_w, input.text_style.text_align) as f64
+    };
+    let single_x_shift = align_offset - input.scroll_offset as f64;
+
     // Placeholder
     if is_empty && !input.placeholder.is_empty() {
         let py = if input.multiline {
@@ -81,12 +95,13 @@ pub fn paint_input(
         } else {
             content_y as f32 + ((content_h as f32 - line_height) / 2.0).max(0.0)
         };
+        // Placeholder respects text-align: pass the content width so the
+        // editor's alignment is applied, single-line or multiline.
         text_renderer.draw_text(
             scene,
             &input.placeholder,
             &input.text_style,
-            content_w as f32,
-            content_h as f32,
+            Some(content_w as f32),
             (content_x as f32, py),
             VelloColor::from_rgba8(128, 128, 128, 255),
             transform,
@@ -94,6 +109,8 @@ pub fn paint_input(
     }
 
     if !is_empty {
+        let x_shift = if input.multiline { 0.0 } else { single_x_shift };
+
         // Selection highlights
         if input.focused && !input.selection_rects.is_empty() {
             let sel_color = VelloColor::from_rgba8(56, 121, 185, 128);
@@ -103,18 +120,8 @@ pub fn paint_input(
                 content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
             };
             for rect in &input.selection_rects {
-                let x1 = content_x + rect.x0
-                    - if input.multiline {
-                        0.0
-                    } else {
-                        input.scroll_offset as f64
-                    };
-                let x2 = content_x + rect.x1
-                    - if input.multiline {
-                        0.0
-                    } else {
-                        input.scroll_offset as f64
-                    };
+                let x1 = content_x + x_shift + rect.x0;
+                let x2 = content_x + x_shift + rect.x1;
                 let y1 = oy + rect.y0;
                 let y2 = oy + rect.y1;
                 scene.fill(
@@ -127,33 +134,25 @@ pub fn paint_input(
             }
         }
 
-        // Text
+        // Text. For single-line we draw with no wrap width so the layout
+        // doesn't apply any alignment of its own — we position via x_shift.
+        // For multiline the editor already aligned within content_w.
         let ty = if input.multiline {
             (content_y - scroll_y) as f32
         } else {
             content_y as f32 + ((content_h as f32 - line_height) / 2.0).max(0.0)
         };
+        let tx = (content_x + x_shift) as f32;
         let tw = if input.multiline {
-            content_w as f32
+            Some(content_w as f32)
         } else {
-            content_w as f32 + input.scroll_offset + 10000.0
-        };
-        let tx = if input.multiline {
-            content_x as f32
-        } else {
-            content_x as f32 - input.scroll_offset
+            None
         };
         text_renderer.draw_text(
             scene,
             &input.display_text,
             &input.text_style,
             tw,
-            content_h as f32
-                + if input.multiline {
-                    input.scroll_offset_y + 10000.0
-                } else {
-                    0.0
-                },
             (tx, ty),
             input.text_style.color.to_vello(),
             transform,
@@ -164,17 +163,13 @@ pub fn paint_input(
     if let Some(preedit) = &input.preedit
         && let Some(cr) = &input.cursor_rect
     {
+        let x_shift = if input.multiline { 0.0 } else { single_x_shift };
         let oy = if input.multiline {
             content_y - scroll_y
         } else {
             content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
         };
-        let px = content_x + cr.x0
-            - if input.multiline {
-                0.0
-            } else {
-                input.scroll_offset as f64
-            };
+        let px = content_x + x_shift + cr.x0;
         let py = oy + cr.y0;
         let preedit_h = cr.y1 - cr.y0;
 
@@ -183,13 +178,12 @@ pub fn paint_input(
         let preedit_rect = Rect::new(px, py, px + preedit.width as f64, py + preedit_h);
         scene.fill(Fill::NonZero, transform, preedit_bg, None, &preedit_rect);
 
-        // Preedit text
+        // Preedit text — natural single-line layout, positioned manually.
         text_renderer.draw_text(
             scene,
             &preedit.text,
             &input.text_style,
-            preedit.width + 100.0,
-            content_h as f32,
+            None,
             (px as f32, py as f32),
             input.text_style.color.to_vello(),
             transform,
@@ -218,17 +212,13 @@ pub fn paint_input(
         && input.preedit.is_none()
         && let Some(cr) = &input.cursor_rect
     {
+        let x_shift = if input.multiline { 0.0 } else { single_x_shift };
         let oy = if input.multiline {
             content_y - scroll_y
         } else {
             content_y + ((content_h - line_height as f64) / 2.0).max(0.0)
         };
-        let cx = content_x + cr.x0
-            - if input.multiline {
-                0.0
-            } else {
-                input.scroll_offset as f64
-            };
+        let cx = content_x + x_shift + cr.x0;
         let cy = oy + cr.y0;
         let cursor_rect = Rect::new(cx, cy + 2.0, cx + 1.5, cy + cr.y1 - cr.y0 - 2.0);
         scene.fill(
