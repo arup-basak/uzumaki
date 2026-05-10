@@ -179,7 +179,7 @@ impl Outline {
     pub const FOCUS_RING: Self = Self {
         color: Color::rgba(86, 156, 214, 255),
         width: 2.0,
-        offset: 2.0,
+        offset: 0.0,
     };
 }
 
