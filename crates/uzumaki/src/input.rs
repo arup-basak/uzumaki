@@ -348,13 +348,14 @@ impl InputState {
 
     fn apply_change(&mut self, change: &Change, undo: bool, renderer: &mut TextRenderer) {
         let mut text = self.editor.raw_text().to_string();
-        let iter: Box<dyn Iterator<Item = &ChangeItem>> = if undo {
-            Box::new(change.items.iter().rev())
+        if undo {
+            for item in change.items.iter().rev() {
+                Self::apply_item_to_string(&mut text, item, undo);
+            }
         } else {
-            Box::new(change.items.iter())
-        };
-        for item in iter {
-            Self::apply_item_to_string(&mut text, item, undo);
+            for item in change.items.iter() {
+                Self::apply_item_to_string(&mut text, item, undo);
+            }
         }
         self.editor.set_text(&text);
         let target = if undo {
