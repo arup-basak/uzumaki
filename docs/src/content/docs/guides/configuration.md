@@ -63,9 +63,7 @@ bun build src/index.tsx --target node --outdir dist --minify --external uzumaki
 
 The runtime provides the `uzumaki` module at execution time. Bundling it into your app would produce the wrong module.
 
-:::note
-Vite support is planned. For now, use the scaffolded build command or another bundler that can externalize `uzumaki`.
-:::
+Any bundler that can externalize a module works — `bun build`, esbuild, Rollup, tsup, and so on. The scaffolded command uses `bun build` because it is fast and ships with the toolchain.
 
 ## Package Settings
 

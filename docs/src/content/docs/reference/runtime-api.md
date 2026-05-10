@@ -1,13 +1,9 @@
 ---
 title: Runtime API
-description: Low-level imperative APIs from the built-in uzumaki module.
+description: Imperative APIs from the built-in uzumaki module.
 ---
 
-Most apps use React through `uzumaki-react`, but the built-in `uzumaki` module also exposes the runtime directly. Use this API for window control, custom renderers, clipboard access, resource paths, and imperative element work.
-
-:::note[Framework support]
-Uzumaki's architecture is framework-agnostic, but React is the first supported renderer today. React fits the current runtime well because JSX can be transformed as plain JavaScript. Frameworks like Solid and Vue have their own compilers, so supporting them cleanly needs a native transform/plugin system rather than a one-off workaround. That support is planned, but it will take a little time to land properly.
-:::
+Most apps use React through `uzumaki-react`, but the `uzumaki` module is also usable on its own. Reach for it when you want window control, clipboard access, resource paths, or imperative element work outside of React.
 
 ## Importing
 
@@ -65,7 +61,7 @@ view.appendChild(label);
 window.root.appendChild(view);
 ```
 
-This is the API that renderers build on top of. React users usually do not need to create trees manually.
+React users usually do not need to create trees manually — `uzumaki-react` does this for you.
 
 ## Tree Operations
 

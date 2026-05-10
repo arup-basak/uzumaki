@@ -169,8 +169,6 @@ body:has(.hero)::before {
   text-wrap: balance;
   max-width: 40rem;
   margin-top: 1rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--uz-accent);
 }
 
 /* Primary CTA — gradient + soft glow, the hero's focal point */
@@ -215,6 +213,15 @@ body:has(.hero)::before {
   border-color: var(--uz-accent);
   color: var(--uz-accent);
   background: rgba(226, 165, 46, 0.06);
+}
+
+/* Lead paragraph — used on the splash page */
+.uz-lead {
+  font-size: clamp(1.1rem, 1.4vw, 1.3rem);
+  line-height: 1.55;
+  color: #e8e8ec;
+  text-wrap: balance;
+  max-width: 44rem;
 }
 
 /* ---------- Prose ---------- */

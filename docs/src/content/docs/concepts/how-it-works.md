@@ -38,7 +38,7 @@ Uzumaki JSX uses intrinsic elements:
 </view>
 ```
 
-The renderer creates nodes such as `UzViewElement`, `UzTextElement`, and `UzButtonElement`. These elements expose tree operations, attributes, focus, and events through the low-level runtime API.
+Each tag maps to a runtime element class — `UzViewElement`, `UzTextElement`, `UzButtonElement`, and so on — with methods for tree operations, attributes, focus, and events. You rarely touch them directly when using React, but they show up on refs.
 
 ## Styling Is Prop-Based
 

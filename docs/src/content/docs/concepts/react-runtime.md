@@ -76,4 +76,4 @@ That ref is an Uzumaki element, so methods like `focus()` come from the runtime 
 
 Write components like React. Choose elements like React Native. Think about platform APIs like a desktop runtime.
 
-If you are unsure whether something is supported, check the in-tree JSX types at `packages/uzumaki-react/src/jsx/types.ts`.
+If you are unsure whether something is supported, hover the prop in your editor — `uzumaki-types` lists every supported element and prop. The full set is also documented in [Elements](/reference/elements/) and [Props](/reference/props/).

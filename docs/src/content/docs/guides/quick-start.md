@@ -35,6 +35,10 @@ render(window, <App />);
 
 `Window` comes from the built-in `uzumaki` module. `render` comes from `uzumaki-react`, the React renderer.
 
+:::note[Not React-only]
+Uzumaki supports custom renderers. React is just the first one we ship, for ease of use — Solid, Vue, and Svelte renderers are on the roadmap. The rest of these docs use React.
+:::
+
 ## 3. Render Native JSX
 
 Replace the app component with a small counter:

@@ -3,7 +3,7 @@ title: Style Native UI
 description: Use Uzumaki layout, typography, color, variants, and scrolling props.
 ---
 
-Uzumaki styles are element props. That keeps styling close to the native tree and makes examples easy to copy while the framework is still young.
+Uzumaki has no CSS. Layout, color, typography, variants, and scrolling are all element props on native elements like `<view>`, `<text>`, and `<button>`.
 
 ## Create a Layout Shell
 
