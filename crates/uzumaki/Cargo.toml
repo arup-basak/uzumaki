@@ -23,6 +23,7 @@ smol_str = "0.3.6"
 dirs.workspace = true
 once_cell.workspace = true
 termcolor.workspace = true
+notify = "8"
 
 # Deno deps
 deno_runtime = { workspace = true, features = ["include_js_files_for_snapshotting"] }
