@@ -3,17 +3,17 @@ title: CLI
 description: Run scripts, scaffold projects, build apps, and upgrade the Uzumaki CLI.
 ---
 
-The `uzumaki` CLI is a self-contained desktop UI runtime for JavaScript and TypeScript. It is built on Deno, so you do not need Node.js, Deno, or Bun installed to run a script.
+The `uzumaki` CLI is a self-contained desktop UI runtime for JavaScript and TypeScript. Built on Deno under the hood, it doubles as a standalone JS runtime — so you can use it to run scripts too.
 
 ```sh
 uzumaki ./app.tsx
 ```
+This starts the application loop and gives you access to the Uzumaki APIs
 
-That single command launches your app in a native window. Pass any file with a default export of a React tree and Uzumaki opens a window for it.
 
 ## Run Modes
 
-By default, `uzumaki <entry>` runs your script in **GUI mode** — it boots the runtime, opens windows, and dispatches events. Use `run` for headless scripts that just want the runtime without UI.
+By default, `uzumaki <entry>` runs your script in **GUI mode** — it boots the runtime and dispatches events. Use `run` for headless scripts that just want the Javascript runtime without the application loop.
 
 ```sh
 uzumaki ./app.tsx              # GUI mode (alias for `dev`)
@@ -75,8 +75,6 @@ The config tells the CLI what to build, where the bundled JS lives, and how to n
 uzumaki upgrade                  # install the latest release
 uzumaki upgrade --version 0.2.0  # pin to a specific version
 ```
-
-The upgrade replaces the running binary in place and keeps a `.old` backup until the new binary is verified.
 
 ## Version
 
