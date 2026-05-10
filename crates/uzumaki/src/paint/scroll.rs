@@ -9,7 +9,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, Rect, RoundedRect, RoundedRectRadii};
 use vello::peniko::Fill;
 
-use crate::element::ScrollAxis;
+use crate::paint::ScrollAxis;
 use crate::style::{Bounds, ScrollbarStyle};
 
 pub const SCROLLBAR_SIDE_MARGIN: f64 = 4.0; // gap between thumb and container edge (perpendicular axis)

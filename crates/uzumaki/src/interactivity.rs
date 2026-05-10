@@ -1,7 +1,7 @@
 use refineable::Refineable;
 use vello::kurbo::{Affine, Point};
 
-use crate::element::UzNodeId;
+use crate::paint::UzNodeId;
 use crate::style::{Bounds, UzStyle, UzStyleRefinement};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -6,8 +6,8 @@ use vello::{AaSupport, RenderParams, RendererOptions, Scene};
 use winit::window::Window as WinitWindow;
 
 use crate::cursor::UzCursorIcon;
-use crate::element::render::Painter;
 use crate::gpu::GpuContext;
+use crate::paint::render::Painter;
 use crate::text::TextRenderer;
 use crate::ui::UIState;
 

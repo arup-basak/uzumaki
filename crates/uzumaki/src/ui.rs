@@ -2,14 +2,14 @@ use slab::Slab;
 
 use crate::{
     cursor::UzCursorIcon,
-    element::{
+    input::InputState,
+    interactivity::{HitTestState, HitboxStore},
+    layout::LayoutEngine,
+    paint::{
         DragMode, ElementNode, ImageData, ImageNode, Node, ScrollAxis, ScrollThumbRect,
         ScrollWheelTarget, TextContent, TextNode, TextRunEntry, TextSelectRun, UzNodeId,
         scroll::{self, ScrollAlign, ScrollIntoViewOptions},
     },
-    input::InputState,
-    interactivity::{HitTestState, HitboxStore},
-    layout::LayoutEngine,
     selection::TextSelection,
     style::{Length, UzStyle},
     text::TextRenderer,

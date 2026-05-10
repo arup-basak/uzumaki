@@ -5,8 +5,9 @@ use vello::Scene;
 use vello::kurbo::Affine;
 use vello::peniko::{ImageAlphaType, ImageData as VelloImageData, ImageFormat};
 
-use crate::element::ImageData;
-use crate::element::svg::render_svg_tree;
+use crate::paint::ImageData;
+use crate::paint::RasterImageData;
+use crate::paint::svg::render_svg_tree;
 use crate::style::{Bounds, Color, UzStyle};
 
 #[derive(Clone)]
@@ -53,12 +54,7 @@ pub fn paint_image(
     });
 }
 
-fn paint_raster(
-    scene: &mut Scene,
-    bounds: Bounds,
-    raster: &crate::element::RasterImageData,
-    transform: Affine,
-) {
+fn paint_raster(scene: &mut Scene, bounds: Bounds, raster: &RasterImageData, transform: Affine) {
     if raster.width == 0 || raster.height == 0 {
         return;
     }

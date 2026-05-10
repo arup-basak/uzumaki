@@ -4,12 +4,14 @@ use vello::Scene;
 use vello::kurbo::{Affine, Rect};
 use vello::peniko::{Color as VelloColor, Fill};
 
-use crate::element::checkbox::CheckboxRenderInfo;
-use crate::element::image::ImageRenderInfo;
-use crate::element::input::InputRenderInfo;
-use crate::element::scroll::{self, ScrollAxisInfo, ThumbGeometry};
-use crate::element::{ImageMeasureInfo, ScrollAxis, ScrollThumbRect, UzNodeId};
 use crate::layout::NodeContext;
+use crate::paint::{
+    ImageMeasureInfo, ScrollAxis, ScrollThumbRect, UzNodeId,
+    checkbox::CheckboxRenderInfo,
+    image::ImageRenderInfo,
+    input::InputRenderInfo,
+    scroll::{self, ScrollAxisInfo, ThumbGeometry},
+};
 use crate::style::{Bounds, ScrollbarStyle, UzStyle, Visibility};
 use crate::text::{
     TextRenderer, apply_text_style_to_editor, secure_cursor_geometry, secure_selection_geometry,
@@ -186,7 +188,7 @@ impl<'a> Painter<'a> {
         if self.dom.nodes[node_id].is_text_input() {
             // TODO: dont snapshot
             let info = self.build_input_render_info(node_id, style, layout);
-            crate::element::input::paint_input(
+            crate::paint::input::paint_input(
                 scene,
                 self.text_renderer,
                 bounds,
@@ -224,12 +226,12 @@ impl<'a> Painter<'a> {
                 checked,
                 focused: self.dom.focused_node == Some(node_id),
             };
-            crate::element::checkbox::paint_checkbox(scene, bounds, style, &info, transform);
+            crate::paint::checkbox::paint_checkbox(scene, bounds, style, &info, transform);
         } else if let Some(img) = node.as_image() {
             let info = ImageRenderInfo {
                 data: img.data.clone(),
             };
-            crate::element::image::paint_image(scene, bounds, style, &info, transform);
+            crate::paint::image::paint_image(scene, bounds, style, &info, transform);
         } else if let Some(tc) = node.get_text_content() {
             let sel = text_selections.get(&node_id).copied();
             let text_len = tc.content.len();
@@ -239,7 +241,7 @@ impl<'a> Painter<'a> {
                 Self::paint_text_node(scene, bounds, style, layout, text_len, transform, sel);
             }
         } else {
-            crate::element::view::paint_view(scene, bounds, style, transform, |_| {});
+            crate::paint::view::paint_view(scene, bounds, style, transform, |_| {});
         }
     }
 
@@ -337,7 +339,7 @@ impl<'a> Painter<'a> {
                 .text_renderer
                 .grapheme_x_positions(&ps.text, &text_style);
             let width = *positions.last().unwrap_or(&0.0);
-            crate::element::input::PreeditRenderInfo {
+            crate::paint::input::PreeditRenderInfo {
                 text: ps.text,
                 cursor_x: ps
                     .cursor
@@ -766,8 +768,8 @@ fn available_as_option(space: taffy::AvailableSpace) -> Option<f32> {
 #[cfg(test)]
 mod tests {
     use super::measure;
-    use crate::element::ImageMeasureInfo;
     use crate::layout::NodeContext;
+    use crate::paint::ImageMeasureInfo;
     use crate::style::TextStyle;
     use crate::text::TextRenderer;
 

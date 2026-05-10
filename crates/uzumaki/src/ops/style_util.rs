@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use crate::app::WindowEntry;
-use crate::element::{Node, UzNodeId};
+use crate::paint::{Node, UzNodeId};
 use crate::prop_keys::{AttributeKind, ElementProp, StyleProp, StyleVariant};
 use crate::style::*;
 use crate::{SharedString, cursor};
@@ -1613,7 +1613,7 @@ mod tests {
 
     #[test]
     fn variant_flex_string_sets_display_and_direction() {
-        let mut node = Node::new(UzStyle::default(), crate::element::ElementNode::new_view());
+        let mut node = Node::new(UzStyle::default(), crate::paint::ElementNode::new_view());
 
         assert!(set_variant_flex_string(
             &mut node,
@@ -1628,7 +1628,7 @@ mod tests {
 
     #[test]
     fn scroll_sets_both_axes_to_auto() {
-        let mut node = Node::new(UzStyle::default(), crate::element::ElementNode::new_view());
+        let mut node = Node::new(UzStyle::default(), crate::paint::ElementNode::new_view());
 
         set_f32_style_prop(&mut node, super::StyleProp::Scroll, 1.0);
 
@@ -1640,7 +1640,7 @@ mod tests {
 
     #[test]
     fn variant_scroll_sets_both_axes_to_auto() {
-        let mut node = Node::new(UzStyle::default(), crate::element::ElementNode::new_view());
+        let mut node = Node::new(UzStyle::default(), crate::paint::ElementNode::new_view());
 
         set_variant_number(
             &mut node,

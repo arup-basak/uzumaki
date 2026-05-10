@@ -2,8 +2,8 @@ use serde::Serialize;
 use winit::keyboard::{Key, NamedKey};
 
 use crate::clipboard::SystemClipboard;
-use crate::element::{DragMode, ScrollAxis, ScrollDragState, ScrollWheelTarget, UzNodeId};
 use crate::input::{KeyResult, input_align_offset};
+use crate::paint::{DragMode, ScrollAxis, ScrollDragState, ScrollWheelTarget, UzNodeId};
 use crate::selection::{Affinity, SelectionEndpoint, TextSelection};
 use crate::style::TextStyle;
 use crate::text::{apply_text_style_to_editor, secure_cursor_geometry};
@@ -452,7 +452,7 @@ struct TextRunHit {
 fn hit_text_in_run(
     dom: &UIState,
     text_renderer: &mut crate::text::TextRenderer,
-    root_id: crate::element::UzNodeId,
+    root_id: crate::paint::UzNodeId,
     mx: f64,
     my: f64,
 ) -> Option<TextRunHit> {
@@ -464,7 +464,7 @@ fn hit_text_in_run(
         .find(|r| r.root_id == root_id)?;
 
     // Find the text node closest to mouse position
-    let mut best: Option<(crate::element::UzNodeId, f64, Bounds)> = None;
+    let mut best: Option<(crate::paint::UzNodeId, f64, Bounds)> = None;
     for entry in &run.entries {
         let node = dom.nodes.get(entry.node_id)?;
         let hid = node.hitbox_id?;

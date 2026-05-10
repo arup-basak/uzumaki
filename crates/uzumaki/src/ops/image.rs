@@ -5,7 +5,7 @@ use deno_error::JsErrorBox;
 use image::GenericImageView;
 
 use crate::app::{SharedAppState, with_state};
-use crate::element::{ImageData, RasterImageData, UzNodeId};
+use crate::paint::{ImageData, RasterImageData, UzNodeId};
 
 fn window_not_found() -> JsErrorBox {
     JsErrorBox::new("WindowNotFound", "window not found")
