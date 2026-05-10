@@ -8,7 +8,7 @@ use crate::element::checkbox::CheckboxRenderInfo;
 use crate::element::image::ImageRenderInfo;
 use crate::element::input::InputRenderInfo;
 use crate::element::scroll::{self, ScrollAxisInfo, ThumbGeometry};
-use crate::element::{ImageMeasureInfo, ScrollAxis, ScrollState, ScrollThumbRect, UzNodeId};
+use crate::element::{ImageMeasureInfo, ScrollAxis, ScrollThumbRect, UzNodeId};
 use crate::layout::NodeContext;
 use crate::style::{Bounds, ScrollbarStyle, UzStyle, Visibility};
 use crate::text::{
@@ -353,17 +353,20 @@ impl<'a> Painter<'a> {
             }
         });
 
-        let is = self.dom.nodes[node_id].as_text_input().unwrap();
+        let display_text = is.display_text();
+        let placeholder = is.placeholder.clone();
+        let scroll_offset_x = node_mut.scroll_state.scroll_offset_x;
+        let scroll_offset_y = node_mut.scroll_state.scroll_offset_y;
 
         InputRenderInfo {
-            display_text: is.display_text(),
-            placeholder: is.placeholder.clone(),
+            display_text,
+            placeholder,
             text_style,
             focused,
             cursor_rect,
             selection_rects,
-            scroll_offset: is.scroll_offset,
-            scroll_offset_y: is.scroll_offset_y,
+            scroll_offset_x,
+            scroll_offset_y,
             blink_visible,
             multiline,
             layout_height,
@@ -395,6 +398,11 @@ impl<'a> Painter<'a> {
         };
         if !axis_info.overflows() {
             return None;
+        }
+        let max_y = axis_info.max_scroll() as f32;
+        let scroll = &mut self.dom.nodes[node_id].scroll_state;
+        if scroll.scroll_offset_y > max_y {
+            scroll.scroll_offset_y = max_y;
         }
 
         let view_local = Bounds::new(0.0, 0.0, w, h);
@@ -468,10 +476,7 @@ impl<'a> Painter<'a> {
         let max_x = (layout.content_w - layout.size_w).max(0.0);
         let max_y = (layout.content_h - visible_h).max(0.0);
 
-        if self.dom.nodes[node_id].scroll_state.is_none() {
-            self.dom.nodes[node_id].scroll_state = Some(ScrollState::new());
-        }
-        let ss = self.dom.nodes[node_id].scroll_state.as_mut().unwrap();
+        let ss = &mut self.dom.nodes[node_id].scroll_state;
         if ss.scroll_offset_x as f64 > max_x {
             ss.scroll_offset_x = max_x as f32;
         }

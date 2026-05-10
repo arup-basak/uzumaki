@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use crate::app::WindowEntry;
-use crate::element::{self, Node, UzNodeId};
+use crate::element::{Node, UzNodeId};
 use crate::prop_keys::{AttributeKind, ElementProp, StyleProp, StyleVariant};
 use crate::style::*;
 use crate::{SharedString, cursor};
@@ -1079,38 +1079,29 @@ fn set_f32_style_prop(node: &mut Node, prop: StyleProp, v: f32) {
             if v > 0.5 {
                 node.style.overflow_x = Overflow::Auto;
                 node.style.overflow_y = Overflow::Auto;
-                if node.scroll_state.is_none() {
-                    node.scroll_state = Some(element::ScrollState::new());
-                }
             } else {
                 node.style.overflow_x = Overflow::Visible;
                 node.style.overflow_y = Overflow::Visible;
-                node.scroll_state = None;
+                node.scroll_state = Default::default();
             }
         }
         StyleProp::ScrollX => {
             if v > 0.5 {
                 node.style.overflow_x = Overflow::Auto;
-                if node.scroll_state.is_none() {
-                    node.scroll_state = Some(element::ScrollState::new());
-                }
             } else {
                 node.style.overflow_x = Overflow::Visible;
                 if node.style.overflow_y == Overflow::Visible {
-                    node.scroll_state = None;
+                    node.scroll_state = Default::default();
                 }
             }
         }
         StyleProp::ScrollY => {
             if v > 0.5 {
                 node.style.overflow_y = Overflow::Auto;
-                if node.scroll_state.is_none() {
-                    node.scroll_state = Some(element::ScrollState::new());
-                }
             } else {
                 node.style.overflow_y = Overflow::Visible;
                 if node.style.overflow_x == Overflow::Visible {
-                    node.scroll_state = None;
+                    node.scroll_state = Default::default();
                 }
             }
         }
@@ -1424,18 +1415,18 @@ fn clear_style_prop(node: &mut Node, prop: StyleProp, variant: StyleVariant) {
         StyleProp::Scroll => {
             node.style.overflow_x = default.overflow_x;
             node.style.overflow_y = default.overflow_y;
-            node.scroll_state = None;
+            node.scroll_state = Default::default();
         }
         StyleProp::ScrollX => {
             node.style.overflow_x = default.overflow_x;
             if node.style.overflow_y == Overflow::Visible {
-                node.scroll_state = None;
+                node.scroll_state = Default::default();
             }
         }
         StyleProp::ScrollY => {
             node.style.overflow_y = default.overflow_y;
             if node.style.overflow_x == Overflow::Visible {
-                node.scroll_state = None;
+                node.scroll_state = Default::default();
             }
         }
         StyleProp::ScrollbarWidth => node.style.scrollbar.width = default.scrollbar.width,
@@ -1643,7 +1634,8 @@ mod tests {
 
         assert_eq!(node.style.overflow_x, Overflow::Auto);
         assert_eq!(node.style.overflow_y, Overflow::Auto);
-        assert!(node.scroll_state.is_some());
+        assert_eq!(node.scroll_state.scroll_offset_x, 0.0);
+        assert_eq!(node.scroll_state.scroll_offset_y, 0.0);
     }
 
     #[test]
