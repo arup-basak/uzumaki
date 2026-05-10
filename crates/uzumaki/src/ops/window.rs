@@ -296,13 +296,40 @@ fn window_buttons(closable: bool, minimizable: bool, maximizable: bool) -> Windo
 #[cppgc]
 pub fn op_create_window(
     state: &mut OpState,
+    #[string] label: String,
     #[serde] options: CreateWindowOptions,
 ) -> Result<CoreWindow, deno_error::JsErrorBox> {
     static NEXT_WINDOW_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
-    let id = NEXT_WINDOW_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let options = WindowOptions::default().refined(options);
 
     let app_state = state.borrow::<SharedAppState>().clone();
+
+    // HMR fast path: a previous worker generation owned a window with this
+    // label. Reuse the existing entry (and its native winit window + GPU
+    // surface) instead of creating a new one.
+    let reused_id = with_state(&app_state, |s| {
+        s.windows
+            .iter_mut()
+            .find(|(_, entry)| entry.pending_hmr && entry.label == label)
+            .map(|(id, entry)| {
+                if let Some(root) = entry.dom.root {
+                    entry.dom.clear_children(root);
+                }
+                entry.pending_hmr = false;
+                entry.transparent = options.transparent();
+                entry.window_level = options.window_level();
+                entry.content_protected = options.content_protected;
+                entry.enabled_buttons = options.enabled_buttons();
+                *id
+            })
+    });
+
+    if let Some(id) = reused_id {
+        return Ok(CoreWindow::new(id));
+    }
+
+    let id = NEXT_WINDOW_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
     with_state(&app_state, |s| {
         let mut dom = UIState::new();
         let root = dom.create_view(UzStyle::root());
@@ -319,6 +346,8 @@ pub fn op_create_window(
                 window_level: options.window_level(),
                 content_protected: options.content_protected,
                 enabled_buttons: options.enabled_buttons(),
+                label,
+                pending_hmr: false,
             },
         );
     });

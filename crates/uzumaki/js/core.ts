@@ -90,7 +90,7 @@ export interface CoreNode {
 }
 
 interface Core {
-  createWindow(options: WindowOptions): CoreWindow;
+  createWindow(label: string, options: WindowOptions): CoreWindow;
   requestQuit(): void;
   requestRedraw(windowId: number): void;
   getRootNode(windowId: number): CoreNode;

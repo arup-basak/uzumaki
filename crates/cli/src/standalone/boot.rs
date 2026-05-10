@@ -78,6 +78,7 @@ pub fn detect_and_prepare() -> Result<Option<AppConfig>> {
         identifier: DEFAULT_IDENTIFIER.to_string(),
         resource_root,
         jsx_import_source: None,
+        dev_mode: false,
     }))
 }
 

@@ -340,6 +340,7 @@ fn resolve_run(entry: &str, args: Vec<String>, headless: bool) -> Result<standal
         identifier,
         resource_root,
         jsx_import_source,
+        dev_mode: !headless,
     };
 
     Ok(if headless {

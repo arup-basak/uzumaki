@@ -1,3 +1,4 @@
+pub mod hmr_watcher;
 pub mod module_loader;
 pub mod resolver;
 pub mod sys;

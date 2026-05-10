@@ -81,7 +81,7 @@ export class Window {
     const { rootStyles, ...createOptions } = attributes;
 
     this._label = label;
-    this._native = core.createWindow(createOptions);
+    this._native = core.createWindow(label, createOptions);
     this._id = this._native.id;
 
     if (rootStyles) {

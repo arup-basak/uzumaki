@@ -21,6 +21,7 @@ use crate::cursor;
 use crate::element::UzNodeId;
 use crate::event_dispatch;
 use crate::gpu::GpuContext;
+use crate::runtime::hmr_watcher::HmrWatcher;
 use crate::runtime::worker::{WorkerBuildOptions, create_worker};
 use crate::terminal_colors;
 use crate::ui::UIState;
@@ -45,6 +46,10 @@ pub struct AppConfig {
     /// `uzumaki-react`; configurable via `jsxImportSource` in
     /// `uzumaki.config.json` for users running their own renderer.
     pub jsx_import_source: Option<String>,
+    /// True when running interactively (`uzumaki dev` / bare-entry form).
+    /// Enables HMR: file watcher + F5 worker rebuild. Off in headless and
+    /// standalone (packed) modes.
+    pub dev_mode: bool,
 }
 
 /// Estimated bytes a single retained Rust DOM node holds. Reported to V8 via
@@ -61,6 +66,13 @@ pub struct WindowEntry {
     pub window_level: WindowLevel,
     pub content_protected: bool,
     pub enabled_buttons: WindowButtons,
+    /// Stable JS-assigned label, e.g. `"main"`. Used to reattach this entry
+    /// to the new JS `Window` instance after an HMR worker rebuild.
+    pub label: String,
+    /// Set by `Application::reload` before re-executing the entry. The next
+    /// `op_create_window` call with a matching label reuses this entry's
+    /// native winit window + GPU surface instead of allocating a new one.
+    pub pending_hmr: bool,
 }
 
 impl WindowEntry {
@@ -197,6 +209,9 @@ pub(crate) enum UserEvent {
     },
     WakeJs,
     Quit,
+    /// Posted by the file watcher (or other dev-mode triggers) to request a
+    /// worker rebuild + entry re-execution.
+    HotReload,
 }
 
 struct JsWakeHandle {
@@ -224,15 +239,29 @@ impl ArcWake for JsWakeHandle {
 
 pub struct Application {
     // for now lets use this, we should write our own runtime in future :p
-    worker: MainWorker,
+    /// Always `Some` outside of a reload window. Held in an `Option` so we
+    /// can fully drop the old `MainWorker` (and its V8 isolate) before
+    /// constructing the new one — V8 only allows one entered isolate per
+    /// thread, so the two cannot coexist briefly.
+    worker: Option<MainWorker>,
     app_state: SharedAppState,
     main_file: PathBuf,
     app_root: PathBuf,
+    config: AppConfig,
+    startup_snapshot: Option<&'static [u8]>,
     event_loop: Option<winit::event_loop::EventLoop<UserEvent>>,
+    event_loop_proxy: winit::event_loop::EventLoopProxy<UserEvent>,
     module_loaded: bool,
     pub(crate) tokio_runtime: tokio::runtime::Runtime,
-    global_app_event_dispatch_fn: v8::Global<v8::Function>,
+    /// Same lifecycle constraint as `worker`: must be dropped before its
+    /// owning isolate goes away, so it lives in an `Option` that we can
+    /// `take()` in the right order during reload.
+    global_app_event_dispatch_fn: Option<v8::Global<v8::Function>>,
     js_wake_handle: Arc<JsWakeHandle>,
+    /// Dev-only file watcher. `None` in headless / standalone (packed) modes.
+    /// Held for its `Drop`: tearing it down stops the watcher thread and
+    /// releases OS handles.
+    _hmr_watcher: Option<HmrWatcher>,
 }
 
 impl Application {
@@ -248,38 +277,6 @@ impl Application {
 
         let main_file: PathBuf = config.entry.clone();
         let app_root: PathBuf = config.app_root.clone();
-
-        let mut worker = {
-            let _guard = tokio_runtime.enter();
-            create_worker(WorkerBuildOptions {
-                entry: &main_file,
-                app_root: &app_root,
-                args: config.args.clone(),
-                headless: false,
-                jsx_import_source: config.jsx_import_source.clone(),
-                extensions: vec![crate::uzumaki::init()],
-                startup_snapshot,
-            })?
-        };
-
-        let global_app_event_dispatch_fn = {
-            let context = worker.js_runtime.main_context();
-            deno_core::scope!(scope, &mut worker.js_runtime);
-            let context_local = v8::Local::new(scope, context);
-            let global_obj = context_local.global(scope);
-
-            let key = v8::String::new_external_onebyte_static(scope, b"__uzumaki_on_app_event__")
-                .ok_or_else(|| anyhow::anyhow!("failed to create v8 string"))?;
-
-            let val = global_obj.get(scope, key.into()).ok_or_else(|| {
-                anyhow::anyhow!("__uzumaki_on_app_event__ not found on globalThis")
-            })?;
-
-            let func = v8::Local::<v8::Function>::try_from(val)
-                .map_err(|_| anyhow::anyhow!("__uzumaki_on_app_event__ is not a function"))?;
-
-            v8::Global::new(scope, func)
-        };
 
         let event_loop: winit::event_loop::EventLoop<UserEvent> =
             winit::event_loop::EventLoop::with_user_event().build()?;
@@ -307,25 +304,45 @@ impl Application {
             external_memory_delta: 0,
         }));
 
-        // Put shared state and event loop proxy into OpState
-        {
-            let op_state = worker.js_runtime.op_state();
-            let mut borrow = op_state.borrow_mut();
-            borrow.put(app_state.clone());
-            borrow.put(event_loop_proxy);
-            borrow.put(config);
-        }
+        let (worker, global_app_event_dispatch_fn) = build_worker(
+            startup_snapshot,
+            &main_file,
+            &app_root,
+            &config,
+            &tokio_runtime,
+            &app_state,
+            &event_loop_proxy,
+        )?;
+
+        let _hmr_watcher = if config.dev_mode {
+            match HmrWatcher::start(&app_root, event_loop_proxy.clone()) {
+                Ok(w) => Some(w),
+                Err(err) => {
+                    eprintln!(
+                        "{} failed to start file watcher: {err}",
+                        terminal_colors::yellow_bold("[hmr]")
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         Ok(Self {
-            worker,
+            worker: Some(worker),
             app_state,
             main_file,
             app_root,
+            config,
+            startup_snapshot,
             event_loop: Some(event_loop),
+            event_loop_proxy,
             module_loaded: false,
             tokio_runtime,
-            global_app_event_dispatch_fn,
+            global_app_event_dispatch_fn: Some(global_app_event_dispatch_fn),
             js_wake_handle,
+            _hmr_watcher,
         })
     }
 
@@ -357,8 +374,11 @@ impl Application {
             let delta = std::mem::take(&mut state.external_memory_delta);
             (delta, !state.pending_destroy.is_empty())
         };
+        let Some(worker) = self.worker.as_mut() else {
+            return Ok(());
+        };
         if delta != 0 {
-            self.worker
+            worker
                 .js_runtime
                 .v8_isolate()
                 .adjust_amount_of_external_allocated_memory(delta);
@@ -369,7 +389,6 @@ impl Application {
         }
 
         let rt = &self.tokio_runtime;
-        let worker = &mut self.worker;
         rt.block_on(async {
             tokio::task::yield_now().await;
             poll_fn(|_| {
@@ -405,8 +424,160 @@ impl Application {
         .context("failed to resolve main module path")?;
 
         let rt = &self.tokio_runtime;
-        rt.block_on(async { self.worker.execute_main_module(&specifier).await })?;
+        let worker = self
+            .worker
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("application worker has been torn down"))?;
+        rt.block_on(async { worker.execute_main_module(&specifier).await })?;
         self.pump_js()?;
+        Ok(())
+    }
+
+    /// Rebuild the V8 worker and re-execute the entry, preserving Rust-side
+    /// `AppState` (winit windows, GPU surface, image cache). Each existing
+    /// window is marked `pending_hmr`; the new JS bootstrap re-binds to the
+    /// same native handles via `op_create_window`'s reuse path. Any window
+    /// that the new entry doesn't recreate is disposed afterwards.
+    ///
+    /// V8 forbids two entered isolates per thread, so the old `MainWorker`
+    /// is fully dropped before constructing the new one. There is a brief
+    /// window where `self.worker` is `None`; FS/keyboard events are gated
+    /// against that via `as_mut()` checks in `pump_js` / dispatch paths.
+    fn reload(&mut self) -> Result<()> {
+        let specifier = deno_core::resolve_path(
+            self.main_file
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("entry path is not valid utf-8"))?,
+            &self.app_root,
+        )
+        .context("failed to resolve main module path")?;
+
+        // 1. Mark every window for HMR reuse. Cleared by op_create_window
+        //    when the new entry re-binds; any leftover entries are stale.
+        {
+            let mut state = self.app_state.borrow_mut();
+            for entry in state.windows.values_mut() {
+                entry.pending_hmr = true;
+            }
+        }
+
+        // 2. Drop the old isolate. Order matters: the global handle is
+        //    rooted in the old isolate, so drop it before the worker. As
+        //    the worker tears down, cppgc finalizers fire for every
+        //    CoreNode, pushing into `pending_destroy` and decrementing
+        //    `external_memory_delta`.
+        drop(self.global_app_event_dispatch_fn.take());
+        drop(self.worker.take());
+
+        // 3. Drain destroys queued by the dying isolate's cppgc finalizers
+        //    so the orphaned slab entries don't leak across reloads. The
+        //    root node is protected by `destroy_node`'s `self.root == id`
+        //    short-circuit, so it survives. Reset external memory because
+        //    the new isolate starts from a zero baseline.
+        {
+            let mut state = self.app_state.borrow_mut();
+            while !state.pending_destroy.is_empty() {
+                state.drain_pending_destroy();
+            }
+            state.external_memory_delta = 0;
+        }
+
+        // 3. Build the fresh worker now that no other isolate is live.
+        let (mut new_worker, new_dispatch_fn) = match build_worker(
+            self.startup_snapshot,
+            &self.main_file,
+            &self.app_root,
+            &self.config,
+            &self.tokio_runtime,
+            &self.app_state,
+            &self.event_loop_proxy,
+        ) {
+            Ok(pair) => pair,
+            Err(err) => {
+                // Without a worker the app can't run — bubble up. Clear
+                // pending_hmr first so a future successful build doesn't
+                // misinterpret stale flags.
+                let mut state = self.app_state.borrow_mut();
+                for entry in state.windows.values_mut() {
+                    entry.pending_hmr = false;
+                }
+                return Err(err.context("hot reload: failed to bootstrap new worker"));
+            }
+        };
+
+        // 4. Run the entry against the new worker.
+        let exec_result = self
+            .tokio_runtime
+            .block_on(async { new_worker.execute_main_module(&specifier).await });
+
+        if let Err(err) = exec_result {
+            // Same dance: drop the dispatch handle before its isolate dies.
+            drop(new_dispatch_fn);
+            drop(new_worker);
+            let mut state = self.app_state.borrow_mut();
+            for entry in state.windows.values_mut() {
+                entry.pending_hmr = false;
+            }
+            return Err(anyhow::Error::new(err).context("hot reload: entry execution failed"));
+        }
+
+        // 5. Install new worker + dispatch fn.
+        self.worker = Some(new_worker);
+        self.global_app_event_dispatch_fn = Some(new_dispatch_fn);
+
+        if let Err(err) = self.pump_js() {
+            print_runtime_error(&err);
+        }
+
+        // 5. Sweep windows the new entry didn't claim (their pending_hmr is
+        //    still set) — they were valid in the old entry but removed in
+        //    this one. Tear down their native handles.
+        let orphaned: Vec<WindowEntryId> = self
+            .app_state
+            .borrow()
+            .windows
+            .iter()
+            .filter(|(_, entry)| entry.pending_hmr)
+            .map(|(id, _)| *id)
+            .collect();
+
+        if !orphaned.is_empty() {
+            let mut state = self.app_state.borrow_mut();
+            for id in &orphaned {
+                if let Some(entry) = state.windows.remove(id)
+                    && let Some(handle) = entry.handle
+                {
+                    state.winit_id_to_entry_id.remove(&handle.winit_window.id());
+                }
+            }
+        }
+
+        // 6. Dispatch a synthetic WindowLoad for every reattached window so
+        //    user code that wires `render(window, …)` inside an `on('load')`
+        //    handler runs on the new isolate.
+        let reused: Vec<WindowEntryId> = self
+            .app_state
+            .borrow()
+            .windows
+            .iter()
+            .filter(|(_, entry)| entry.handle.is_some())
+            .map(|(id, _)| *id)
+            .collect();
+
+        for wid in reused {
+            self.dispatch_event_to_js(&event_dispatch::AppEvent::WindowLoad(
+                event_dispatch::WindowLoadEventData { window_id: wid },
+            ));
+            // Force a redraw against the new fiber tree.
+            let state = self.app_state.borrow();
+            if let Some(entry) = state.windows.get(&wid)
+                && let Some(handle) = entry.handle.as_ref()
+            {
+                handle.winit_window.request_redraw();
+            }
+        }
+
+        eprintln!("{}", terminal_colors::cyan_bold("[hmr] reloaded"));
         Ok(())
     }
 
@@ -418,11 +589,15 @@ impl Application {
         // calling into JS event handlers.
         let _guard = rt.enter();
 
-        // while the scope borrows self.worker.js_runtime
-        let dispatch_fn = &self.global_app_event_dispatch_fn;
+        let (Some(worker), Some(dispatch_fn)) = (
+            self.worker.as_mut(),
+            self.global_app_event_dispatch_fn.as_ref(),
+        ) else {
+            return false;
+        };
 
-        let context = self.worker.js_runtime.main_context();
-        deno_core::scope!(scope, &mut self.worker.js_runtime);
+        let context = worker.js_runtime.main_context();
+        deno_core::scope!(scope, &mut worker.js_runtime);
         v8::tc_scope!(scope, scope);
 
         let context_local = v8::Local::new(scope, context);
@@ -634,6 +809,13 @@ impl ApplicationHandler<UserEvent> for Application {
                 drop(state);
                 event_loop.exit();
             }
+            UserEvent::HotReload => {
+                if self.config.dev_mode
+                    && let Err(err) = self.reload()
+                {
+                    print_runtime_error(&err);
+                }
+            }
         }
     }
 
@@ -766,7 +948,11 @@ impl ApplicationHandler<UserEvent> for Application {
                 // 2. If not prevented, handle clipboard shortcuts, then input-level processing
                 if !prevented {
                     if let Some(event_dispatch::AppEvent::HotReload) = raw_event {
-                        // todo hotreload :3
+                        if self.config.dev_mode
+                            && let Err(err) = self.reload()
+                        {
+                            print_runtime_error(&err);
+                        }
                     } else {
                         // 2a. Tab: switch focus to next focusable element
                         let tab_outcome = {
@@ -1104,4 +1290,59 @@ impl ApplicationHandler<UserEvent> for Application {
 
 fn print_runtime_error(err: &anyhow::Error) {
     eprintln!("{} {:#}", terminal_colors::red_bold("Error"), err);
+}
+
+/// Bootstrap a `MainWorker`, look up the global app-event dispatcher, and
+/// install the runtime's shared state into its `OpState`. Used by both the
+/// initial app bootstrap and the HMR worker rebuild.
+fn build_worker(
+    startup_snapshot: Option<&'static [u8]>,
+    main_file: &std::path::Path,
+    app_root: &std::path::Path,
+    config: &AppConfig,
+    tokio_runtime: &tokio::runtime::Runtime,
+    app_state: &SharedAppState,
+    event_loop_proxy: &winit::event_loop::EventLoopProxy<UserEvent>,
+) -> Result<(MainWorker, v8::Global<v8::Function>)> {
+    let mut worker = {
+        let _guard = tokio_runtime.enter();
+        create_worker(WorkerBuildOptions {
+            entry: main_file,
+            app_root,
+            args: config.args.clone(),
+            headless: false,
+            jsx_import_source: config.jsx_import_source.clone(),
+            extensions: vec![crate::uzumaki::init()],
+            startup_snapshot,
+        })?
+    };
+
+    let dispatch_fn = {
+        let context = worker.js_runtime.main_context();
+        deno_core::scope!(scope, &mut worker.js_runtime);
+        let context_local = v8::Local::new(scope, context);
+        let global_obj = context_local.global(scope);
+
+        let key = v8::String::new_external_onebyte_static(scope, b"__uzumaki_on_app_event__")
+            .ok_or_else(|| anyhow::anyhow!("failed to create v8 string"))?;
+
+        let val = global_obj
+            .get(scope, key.into())
+            .ok_or_else(|| anyhow::anyhow!("__uzumaki_on_app_event__ not found on globalThis"))?;
+
+        let func = v8::Local::<v8::Function>::try_from(val)
+            .map_err(|_| anyhow::anyhow!("__uzumaki_on_app_event__ is not a function"))?;
+
+        v8::Global::new(scope, func)
+    };
+
+    {
+        let op_state = worker.js_runtime.op_state();
+        let mut borrow = op_state.borrow_mut();
+        borrow.put(app_state.clone());
+        borrow.put(event_loop_proxy.clone());
+        borrow.put(config.clone());
+    }
+
+    Ok((worker, dispatch_fn))
 }

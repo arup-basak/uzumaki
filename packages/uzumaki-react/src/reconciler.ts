@@ -242,9 +242,22 @@ function createReconciler() {
   });
 }
 
-export function render(window: Window, element: JSX.Element) {
-  const reconciler = createReconciler();
+type RootHandle = {
+  reconciler: ReturnType<typeof createReconciler>;
+  root: ReturnType<ReturnType<typeof createReconciler>['createContainer']>;
+  dispose: () => void;
+};
 
+const rootsByWindowId = new Map<number, RootHandle>();
+
+export function render(window: Window, element: JSX.Element) {
+  const existing = rootsByWindowId.get(window.id);
+  if (existing) {
+    existing.reconciler.updateContainer(element, existing.root, null, null);
+    return { dispose: existing.dispose };
+  }
+
+  const reconciler = createReconciler();
   const root = reconciler.createContainer(
     window,
     1,
@@ -260,13 +273,17 @@ export function render(window: Window, element: JSX.Element) {
 
   reconciler.updateContainer(element, root, null, null);
 
-  function dispose() {
-    reconciler.updateContainer(null, root, null, null);
-  }
-
-  window.addDisposable(dispose);
-
-  return {
-    dispose,
+  const handle: RootHandle = {
+    reconciler,
+    root,
+    dispose: () => {
+      reconciler.updateContainer(null, root, null, null);
+      rootsByWindowId.delete(window.id);
+    },
   };
+
+  rootsByWindowId.set(window.id, handle);
+  window.addDisposable(handle.dispose);
+
+  return { dispose: handle.dispose };
 }
