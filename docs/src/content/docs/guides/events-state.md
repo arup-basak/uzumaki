@@ -3,7 +3,7 @@ title: Handle Events and State
 description: Connect React state to Uzumaki events, inputs, checkboxes, and window lifecycle.
 ---
 
-React state works normally. Uzumaki supplies the event objects and native host elements.
+React state works the way you expect. Uzumaki supplies the elements and the event objects.
 
 ## Click Events
 

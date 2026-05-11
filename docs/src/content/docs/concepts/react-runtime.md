@@ -1,15 +1,15 @@
 ---
-title: React Without the Browser
-description: How React maps onto Uzumaki's native renderer.
+title: React in Uzumaki
+description: How React fits on top of Uzumaki elements.
 ---
 
-`uzumaki-react` is a React renderer. It lets React manage components, state, effects, refs, and reconciliation while Uzumaki owns the native nodes.
+`uzumaki-react` is the adapter that lets React manage Uzumaki elements. You write components and hooks the way you already do — `uzumaki-react` keeps the live element tree in sync with your render output, and Uzumaki paints the result.
 
-This is the same broad idea as React Native: React is the programming model, but the host elements are not HTML.
+If you have used React Native, this is the same arrangement: React is the programming model, the building blocks are not HTML.
 
 ## JSX Setup
 
-Projects use React JSX with Uzumaki's JSX runtime:
+Use React's JSX runtime with Uzumaki's JSX source:
 
 ```json
 {
@@ -21,26 +21,24 @@ Projects use React JSX with Uzumaki's JSX runtime:
 }
 ```
 
-`uzumaki-types` teaches TypeScript about the built-in `uzumaki` module and Uzumaki's JSX intrinsic elements.
+`uzumaki-types` teaches TypeScript about the built-in `uzumaki` module and the JSX elements Uzumaki understands.
 
-## Host Elements
+## The Elements You Can Use
 
-Use the elements that the renderer knows about:
-
-| Element      | Purpose                                            |
+| Element      | For                                                |
 | ------------ | -------------------------------------------------- |
 | `<view>`     | Layout, grouping, backgrounds, borders, scrolling. |
-| `<text>`     | Text rendering.                                    |
+| `<text>`     | Inline text run (other elements are block-level).  |
 | `<button>`   | Pressable content.                                 |
 | `<input>`    | Text input.                                        |
 | `<checkbox>` | Boolean input.                                     |
 | `<image>`    | Local, bundled, or remote image.                   |
 
-Do not use DOM tags such as `<div>`, `<span>`, or `<img>`.
+DOM tags like `<div>`, `<span>`, and `<img>` are not recognized. If a tag is not in this list (or in your editor's autocomplete), it is not supported.
 
 ## Props Instead of CSS
 
-Uzumaki props are intentionally compact:
+Style is set on the element directly:
 
 ```tsx
 <view display="flex" flexDir="row" items="center" gap={10} p={12}>
@@ -48,11 +46,11 @@ Uzumaki props are intentionally compact:
 </view>
 ```
 
-There are no CSS selectors, no browser layout engine, and no DOM attributes. If a prop is not in the Uzumaki JSX types, it is not supported yet.
+No class names, no stylesheet, no DOM attributes. The full prop list is in [Props](/reference/props/).
 
 ## Refs Point to Uzumaki Elements
 
-Refs receive runtime element instances:
+Refs give you the underlying element instance, with imperative methods like `focus()`:
 
 ```tsx
 import { useRef } from 'react';
@@ -62,18 +60,16 @@ function SearchBox() {
   const inputRef = useRef<UzInputElement>(null);
 
   return (
-    <button onClick={() => inputRef.current?.focus()}>
-      <text>Focus search</text>
+    <view>
       <input ref={inputRef} placeholder="Search" />
-    </button>
+      <button onClick={() => inputRef.current?.focus()}>
+        <text>Focus search</text>
+      </button>
+    </view>
   );
 }
 ```
 
-That ref is an Uzumaki element, so methods like `focus()` come from the runtime API.
+## Finding What's Supported
 
-## A Good Rule of Thumb
-
-Write components like React. Choose elements like React Native. Think about platform APIs like a desktop runtime.
-
-If you are unsure whether something is supported, hover the prop in your editor — `uzumaki-types` lists every supported element and prop. The full set is also documented in [Elements](/reference/elements/) and [Props](/reference/props/).
+If you are unsure whether an element or prop exists, hover it in your editor — `uzumaki-types` is the source of truth. The same set is documented in [Elements](/reference/elements/) and [Props](/reference/props/).

@@ -1,9 +1,9 @@
 ---
 title: Uzumaki
-description: Build native desktop apps with React, TypeScript, and the Uzumaki runtime.
+description: Build native desktop apps with React, TypeScript, and Uzumaki.
 template: splash
 hero:
-  tagline: Native desktop apps in TypeScript. No browser. No webview. Just a small runtime and real windows.
+  tagline: Native desktop apps in TypeScript. No browser. No webview. Just real windows.
   actions:
     - text: Start the Tutorial
       link: /guides/quick-start/
@@ -19,8 +19,8 @@ hero:
 
 import { Card, CardGrid, LinkCard, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Alpha runtime">
-  These docs target `0.0.1-alpha.2`, which is not released yet. Uzumaki is early, so the docs teach the current runtime honestly while APIs are still settling.
+<Aside type="caution" title="Alpha">
+  These docs target `0.0.1-alpha.2`, which is not released yet. Uzumaki is early, so the docs teach the current behavior honestly while APIs are still settling.
 </Aside>
 
 ## Install
@@ -53,34 +53,34 @@ pnpm dev
 
 ## What is Uzumaki?
 
-<p class="uz-lead">Uzumaki is a desktop UI runtime for people who like to write TypeScript but do not want to ship a browser.</p>
+<p class="uz-lead">Uzumaki is a desktop UI host for people who like to write TypeScript but do not want to ship a browser.</p>
 
 You write TypeScript and JSX, and Uzumaki opens real native windows. There is no embedded browser and no webview — what you ship is a native app, not a web app in disguise.
 
 ## What Makes It Different?
 
-- **Renderer-agnostic.** React is the first renderer; Solid, Vue, and Svelte are on the roadmap.
+- **Framework-agnostic.** React is the first adapter; Solid, Vue, and Svelte are on the roadmap.
 - **Single process.** Writing an app feels like writing a native app, not a main/renderer split.
-- **No IPC bridge.** Your UI code and your runtime code share the same JavaScript context.
+- **No IPC bridge.** Your UI code and your app code share the same JavaScript context.
 - **Node and Deno APIs work directly.** Built on Deno, with `node:*` compatibility — no shims, no bridge calls.
 
 ## Choose Your Path
 
 <CardGrid>
   <LinkCard
-    title="Learn the runtime"
+    title="Get started"
     href="/guides/quick-start/"
     description="Build a small app from an empty scaffold and learn the pieces as they appear."
   />
   <LinkCard
     title="Understand the model"
     href="/concepts/how-it-works/"
-    description="See how windows, elements, events, resources, and React fit together."
+    description="See how windows, elements, events, and React fit together."
   />
   <LinkCard
     title="Look up an API"
     href="/reference/runtime-api/"
-    description="Find the supported elements, props, events, window options, and runtime APIs."
+    description="Find the supported elements, props, events, window options, and imperative APIs."
   />
 </CardGrid>
 

@@ -1,19 +1,19 @@
 ---
 title: How Uzumaki Works
-description: The mental model for windows, native elements, React, and the runtime.
+description: The mental model for windows, elements, events, and React in Uzumaki.
 ---
 
-Uzumaki has three layers:
+Uzumaki is a program that runs your TypeScript app, opens a real OS window, and draws the UI inside it. Think of it the way you think of a browser: a host that loads your code and turns it into UI. The difference is that the contents are not a web page and not OS widgets either — Uzumaki paints them itself, the way Flutter or a game engine does. The window is native; what's inside is whatever you describe in JSX.
 
-1. The native runtime creates windows, owns the app event loop, and draws UI.
-2. The built-in `uzumaki` module exposes runtime APIs to JavaScript.
-3. `uzumaki-react` turns React updates into Uzumaki element operations.
+You only deal with three things:
 
-That makes Uzumaki feel familiar if you know React, but the output is not a web page.
+1. **`Window`** — an OS window you create from JavaScript.
+2. **JSX elements** like `<view>`, `<text>`, `<button>` — the things Uzumaki knows how to draw.
+3. **The `uzumaki` module** — the built-in API for window control, clipboard, paths, and so on.
 
-## Runtime, Not Browser Shell
+Everything else (React, the renderer, layout) is built on top of those three.
 
-Electron apps usually render into Chromium. Uzumaki renders a native tree owned by the runtime.
+## A Window Is a Real Window
 
 ```tsx
 import { Window } from 'uzumaki';
@@ -23,42 +23,50 @@ const window = new Window('main', { width: 900, height: 620 });
 render(window, <App />);
 ```
 
-`Window` is not `window` from the browser. It is a runtime object that controls a native application window.
+`Window` is not the browser `window`. It is an OS-level window you create, move, resize, and listen to. The first argument is a label so you can look it up later with `getWindow('main')`.
 
-## Elements Are Native Runtime Nodes
+## JSX Elements Are Uzumaki's Own, Not HTML
 
-Uzumaki JSX uses intrinsic elements:
+Uzumaki JSX looks like React, but the tags are not DOM tags:
 
 ```tsx
 <view display="flex" flexDir="col" gap={12}>
-  <text>Hello</text>
-  <button onClick={save}>
-    <text>Save</text>
-  </button>
+  Hello
+  <button onClick={save}>Save</button>
 </view>
 ```
 
-Each tag maps to a runtime element class — `UzViewElement`, `UzTextElement`, `UzButtonElement`, and so on — with methods for tree operations, attributes, focus, and events. You rarely touch them directly when using React, but they show up on refs.
+There is no `<div>`, no `<span>`, no `<img>`. Each Uzumaki element is a primitive Uzumaki knows how to draw — a layout box, a pressable, an input, an inline text run. The full set lives in [Elements](/reference/elements/).
 
-## Styling Is Prop-Based
+Plain strings render as text inside any element, and typography props (`fontSize`, `fontWeight`, `color`) work on any element too. `<text>` is the one **inline** element — every other element is block-level. Reach for it when you want a styled run to flow inline:
 
-Uzumaki does not use browser CSS. Styles are attributes on runtime elements:
+```tsx
+<view fontSize={16}>
+  Welcome back, <text fontWeight={700}>Ada</text>.
+</view>
+```
+
+If you have used React Native, this is the same idea: React is the programming model, but the building blocks are not HTML.
+
+## Styling Is Props, Not CSS
+
+There is no CSS, no class names, no stylesheet. Styles are attributes on the elements themselves:
 
 ```tsx
 <view p={20} rounded={16} bg="#18181b" border={1} borderColor="#27272a" />
 ```
 
-Numbers are logical pixels. Strings can represent special or relative values such as `"full"`, `"50%"`, `"auto"`, and `"2rem"`.
-
-State variants use prop prefixes:
+Numbers are logical pixels. Strings cover special values like `"full"`, `"50%"`, `"auto"`, and `"1.25rem"`. State variants use prefixes:
 
 ```tsx
 <button bg="#27272a" hover:bg="#3f3f46" active:scale={0.98} />
 ```
 
-## Events Bubble Through the Uzumaki Tree
+See [Props](/reference/props/) for the full list.
 
-Events are modeled after DOM flow, but they are runtime events. Handlers receive Uzumaki event objects with `target`, `currentTarget`, `preventDefault`, and propagation controls.
+## Events Bubble Through the Element Tree
+
+Events flow capture → target → bubble, the same shape as the DOM, but they travel through Uzumaki's element tree instead. Handlers receive Uzumaki event objects with `target`, `currentTarget`, `preventDefault()`, and the usual propagation controls:
 
 ```tsx
 <button
@@ -71,7 +79,7 @@ Events are modeled after DOM flow, but they are runtime events. Handlers receive
 </button>
 ```
 
-Window lifecycle events live on the `Window` instance:
+Window-level events (open, resize, close, global keys) live on the `Window` instance:
 
 ```ts
 window.on('resize', (event) => {
@@ -79,18 +87,49 @@ window.on('resize', (event) => {
 });
 ```
 
-## The Built-In Module
+## React Drives the Tree
 
-Apps import from `uzumaki`, but they do not install it like a normal dependency. The runtime provides it at execution time:
+`uzumaki-react` is a thin adapter that lets React manage Uzumaki elements. You write components, hooks, and state the way you already do. When your React tree changes, `uzumaki-react` applies the diff to the live element tree and Uzumaki repaints.
 
 ```tsx
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      <text>Clicked {count} times</text>
+    </button>
+  );
+}
+```
+
+React is the first adapter Uzumaki ships. Solid, Vue, and Svelte adapters are on the roadmap. The rest of the docs assume React.
+
+## The `uzumaki` Module Is Built In
+
+`Window`, `Clipboard`, `Uz.path`, event classes, and the element classes all live in the built-in `uzumaki` module:
+
+```ts
 import { Window, Clipboard, RUNTIME_VERSION } from 'uzumaki';
 ```
 
-When bundling, mark `uzumaki` as external so the runtime can provide the real module.
+You import it like any package, but you do not install it from npm. Uzumaki provides it when your app starts. When you bundle your app, mark `uzumaki` as **external** so the bundler does not try to inline it.
+
+## The Loop, End to End
+
+Putting it together:
+
+1. Your entry file creates a `Window` and calls `render(window, <App />)`.
+2. `uzumaki-react` walks your JSX and creates the matching Uzumaki elements under the window's root.
+3. Uzumaki lays them out and paints them.
+4. The user clicks. Uzumaki dispatches an event up the element tree to your handler.
+5. Your handler updates React state. React re-renders.
+6. `uzumaki-react` applies the diff to the live elements. Uzumaki repaints.
+
+That is the whole loop. Everything else is filling in shapes, styles, and behaviors.
 
 ## Where to Go Next
 
-- Use [React Without the Browser](/concepts/react-runtime/) to understand renderer expectations.
-- Use [Elements](/reference/elements/) and [Props](/reference/props/) while building screens.
-- Use [Runtime API](/reference/runtime-api/) when you need imperative control.
+- [React in Uzumaki](/concepts/react-runtime/) — JSX setup, refs, and what React does (and does not) do here.
+- [Quick Start](/guides/quick-start/) — build a small app from scratch.
+- [Elements](/reference/elements/) and [Props](/reference/props/) — the catalog you reach for while building.
+- [Runtime API](/reference/runtime-api/) — when you want imperative control instead of React.

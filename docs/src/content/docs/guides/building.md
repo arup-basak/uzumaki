@@ -11,28 +11,6 @@ uzumaki build
 
 The command runs `build.command`, copies declared resources, and writes packaged output to `pack.outputDir`.
 
-## Build Flow
-
-<div class="uz-flow" aria-label="Uzumaki build flow">
-  <div class="uz-flow__node"><code>uzumaki.config.json</code></div>
-  <div class="uz-flow__split">
-    <div class="uz-flow__path">
-      <span class="uz-flow__arrow">→</span>
-      <div class="uz-flow__node"><code>build.command</code></div>
-      <span class="uz-flow__arrow">→</span>
-      <div class="uz-flow__node"><code>pack.jsDist</code></div>
-    </div>
-    <div class="uz-flow__path">
-      <span class="uz-flow__arrow">→</span>
-      <div class="uz-flow__node"><code>bundle.resources</code></div>
-    </div>
-  </div>
-  <span class="uz-flow__arrow">→</span>
-  <div class="uz-flow__node uz-flow__node--accent"><code>uzumaki build</code></div>
-  <span class="uz-flow__arrow">→</span>
-  <div class="uz-flow__node"><code>pack.outputDir</code></div>
-</div>
-
 ## Local Build
 
 ```sh
@@ -76,4 +54,4 @@ The same call should work in development and packaged builds.
 
 ## Current Limitations
 
-Installer formats such as DMG, MSI, and AppImage are not part of the CLI yet. Today, `uzumaki build` focuses on producing the packaged runtime output.
+Installer formats such as DMG, MSI, and AppImage are not part of the CLI yet. Today, `uzumaki build` produces the packaged executable and its bundled resources.

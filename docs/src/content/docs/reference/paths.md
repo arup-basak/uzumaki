@@ -3,7 +3,7 @@ title: Paths and Resources
 description: Resolve bundled resources and platform directories.
 ---
 
-`Uz.path` is a global runtime API for files and platform directories.
+`Uz.path` is a global Uzumaki API for files and platform directories.
 
 ```ts
 const logo = Uz.path.resource('assets/logo.svg');

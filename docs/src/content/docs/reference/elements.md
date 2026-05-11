@@ -3,12 +3,12 @@ title: Elements
 description: Built-in JSX elements supported by uzumaki-react.
 ---
 
-Uzumaki elements are native runtime elements, not HTML tags. Use them with `jsxImportSource: "uzumaki-react"`.
+Uzumaki elements are built-in widgets, not HTML tags. Use them with `jsxImportSource: "uzumaki-react"`.
 
 | Element      | Use it for                                                   |
 | ------------ | ------------------------------------------------------------ |
 | `<view>`     | Layout, grouping, backgrounds, borders, scrolling.           |
-| `<text>`     | Text content.                                                |
+| `<text>`     | Inline styled text. Plain strings work inside any element.   |
 | `<button>`   | Pressable content.                                           |
 | `<input>`    | Text input.                                                  |
 | `<checkbox>` | Boolean input.                                               |
@@ -39,15 +39,27 @@ Set `selectable` when text inside the view should be selectable.
 
 ## `<text>`
 
-Use `<text>` for explicit text styling.
+`<text>` is the one **inline** element — every other Uzumaki element is block-level. Use it when you want part of a line to flow inline alongside other text or elements.
 
 ```tsx
-<text fontSize={18} fontWeight={700} color="#f4f4f5" textWrap="wrap">
-  Hello from Uzumaki
-</text>
+<view p={12}>
+  Welcome back,{' '}
+  <text fontWeight={700} color="#f59e0b">
+    Ada
+  </text>
+  .
+</view>
 ```
 
-Plain strings inside `<view>` are supported, but `<text>` is clearer when you need typography props.
+You do not need `<text>` just to render text. A bare string inside any element renders as text, and typography props (`fontSize`, `fontWeight`, `color`, `textAlign`, `textWrap`) work on any element — not just `<text>`:
+
+```tsx
+<view fontSize={18} fontWeight={700} color="#f4f4f5">
+  A whole styled paragraph in a view.
+</view>
+```
+
+Reach for `<text>` only when you need an inline run inside a larger block — for example, bolding a single word in a sentence.
 
 ## `<button>`
 
@@ -131,7 +143,7 @@ Checkbox-specific props:
 
 ## Refs
 
-Refs point to runtime element instances:
+Refs point to the underlying Uzumaki element instance:
 
 ```tsx
 const inputRef = useRef<UzInputElement>(null);

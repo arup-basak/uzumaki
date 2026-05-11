@@ -3,7 +3,7 @@ title: Window
 description: Create and control native windows.
 ---
 
-`Window` creates and controls a native Uzumaki window.
+`Window` creates and controls a native OS window.
 
 ```tsx
 import { Window } from 'uzumaki';
@@ -82,14 +82,14 @@ window.setPosition(120, 80);
 
 | Getter                      | Description                               |
 | --------------------------- | ----------------------------------------- |
-| `id`, `label`               | Runtime id and developer label.           |
+| `id`, `label`               | Internal id and the label you passed in.  |
 | `innerWidth`, `innerHeight` | Current content size.                     |
 | `innerSize`, `outerSize`    | Current size objects.                     |
 | `position`                  | Current window position.                  |
 | `scaleFactor`               | Platform scale factor.                    |
 | `active`                    | Whether the window is active.             |
 | `isDisposed`                | Whether the window has been disposed.     |
-| `root`                      | Root Uzumaki element.                     |
+| `root`                      | Root element of the window's tree.        |
 | `remBase`                   | Number of logical pixels used for `1rem`. |
 
 `remBase` is mutable:

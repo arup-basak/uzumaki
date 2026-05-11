@@ -3,7 +3,7 @@ title: Quick Start
 description: Create a native counter app and learn the core Uzumaki loop.
 ---
 
-This tutorial takes you from a fresh project to a working native window. You will create a window, render React into it, style native elements, and handle an event.
+This tutorial takes you from a fresh project to a working window. You will create a window, render React into it, style elements, and handle an event.
 
 ## 1. Scaffold a Project
 
@@ -14,7 +14,7 @@ pnpm install
 pnpm dev
 ```
 
-The app opens in the Uzumaki runtime. If you came from Electron, the key difference is that there is no hidden Chromium page. The runtime owns the window and the native UI tree.
+The app opens in a real native window. If you came from Electron, the key difference is that there is no hidden Chromium page — Uzumaki draws the UI itself.
 
 ## 2. Open the Entry File
 
@@ -33,10 +33,10 @@ const window = new Window('main', {
 render(window, <App />);
 ```
 
-`Window` comes from the built-in `uzumaki` module. `render` comes from `uzumaki-react`, the React renderer.
+`Window` comes from the built-in `uzumaki` module. `render` comes from `uzumaki-react`, the adapter that lets React manage Uzumaki elements.
 
 :::note[Not React-only]
-Uzumaki supports custom renderers. React is just the first one we ship, for ease of use — Solid, Vue, and Svelte renderers are on the roadmap. The rest of these docs use React.
+Uzumaki supports custom adapters. React is just the first one we ship — Solid, Vue, and Svelte are on the roadmap. The rest of these docs use React.
 :::
 
 ## 3. Render Native JSX
@@ -100,7 +100,7 @@ render(window, <App />);
 These tags are Uzumaki elements:
 
 - `<view>` is the general layout container.
-- `<text>` draws text.
+- `<text>` is the inline text element. Plain strings work inside any element, and typography props work on any element too — reach for `<text>` only when you want a styled run to flow inline.
 - `<button>` is a pressable element.
 
 They are not DOM nodes, so use Uzumaki props like `flexDir`, `items`, `rounded`, `bg`, and `hover:bg` instead of DOM attributes or CSS class names.
@@ -128,12 +128,12 @@ Use `onValueChange` when you want the current value. Use `onInput` when you need
 
 ## 5. Next Steps
 
-You now know the runtime loop:
+You now know the loop:
 
 1. Create a `Window`.
 2. Render a React tree into it.
-3. Compose native elements.
-4. Style with element props.
-5. Handle native events with React handlers.
+3. Compose Uzumaki elements.
+4. Style with props on those elements.
+5. Handle events with React handlers.
 
-Keep going with [How Uzumaki Works](/concepts/how-it-works/) or jump to [Style Native UI](/guides/styling/).
+Keep going with [How Uzumaki Works](/concepts/how-it-works/) for the mental model, or jump to [Style Your UI](/guides/styling/).

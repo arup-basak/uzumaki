@@ -45,17 +45,33 @@ starlight-theme-select {
   display: none !important;
 }
 
-/* Body — just the dot grid; the hero owns the warm glow */
+/* Body — plain on docs; splash pages get the spiral motif below */
 body {
   background-color: var(--uz-bg);
-  background-image: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.022) 1px,
-    transparent 1px
-  );
-  background-size: 22px 22px;
+}
+
+/* Tiled spiral motif (Uzumaki = spiral) — splash pages only */
+body:has(.hero) {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g fill='none' stroke='rgba(226,165,46,0.08)' stroke-width='0.7' stroke-linecap='round'><g transform='translate(45 55) rotate(18)'><path d='M0 0 m-1 0 a1 1 0 0 1 2 0 a1.5 1.5 0 0 1 -3 0 a2 2 0 0 1 4 0 a2.5 2.5 0 0 1 -5 0 a3 3 0 0 1 6 0 a3.5 3.5 0 0 1 -7 0 a4 4 0 0 1 8 0 a4.5 4.5 0 0 1 -9 0 a5 5 0 0 1 10 0'/></g><g transform='translate(165 35) rotate(-55) scale(0.55)'><path d='M0 0 m-1 0 a1 1 0 0 1 2 0 a1.5 1.5 0 0 1 -3 0 a2 2 0 0 1 4 0 a2.5 2.5 0 0 1 -5 0 a3 3 0 0 1 6 0 a3.5 3.5 0 0 1 -7 0'/></g><g transform='translate(180 145) rotate(110) scale(0.85)'><path d='M0 0 m-1 0 a1 1 0 0 1 2 0 a1.5 1.5 0 0 1 -3 0 a2 2 0 0 1 4 0 a2.5 2.5 0 0 1 -5 0 a3 3 0 0 1 6 0 a3.5 3.5 0 0 1 -7 0 a4 4 0 0 1 8 0 a4.5 4.5 0 0 1 -9 0'/></g><g transform='translate(35 175) rotate(200) scale(0.7)'><path d='M0 0 m-1 0 a1 1 0 0 1 2 0 a1.5 1.5 0 0 1 -3 0 a2 2 0 0 1 4 0 a2.5 2.5 0 0 1 -5 0 a3 3 0 0 1 6 0 a3.5 3.5 0 0 1 -7 0 a4 4 0 0 1 8 0'/></g><g transform='translate(110 115) rotate(75) scale(0.45)'><path d='M0 0 m-1 0 a1 1 0 0 1 2 0 a1.5 1.5 0 0 1 -3 0 a2 2 0 0 1 4 0 a2.5 2.5 0 0 1 -5 0 a3 3 0 0 1 6 0'/></g></g></svg>");
+  background-size: 440px 440px;
   background-attachment: fixed;
   background-repeat: repeat;
+  animation: uz-spiral-drift 80s linear infinite;
+}
+
+@keyframes uz-spiral-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 440px 440px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:has(.hero) {
+    animation: none;
+  }
 }
 
 /* Frosted nav */

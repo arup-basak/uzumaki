@@ -3,7 +3,7 @@ title: CLI
 description: Run scripts, scaffold projects, build apps, and upgrade the Uzumaki CLI.
 ---
 
-The `uzumaki` CLI is a self-contained desktop UI runtime for JavaScript and TypeScript. It is built on Deno, so you do not need Node.js, Deno, or Bun installed to run a script.
+The `uzumaki` CLI is a self-contained desktop UI host for JavaScript and TypeScript. It is built on Deno, so you do not need Node.js, Deno, or Bun installed to run a script.
 
 ```sh
 uzumaki ./app.tsx
@@ -13,7 +13,7 @@ That single command launches your app in a native window. Pass any file with a d
 
 ## Run Modes
 
-By default, `uzumaki <entry>` runs your script in **GUI mode** — it boots the runtime, opens windows, and dispatches events. Use `run` for headless scripts that just want the runtime without UI.
+By default, `uzumaki <entry>` runs your script in **GUI mode** — it boots Uzumaki, opens windows, and dispatches events. Use `run` for headless scripts that just want the JavaScript engine without any UI.
 
 ```sh
 uzumaki ./app.tsx              # GUI mode (alias for `dev`)
@@ -21,7 +21,7 @@ uzumaki dev ./app.tsx          # GUI mode, explicit
 uzumaki run ./script.ts        # headless mode, no window
 ```
 
-Anything after the entry file is forwarded to your script as runtime args:
+Anything after the entry file is forwarded to your script as arguments:
 
 ```sh
 uzumaki ./app.tsx --port 3000
@@ -32,7 +32,7 @@ uzumaki ./app.tsx --port 3000
 | Command           | Use it for                                                             |
 | ----------------- | ---------------------------------------------------------------------- |
 | `uzumaki <entry>` | Run a TypeScript or JavaScript file in GUI mode.                       |
-| `uzumaki dev`     | Same as the bare form — runs an entry in the interactive runtime.      |
+| `uzumaki dev`     | Same as the bare form — opens an entry in a native window.             |
 | `uzumaki run`     | Run an entry in headless mode (no window).                             |
 | `uzumaki create`  | Create a new project in a new directory. Prompts when name is omitted. |
 | `uzumaki init`    | Initialize the current directory as a new project.                     |

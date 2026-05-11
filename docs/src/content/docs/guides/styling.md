@@ -1,9 +1,9 @@
 ---
-title: Style Native UI
+title: Style Your UI
 description: Use Uzumaki layout, typography, color, variants, and scrolling props.
 ---
 
-Uzumaki has no CSS. Layout, color, typography, variants, and scrolling are all element props on native elements like `<view>`, `<text>`, and `<button>`.
+Uzumaki has no CSS. Layout, color, typography, variants, and scrolling are all props on elements like `<view>`, `<text>`, and `<button>`.
 
 ## Create a Layout Shell
 
@@ -75,10 +75,10 @@ State variants work best for visual props such as color, opacity, border, outlin
   gap={8}
 >
   <text fontSize={13} color="#a1a1aa">
-    Runtime
+    Status
   </text>
   <text fontSize={22} fontWeight={800}>
-    Native window ready
+    Window ready
   </text>
   <text color="#d4d4d8" textWrap="wrap">
     This card is styled entirely with Uzumaki props.
@@ -105,7 +105,7 @@ Use `scroll` for both axes, or `scrollX` and `scrollY` for one direction.
 
 ## Use `rem`
 
-`"1rem"` resolves from the window's `remBase`.
+`"1rem"` resolves from the window's `remBase`, so changing one number rescales the whole app.
 
 ```ts
 window.remBase = 16;
@@ -114,5 +114,3 @@ window.remBase = 16;
 ```tsx
 <text fontSize="1.25rem">Readable text</text>
 ```
-
-Use this when you want a whole app to scale from one setting.

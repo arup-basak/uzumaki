@@ -3,7 +3,7 @@ title: Load Images and Resources
 description: Bundle assets and resolve them at runtime with Uz.path.
 ---
 
-Desktop apps need predictable asset paths in development and packaged builds. Uzumaki solves this with `bundle.resources` and `Uz.path.resource(...)`.
+Desktop apps need predictable asset paths in both development and packaged builds. Uzumaki handles this with `bundle.resources` and `Uz.path.resource(...)`.
 
 ## Add Resources to the Config
 

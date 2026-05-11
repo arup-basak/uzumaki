@@ -3,7 +3,7 @@ title: Events
 description: Event handlers, event objects, propagation, and lifecycle events.
 ---
 
-Uzumaki events are runtime events. They are modeled after DOM event flow, but they move through the Uzumaki element tree.
+Uzumaki events follow the same capture, target, and bubble flow as DOM events, but they travel through the Uzumaki element tree.
 
 ## Handler Props
 

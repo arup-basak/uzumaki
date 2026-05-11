@@ -3,27 +3,51 @@ title: Props
 description: Layout, style, interaction, and state props.
 ---
 
-Uzumaki style props are runtime attributes. They are shared by most elements.
+Style props are set directly on Uzumaki elements. Most props are shared across elements.
 
 ## Values
 
-Numbers are logical pixels:
+### Lengths
+
+Numbers are logical pixels. Strings can carry a unit or a keyword.
 
 ```tsx
-<view p={16} rounded={12} />
+<view p={16} fontSize="1.25rem" w="100%" h="full" m="auto" />
 ```
 
-Strings can express relative or special values:
+| Form       | Example                   | Where it works                          |
+| ---------- | ------------------------- | --------------------------------------- |
+| Number     | `p={16}`, `fontSize={14}` | Any length prop. Unit is pixels.        |
+| `"<n>"`    | `w="200"`                 | Same as a number.                       |
+| `"<n>px"`  | `w="200px"`               | Same as a number.                       |
+| `"<n>rem"` | `fontSize="1.25rem"`      | Scaled by `window.remBase`.             |
+| `"<n>%"`   | `w="50%"`                 | Sizing and inset props.                 |
+| `"full"`   | `h="full"`                | Sizing and inset props. Same as `100%`. |
+| `"auto"`   | `m="auto"`, `w="auto"`    | Sizing, inset, and margin.              |
 
-```tsx
-<view w="100%" h="full" m="auto" fontSize="1.25rem" />
-```
+`gap` accepts the same forms as sizing except `auto`.
 
-Colors are hex strings:
+### Colors
+
+Hex, named CSS colors, and `rgb()` / `rgba()` are all accepted.
 
 ```tsx
 <text color="#f4f4f5" />
+<view bg="slategray" border={1} borderColor="rgba(255, 255, 255, 0.1)" />
 ```
+
+| Form     | Example                                                       |
+| -------- | ------------------------------------------------------------- |
+| Hex      | `"#f4f4f5"`, `"#fff"`, `"#0008"`, `"#11223344"`               |
+| Named    | `"red"`, `"slategray"`, `"rebeccapurple"`, `"transparent"`, … |
+| `rgb()`  | `"rgb(20, 30, 40)"`                                           |
+| `rgba()` | `"rgba(20, 30, 40, 0.5)"` or `"rgba(20, 30, 40, 128)"`        |
+
+All standard CSS named colors are supported. Alpha in `rgba()` accepts either a `0`–`1` float or a `0`–`255` integer.
+
+### Booleans
+
+Boolean props accept `true`/`false`. When passed as a string, these values count as `false`: `""`, `"0"`, `"false"`, `"hidden"`, `"none"`, `"no"`, `"off"`. Everything else is `true`.
 
 ## Size and Spacing
 
@@ -44,30 +68,50 @@ Colors are hex strings:
 
 ## Flex
 
-| Prop                             | Values                                                  |
-| -------------------------------- | ------------------------------------------------------- |
-| `flexDir`                        | `row`, `col`, `column`                                  |
-| `flexWrap`                       | `nowrap`, `wrap`, `wrap-reverse`                        |
-| `flex`, `flexGrow`, `flexShrink` | Number, string, or `true` for `flex`                    |
-| `items`                          | `start`, `end`, `center`, `stretch`, `baseline`         |
-| `justify`                        | `start`, `end`, `center`, `between`, `around`, `evenly` |
-| `gap`                            | Number or string                                        |
+| Prop         | Values                                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `flexDir`    | `row`, `col` / `column`, `row-reverse`, `col-reverse`                                                                                   |
+| `flexWrap`   | `nowrap` / `no-wrap`, `wrap`, `wrap-reverse`                                                                                            |
+| `flex`       | `true`, number, or a `flexDir` string (sets `display:flex` and direction)                                                               |
+| `flexGrow`   | Number                                                                                                                                  |
+| `flexShrink` | Number                                                                                                                                  |
+| `items`      | `start` / `flex-start`, `end` / `flex-end`, `center`, `stretch`, `baseline`                                                             |
+| `justify`    | `start` / `flex-start`, `end` / `flex-end`, `center`, `between` / `space-between`, `around` / `space-around`, `evenly` / `space-evenly` |
+| `gap`        | Number or string                                                                                                                        |
 
 ```tsx
 <view display="flex" flexDir="row" items="center" justify="between" gap={12} />
 ```
 
+`flex` accepts a direction string as a shortcut — `<view flex="col" />` is the same as `<view display="flex" flexDir="col" />`.
+
 ## Color and Typography
 
-| Prop                                   | Values                                               |
-| -------------------------------------- | ---------------------------------------------------- |
-| `bg`, `color`                          | Hex color                                            |
-| `opacity`                              | Number or string                                     |
-| `visibility`                           | `visible`, `hidden`                                  |
-| `fontSize`, `fontWeight`, `fontFamily` | Number or string                                     |
-| `textAlign`                            | `left`, `center`, `right`, `start`, `end`, `justify` |
-| `textWrap`                             | `wrap`, `nowrap`, `anywhere`, `break-word`           |
-| `wordBreak`                            | `normal`, `break-all`, `keep-all`                    |
+| Prop          | Values                                               |
+| ------------- | ---------------------------------------------------- |
+| `bg`, `color` | Hex color                                            |
+| `opacity`     | Number or string                                     |
+| `visibility`  | `visible`, `hidden`                                  |
+| `fontSize`    | Number or string                                     |
+| `fontWeight`  | Number (`100`–`900`) or name (see below)             |
+| `fontFamily`  | String                                               |
+| `textAlign`   | `left`, `center`, `right`, `start`, `end`, `justify` |
+| `textWrap`    | `wrap`, `nowrap` / `none`, `anywhere`, `break-word`  |
+| `wordBreak`   | `normal`, `break-all`, `keep-all`                    |
+
+`fontWeight` accepts a numeric weight or one of these names:
+
+| Name                                                        | Number |
+| ----------------------------------------------------------- | ------ |
+| `thin`                                                      | `100`  |
+| `extra-light` / `extralight` / `ultra-light` / `ultralight` | `200`  |
+| `light`                                                     | `300`  |
+| `normal` / `regular`                                        | `400`  |
+| `medium`                                                    | `500`  |
+| `semi-bold` / `semibold` / `demi-bold` / `demibold`         | `600`  |
+| `bold`                                                      | `700`  |
+| `extra-bold` / `extrabold` / `ultra-bold` / `ultrabold`     | `800`  |
+| `black` / `heavy`                                           | `900`  |
 
 ## Borders, Corners, and Outlines
 

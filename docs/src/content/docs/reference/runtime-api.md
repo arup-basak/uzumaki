@@ -3,7 +3,7 @@ title: Runtime API
 description: Imperative APIs from the built-in uzumaki module.
 ---
 
-Most apps use React through `uzumaki-react`, but the `uzumaki` module is also usable on its own. Reach for it when you want window control, clipboard access, resource paths, or imperative element work outside of React.
+Most apps drive Uzumaki through React, but the built-in `uzumaki` module is also usable on its own. Reach for it when you want window control, clipboard access, resource paths, or to build an element tree imperatively without React.
 
 ## Importing
 
@@ -19,7 +19,7 @@ import {
 } from 'uzumaki';
 ```
 
-`uzumaki` is provided by the runtime. Do not bundle it into your app.
+Uzumaki provides this module when your app runs. Do not bundle it into your app.
 
 ## Main Exports
 
@@ -27,12 +27,12 @@ import {
 | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | `Window`, `getWindow`                                                                                                         | Create and look up native windows.           |
 | `UzNode`, `UzTextNode`                                                                                                        | Base tree node APIs.                         |
-| `Element`, `UzElement`                                                                                                        | Runtime element APIs.                        |
+| `Element`, `UzElement`                                                                                                        | Element base classes.                        |
 | `UzRootElement`, `UzViewElement`, `UzTextElement`, `UzButtonElement`, `UzInputElement`, `UzCheckboxElement`, `UzImageElement` | Built-in element classes.                    |
 | `Clipboard`                                                                                                                   | Read and write text clipboard contents.      |
-| `EventEmitter`                                                                                                                | Local event emitter used by runtime objects. |
+| `EventEmitter`                                                                                                                | Local event emitter used by Uzumaki objects. |
 | `UzEvent`, `EventType`, `EventPhase`                                                                                          | Event objects and enums.                     |
-| `RUNTIME_VERSION`                                                                                                             | Numeric runtime version.                     |
+| `RUNTIME_VERSION`                                                                                                             | Version of Uzumaki running your app.         |
 
 ## Build a Tree Imperatively
 
@@ -108,7 +108,7 @@ button.on('keydown', (event) => {
 });
 ```
 
-Handlers receive Uzumaki event objects. See [Events](/reference/events/) for event fields.
+Handlers receive Uzumaki event objects. See [Events](/reference/events/) for the fields on each event.
 
 ## Window Control
 

@@ -61,7 +61,7 @@ Always mark `uzumaki` as external:
 bun build src/index.tsx --target node --outdir dist --minify --external uzumaki
 ```
 
-The runtime provides the `uzumaki` module at execution time. Bundling it into your app would produce the wrong module.
+Uzumaki provides the `uzumaki` module when your app runs. Bundling it into your app would produce the wrong module.
 
 Any bundler that can externalize a module works — `bun build`, esbuild, Rollup, tsup, and so on. The scaffolded command uses `bun build` because it is fast and ships with the toolchain.
 

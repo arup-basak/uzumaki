@@ -3,11 +3,11 @@ title: Installation
 description: Install the Uzumaki CLI and verify your local environment.
 ---
 
-Uzumaki apps run through the Uzumaki CLI. Install it first, then use the CLI to scaffold, run, and package apps.
+Uzumaki apps run through the `uzumaki` CLI. Install it first, then use the CLI to scaffold, run, and package apps.
 
 ## Requirements
 
-The Uzumaki CLI is the only requirement. Uzumaki is built on Deno, so it ships a full JavaScript and TypeScript runtime. You do not need Node.js, Deno, or Bun installed to run apps. To install app dependencies like React you need any package manager (`pnpm`, `npm`, `yarn`, or `bun` all work — examples below use `pnpm`).
+The `uzumaki` CLI is the only requirement. It ships JavaScript and TypeScript built in (Uzumaki is built on Deno), so you do not need Node.js, Deno, or Bun installed to run apps. To install app dependencies like React you need any package manager — `pnpm`, `npm`, `yarn`, and `bun` all work. Examples below use `pnpm`.
 
 ## Install the CLI
 
@@ -40,7 +40,7 @@ pnpm install
 pnpm dev
 ```
 
-The dev command starts your app in the native runtime. There is no browser tab to open. Swap `pnpm` for `npm`, `yarn`, or `bun` if you prefer.
+The dev command opens your app in a native window. There is no browser tab to open. Swap `pnpm` for `npm`, `yarn`, or `bun` if you prefer.
 
 ## Common Commands
 
