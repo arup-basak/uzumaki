@@ -87,6 +87,7 @@ export interface CoreNode {
   setBoolAttribute(name: string, value: boolean): void;
   removeAttribute(name: string): void;
   getAttribute(name: string): unknown;
+  scrollIntoView(block: number, inline: number): void;
 }
 
 interface Core {
