@@ -599,24 +599,28 @@ fn get_attribute(
     })
 }
 
-#[op2(fast)]
+#[op2]
+#[smi]
 pub fn op_focus_element(
     state: &mut OpState,
     #[smi] window_id: u32,
     #[smi] node_id: u32,
-) -> Result<(), deno_error::JsErrorBox> {
+) -> Result<Option<u32>, deno_error::JsErrorBox> {
     let nid = node_id as UzNodeId;
     let app_state = state.borrow::<SharedAppState>().clone();
     with_state(&app_state, |s| {
         let Some(entry) = s.windows.get_mut(&window_id) else {
             return Err(window_not_found());
         };
+        if entry.dom.focused_node == Some(nid) {
+            return Ok(None);
+        }
         entry.dom.focus_element(nid);
         entry.dom.request_scroll_focus_into_view(nid);
         if let Some(handle) = entry.handle.as_ref() {
             handle.winit_window.request_redraw();
         }
-        Ok(())
+        Ok(Some(nid as u32))
     })
 }
 
